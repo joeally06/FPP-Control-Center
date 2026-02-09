@@ -76,7 +76,7 @@
     "concurrently": "^9.2.1",
     "esbuild-register": "^3.6.0",
     "eslint": "^9",
-    "eslint-config-next": "16.0.0",
+    "eslint-config-next": "16.1.6",
     "node-fetch": "^2.7.0",
     "tailwindcss": "^4",
     "typescript": "^5"
