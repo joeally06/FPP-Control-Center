@@ -283,9 +283,10 @@ print_step "Creating tunnel configuration..."
 
 mkdir -p ~/.cloudflared
 
+CLOUDFLARED_HOME="$HOME/.cloudflared"
 cat > ~/.cloudflared/config.yml << EOF
 tunnel: $TUNNEL_ID
-credentials-file: $HOME/.cloudflared/$TUNNEL_ID.json
+credentials-file: $CLOUDFLARED_HOME/$TUNNEL_ID.json
 
 ingress:
   - hostname: $DOMAIN
@@ -418,19 +419,6 @@ print_header "Step 7: Installing Tunnel Service"
 
 print_step "Installing cloudflared as a system service..."
 
-# Check for conflicting config files
-if [ -f "/etc/cloudflared/config.yml" ]; then
-    print_warning "Found existing config in /etc/cloudflared/config.yml"
-    
-    if confirm "Remove old config and use the new one?"; then
-        print_step "Removing old configuration..."
-        sudo rm -f /etc/cloudflared/config.yml
-        print_success "Old config removed"
-    else
-        print_info "Keeping both configs - using ~/.cloudflared/config.yml"
-    fi
-fi
-
 # Uninstall existing service if present (to avoid conflicts)
 if systemctl is-active --quiet cloudflared 2>/dev/null; then
     print_step "Stopping existing cloudflared service..."
@@ -442,19 +430,59 @@ if systemctl is-enabled --quiet cloudflared 2>/dev/null; then
     sudo cloudflared service uninstall 2>/dev/null || true
 fi
 
-# Install service with explicit config path
-print_step "Installing new service..."
-sudo cloudflared --config ~/.cloudflared/config.yml service install
+# Copy credentials and config to /etc/cloudflared so the system service
+# (which runs as root) can reliably find them regardless of home directory.
+print_step "Installing configuration for system service..."
+sudo mkdir -p /etc/cloudflared
+
+# Copy the credentials JSON to the system config dir
+CREDS_SRC="$HOME/.cloudflared/$TUNNEL_ID.json"
+if [ -f "$CREDS_SRC" ]; then
+    sudo cp "$CREDS_SRC" "/etc/cloudflared/$TUNNEL_ID.json"
+    sudo chmod 600 "/etc/cloudflared/$TUNNEL_ID.json"
+    print_success "Credentials copied to /etc/cloudflared/"
+else
+    print_error "Credentials file not found: $CREDS_SRC"
+    exit 1
+fi
+
+# Write the system config with an absolute credentials path
+sudo tee /etc/cloudflared/config.yml > /dev/null << EOF
+tunnel: $TUNNEL_ID
+credentials-file: /etc/cloudflared/$TUNNEL_ID.json
+
+ingress:
+  - hostname: $DOMAIN
+    service: http://localhost:3000
+  - service: http_status:404
+EOF
+
+print_success "System config written to /etc/cloudflared/config.yml"
+
+# Install service pointing at the system config
+print_step "Installing cloudflared system service..."
+sudo cloudflared --config /etc/cloudflared/config.yml service install
 
 print_success "Service installed"
 
 # Start the tunnel
 print_step "Starting tunnel..."
-
+sudo systemctl daemon-reload
 sudo systemctl start cloudflared
 sudo systemctl enable cloudflared
 
-print_success "Tunnel started and enabled"
+# Verify it actually started
+sleep 3
+if systemctl is-active --quiet cloudflared; then
+    print_success "Tunnel started and enabled"
+else
+    print_error "Tunnel service failed to start"
+    echo ""
+    echo -e "${YELLOW}Run these commands to diagnose:${NC}"
+    echo "  sudo systemctl status cloudflared"
+    echo "  sudo journalctl -xeu cloudflared --no-pager | tail -30"
+    exit 1
+fi
 
 # Final instructions
 clear
