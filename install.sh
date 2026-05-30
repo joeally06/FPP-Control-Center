@@ -12,6 +12,19 @@ echo ""
 # Check system dependencies
 node scripts/check-dependencies.js || exit 1
 
+# Ensure C++ build tools are present (required by better-sqlite3)
+if command -v apt-get &> /dev/null; then
+    if ! command -v make &> /dev/null; then
+        echo "⚠ Build tools missing — installing build-essential..."
+        sudo apt-get install -y build-essential python3-dev
+    fi
+elif command -v yum &> /dev/null; then
+    if ! command -v make &> /dev/null; then
+        echo "⚠ Build tools missing — installing gcc/make..."
+        sudo yum install -y gcc-c++ make python3-devel
+    fi
+fi
+
 echo ""
 # Install dependencies
 echo "📦 Installing dependencies..."

@@ -268,6 +268,10 @@ install_dependencies_debian() {
         sudo apt-get install -y git
         print_success "Git installed successfully"
     fi
+
+    print_step "Installing build tools (required for native modules)..."
+    sudo apt-get install -y build-essential python3-dev
+    print_success "Build tools installed"
 }
 
 install_dependencies_redhat() {
@@ -298,6 +302,10 @@ install_dependencies_redhat() {
         sudo yum install -y git
         print_success "Git installed successfully"
     fi
+
+    print_step "Installing build tools (required for native modules)..."
+    sudo yum install -y gcc-c++ make python3-devel
+    print_success "Build tools installed"
 }
 
 install_dependencies() {
@@ -532,6 +540,21 @@ done
 # STEP 3: Install Dependencies
 # ═══════════════════════════════════════════════════════════
 show_progress 3 "Installing Dependencies"
+
+# Ensure build tools are present before native module compilation
+if command -v apt-get &> /dev/null; then
+    if ! command -v make &> /dev/null; then
+        print_warning "Build tools missing — installing build-essential..."
+        sudo apt-get install -y build-essential python3-dev
+        print_success "Build tools installed"
+    fi
+elif command -v yum &> /dev/null; then
+    if ! command -v make &> /dev/null; then
+        print_warning "Build tools missing — installing gcc/make..."
+        sudo yum install -y gcc-c++ make python3-devel
+        print_success "Build tools installed"
+    fi
+fi
 
 print_step "Installing npm dependencies..."
 npm install
