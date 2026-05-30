@@ -517,7 +517,7 @@ export default function AnalyticsPage() {
                       borderRadius: '8px',
                       color: '#fff'
                     }}
-                    formatter={(value: any, name: string | undefined) => {
+                    formatter={(value: any, name: string | number | undefined) => {
                       if (name === 'votes') return [value, 'Votes'];
                       if (name === 'rating') return [Number(value).toFixed(1), 'Rating'];
                       return [value, name ?? ''];
