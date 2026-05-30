@@ -1,6 +1,5 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   // Read allowed origins from environment variable, fallback to localhost
   allowedDevOrigins: process.env.ALLOWED_DEV_ORIGINS
     ? process.env.ALLOWED_DEV_ORIGINS.split(',')
@@ -8,7 +7,7 @@ const nextConfig: NextConfig = {
   
   async headers() {
     const isProd = process.env.NODE_ENV === 'production';
-    const baseHeaders: Array<{ key: string; value: string }> = [
+    const baseHeaders = [
       {
         key: 'Content-Security-Policy',
         value: [
@@ -64,4 +63,4 @@ const nextConfig: NextConfig = {
   }
 };
 
-export default nextConfig;
+module.exports = nextConfig;

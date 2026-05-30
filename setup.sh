@@ -561,7 +561,7 @@ npm install
 
 print_step "Updating dependencies..."
 npm update
-npm audit fix --force 2>/dev/null || true
+npm audit fix 2>/dev/null || true
 
 print_success "Dependencies installed and updated"
 
