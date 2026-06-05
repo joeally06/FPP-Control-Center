@@ -6,6 +6,7 @@ import AdminNavigation from '@/components/AdminNavigation';
 import UpdateChecker from '@/components/UpdateChecker';
 import BannerSettings from '@/components/admin/BannerSettings';
 import GameSettings from '@/components/admin/GameSettings';
+import DisplaySettings from '@/components/admin/DisplaySettings';
 import { formatDateTime } from '@/lib/time-utils';
 import { getModelWarning, getColorClasses, requiresConfirmation, getEstimatedResponseTime } from '@/lib/model-warnings';
 import { 
@@ -24,7 +25,7 @@ import {
 } from '@/components/admin/Typography';
 import Link from 'next/link';
 
-type SettingSection = 'themes' | 'santa' | 'monitoring' | 'database' | 'updates' | 'youtube' | 'jukebox' | 'location' | 'games';
+type SettingSection = 'themes' | 'santa' | 'monitoring' | 'database' | 'updates' | 'youtube' | 'jukebox' | 'location' | 'games' | 'display';
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<SettingSection>('themes');
@@ -135,6 +136,16 @@ export default function SettingsPage() {
               >
                 🎮 Game Settings
               </button>
+              <button
+                onClick={() => setActiveSection('display')}
+                className={`w-full text-left px-4 py-3 rounded-lg transition-all font-semibold ${
+                  activeSection === 'display'
+                    ? 'bg-white text-black shadow-lg'
+                    : 'text-white hover:bg-white/10'
+                }`}
+              >
+                📺 Digital Sign
+              </button>
             </div>
           </div>
 
@@ -149,6 +160,7 @@ export default function SettingsPage() {
             {activeSection === 'jukebox' && <JukeboxSettings />}
             {activeSection === 'location' && <LocationRestrictions />}
             {activeSection === 'games' && <GameSettingsSection />}
+            {activeSection === 'display' && <DisplaySettings />}
           </div>
         </div>
       </div>

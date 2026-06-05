@@ -140,34 +140,47 @@ echo ""
 # Step 6: Start application with PM2
 echo "🚀 Step 6: Starting application with PM2..."
 
-# Stop existing instance if running
-pm2 stop fpp-control 2>/dev/null || true
+# Stop all managed instances and reload from ecosystem.config.js
+pm2 stop fpp-control  2>/dev/null || true
+pm2 stop fpp-poller   2>/dev/null || true
 pm2 delete fpp-control 2>/dev/null || true
+pm2 delete fpp-poller  2>/dev/null || true
 
-# Start new instance
-pm2 start npm --name "fpp-control" -- start
+# Start both fpp-control and fpp-poller via ecosystem config
+pm2 start ecosystem.config.js
 
 if [ $? -ne 0 ]; then
-    echo "❌ Failed to start application"
+    echo "❌ Failed to start services"
     exit 1
 fi
 
-echo "✅ Application started"
+# Give processes a moment to stabilise
+sleep 3
+
+RUNNING=$(pm2 jlist 2>/dev/null | grep -c '"status":"online"' || echo "0")
+if [ "$RUNNING" -ge 2 ]; then
+    echo "✅ Both services started successfully (fpp-control + fpp-poller)"
+else
+    echo "⚠️  Warning: expected 2 online processes, found $RUNNING"
+    pm2 status
+fi
 echo ""
 
-# Step 7: Save PM2 configuration
-echo "💾 Step 7: Saving PM2 configuration..."
-pm2 save
+# Step 7: Register with systemd and save PM2 process list
+echo "🔧 Step 7: Configuring PM2 auto-start on reboot..."
 
-# Setup PM2 startup (requires sudo on most systems)
-echo ""
-echo "🔧 Setting up PM2 auto-start..."
-echo "⚠️  This may require administrator privileges"
-echo ""
-pm2 startup
+# Capture the startup command pm2 generates (it requires sudo to register systemd)
+STARTUP_CMD=$(pm2 startup 2>&1 | grep -E '^sudo |^env PATH' | head -1)
+if [ -n "$STARTUP_CMD" ]; then
+    echo "   Running: $STARTUP_CMD"
+    eval "$STARTUP_CMD" || echo "⚠️  Could not run startup command automatically. Run it manually:"
+else
+    echo "ℹ️  PM2 startup already configured or no command needed."
+fi
 
-echo ""
-echo "ℹ️  If the command above shows a sudo command, run it to enable auto-start"
+# Save the current process list AFTER startup is registered
+pm2 save --force
+echo "✅ PM2 process list saved (fpp-control + fpp-poller will restart after reboot)"
 echo ""
 
 # Display status
@@ -175,14 +188,15 @@ echo "✅ Deployment Complete!"
 echo ""
 echo "📋 Summary:"
 echo "  Application: FPP Control Center"
-echo "  Process: fpp-control"
-echo "  Port: 3000 (or from .env.local)"
+echo "  Processes:   fpp-control (web, port 3000) + fpp-poller (FPP state poller)"
 echo ""
 echo "🔍 Monitoring Commands:"
-echo "  View logs:    pm2 logs fpp-control"
-echo "  View status:  pm2 status"
-echo "  Restart app:  pm2 restart fpp-control"
-echo "  Stop app:     pm2 stop fpp-control"
+echo "  View all status:      pm2 status"
+echo "  View app logs:        pm2 logs fpp-control"
+echo "  View poller logs:     pm2 logs fpp-poller"
+echo "  Restart all:          pm2 restart ecosystem.config.js"
+echo "  Restart app only:     pm2 restart fpp-control"
+echo "  Stop all:             pm2 stop ecosystem.config.js"
 echo ""
 
 # Check if Cloudflare Tunnel is configured

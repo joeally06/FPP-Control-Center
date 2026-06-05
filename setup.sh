@@ -1326,7 +1326,6 @@ pm2 delete fpp-poller 2>/dev/null || true
 
 print_step "Starting FPP Control Center services..."
 pm2 start ecosystem.config.js
-pm2 save
 
 # Verify services
 sleep 3
@@ -1339,10 +1338,21 @@ else
     print_info "Check logs: pm2 logs"
 fi
 
-# Setup auto-start
+# Setup auto-start on boot
 echo ""
 print_step "Setting up auto-start on system boot..."
-pm2 startup 2>/dev/null || true
+
+# pm2 startup outputs a shell command that must be run to register with systemd.
+# Capture it and run it automatically; if sudo isn't available, print it for the user.
+STARTUP_CMD=$(pm2 startup 2>&1 | grep -E '^sudo |^env PATH' | head -1)
+if [ -n "$STARTUP_CMD" ]; then
+    print_info "Running: $STARTUP_CMD"
+    eval "$STARTUP_CMD" || print_warning "Could not run startup command automatically. Run it manually and then: pm2 save"
+fi
+
+# Save the process list AFTER the startup hook is registered
+pm2 save --force
+print_success "PM2 configured to auto-start fpp-control and fpp-poller on reboot"
 
 # ═══════════════════════════════════════════════════════════
 # SETUP COMPLETE

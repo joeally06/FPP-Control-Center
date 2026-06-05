@@ -556,6 +556,33 @@ db.exec(`
   VALUES ('ollama_model', 'llama3.2:latest', 'AI model for Santa letter replies', 'santa');
 `);
 
+// Ensure display (digital sign) settings exist
+db.exec(`
+  INSERT OR IGNORE INTO settings (key, value, description, category) VALUES
+    ('display_show_name',         'Christmas Light Show',    'Show name shown on the idle screen',         'display'),
+    ('display_show_qr',           'true',                    'Show QR code on the display',                'display'),
+    ('display_queue_count',       '4',                       'Number of upcoming songs to show (1-5)',      'display'),
+    ('display_enabled',           'true',                    'Enable the /display page (digital sign)',     'display'),
+    ('display_color_theme',       'christmas',               'Color theme preset',                         'display'),
+    ('display_accent_color',      '#ef4444',                 'Custom accent color (hex)',                   'display'),
+    ('display_background_style',  'gradient',                'Background style: solid/gradient/particles',  'display'),
+    ('display_font_style',        'modern',                  'Font style: modern/display/serif',            'display'),
+    ('display_font_scale',        '100',                     'Global font scale percentage (75-150)',        'display'),
+    ('display_layout_variant',    'sidebar',                 'Layout: sidebar/centered/minimal',            'display'),
+    ('display_album_art_size',    '34',                      'Album art column width percent (20-50)',       'display'),
+    ('display_queue_position',    'bottom',                  'Queue position: bottom/right/hidden',         'display'),
+    ('display_idle_message',      'The show will begin shortly', 'Subtitle on idle screen',                'display'),
+    ('display_logo_url',          '',                        'URL of logo image (replaces tree emoji)',     'display'),
+    ('display_sponsor_text',      '',                        'Sponsor or attribution text at bottom',      'display'),
+    ('display_fm_frequency',      '',                        'FM radio frequency badge (e.g. 90.1)',        'display'),
+    ('display_idle_animation',    'snowflakes',              'Idle animation: snowflakes/notes/stars/none', 'display'),
+    ('display_show_clock',        'true',                    'Show large clock on idle screen',             'display'),
+    ('display_idle_background_url', '',                      'URL for idle screen background image',       'display'),
+    ('display_ticker_text',       '',                        'Scrolling ticker text at the bottom',        'display'),
+    ('display_announcement_text', '',                        'Active announcement text',                    'display'),
+    ('display_announcement_expires', '0',                   'Announcement expiry (unix timestamp)',        'display');
+`);
+
 // Voting prepared statements
 export const insertVote = db.prepare(`
   INSERT OR REPLACE INTO votes (sequence_name, vote_type, user_ip)
