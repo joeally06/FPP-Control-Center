@@ -236,14 +236,14 @@ export default function DisplaySettings() {
           <label htmlFor="ds-enabled" className="text-white text-sm">Enable digital sign</label>
         </div>
         <div>
-          <label className={labelClass}>Show name</label>
+          <label className={labelClass}>Show name <span className="text-white/40 font-normal">(optional)</span></label>
           <input
             type="text"
             value={config.showName}
             onChange={(e) => set('showName', e.target.value)}
             maxLength={100}
             className={inputClass}
-            placeholder="Christmas Light Show"
+            placeholder="Leave blank to hide"
           />
         </div>
         <div>
@@ -422,73 +422,117 @@ export default function DisplaySettings() {
       {/* Idle screen */}
       <div className={sectionClass}>
         <h3 className="text-white font-semibold">Idle Screen</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className={labelClass}>Idle message</label>
-            <input
-              type="text"
-              value={config.idleMessage}
-              onChange={(e) => set('idleMessage', e.target.value)}
-              maxLength={150}
-              className={inputClass}
-              placeholder="The show will begin shortly"
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Idle animation</label>
-            <select
-              value={config.idleAnimation}
-              onChange={(e) => set('idleAnimation', e.target.value as IdleAnimation)}
-              className={selectClass}
-            >
-              <option value="snowflakes" className="bg-gray-900 text-white">❄️ Snowflakes</option>
-              <option value="notes" className="bg-gray-900 text-white">🎵 Music notes</option>
-              <option value="stars" className="bg-gray-900 text-white">✦ Stars</option>
-              <option value="none" className="bg-gray-900 text-white">None</option>
-            </select>
-          </div>
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="ds-showClock"
-              checked={config.showClock}
-              onChange={(e) => set('showClock', e.target.checked)}
-              className="w-4 h-4 rounded"
-            />
-            <label htmlFor="ds-showClock" className="text-white text-sm">Show clock</label>
-          </div>
+
+        {/* Mode selector */}
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => set('slideshowUrl', '')}
+            className={`py-3 px-4 rounded-lg border-2 text-sm font-semibold transition-colors text-left ${
+              !config.slideshowUrl
+                ? 'border-blue-400 bg-blue-500/20 text-white'
+                : 'border-white/20 bg-white/5 text-white/50 hover:bg-white/10'
+            }`}
+          >
+            🎨 Custom Display
+            <span className="block text-xs font-normal mt-0.5 opacity-70">Logo, clock, QR code, animations</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!config.slideshowUrl) set('slideshowUrl', 'https://');
+            }}
+            className={`py-3 px-4 rounded-lg border-2 text-sm font-semibold transition-colors text-left ${
+              config.slideshowUrl
+                ? 'border-blue-400 bg-blue-500/20 text-white'
+                : 'border-white/20 bg-white/5 text-white/50 hover:bg-white/10'
+            }`}
+          >
+            📊 Google Slides
+            <span className="block text-xs font-normal mt-0.5 opacity-70">Full-screen slideshow</span>
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
-          <ImageUpload
-            label="Logo image (optional)"
-            currentUrl={config.logoUrl}
-            slot="logo"
-            onUploaded={(url) => set('logoUrl', url)}
-            onClear={() => set('logoUrl', '')}
-          />
-          <ImageUpload
-            label="Idle background image (optional)"
-            currentUrl={config.idleBackgroundUrl}
-            slot="background"
-            onUploaded={(url) => set('idleBackgroundUrl', url)}
-            onClear={() => set('idleBackgroundUrl', '')}
-          />
-        </div>
+        {/* Google Slides mode */}
+        {config.slideshowUrl !== undefined && config.slideshowUrl !== '' ? (
+          <div className="space-y-3">
+            <div>
+              <label className={labelClass}>Google Slides publish URL</label>
+              <input
+                type="url"
+                value={config.slideshowUrl}
+                onChange={(e) => set('slideshowUrl', e.target.value)}
+                maxLength={500}
+                className={inputClass}
+                placeholder="https://docs.google.com/presentation/d/e/…/pub?start=true&loop=true&delayms=8000"
+              />
+              <p className="text-white/40 text-xs mt-1">
+                In Google Slides: <strong className="text-white/60">File → Share → Publish to web → Embed tab</strong> — copy the <code className="bg-black/30 px-1 rounded">src="…"</code> value. Both <code className="bg-black/30 px-1 rounded">/pub</code> and <code className="bg-black/30 px-1 rounded">/embed</code> URLs work.
+              </p>
+            </div>
+            <p className="text-white/40 text-xs bg-white/5 rounded-lg px-3 py-2 border border-white/10">
+              ℹ️ While Google Slides is active, all custom display elements (logo, show name, clock, QR code, animations, ticker) are hidden. Only announcements will overlay the slideshow.
+            </p>
+          </div>
+        ) : (
+          /* Custom display mode */
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>Idle message</label>
+                <input
+                  type="text"
+                  value={config.idleMessage}
+                  onChange={(e) => set('idleMessage', e.target.value)}
+                  maxLength={150}
+                  className={inputClass}
+                  placeholder="The show will begin shortly"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Idle animation</label>
+                <select
+                  value={config.idleAnimation}
+                  onChange={(e) => set('idleAnimation', e.target.value as IdleAnimation)}
+                  className={selectClass}
+                >
+                  <option value="snowflakes" className="bg-gray-900 text-white">❄️ Snowflakes</option>
+                  <option value="notes" className="bg-gray-900 text-white">🎵 Music notes</option>
+                  <option value="stars" className="bg-gray-900 text-white">✦ Stars</option>
+                  <option value="none" className="bg-gray-900 text-white">None</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="ds-showClock"
+                  checked={config.showClock}
+                  onChange={(e) => set('showClock', e.target.checked)}
+                  className="w-4 h-4 rounded"
+                />
+                <label htmlFor="ds-showClock" className="text-white text-sm">Show clock</label>
+              </div>
+            </div>
 
-        <div>
-          <label className={labelClass}>Google Slides embed URL (optional)</label>
-          <input
-            type="url"
-            value={config.slideshowUrl}
-            onChange={(e) => set('slideshowUrl', e.target.value)}
-            maxLength={500}
-            className={inputClass}
-            placeholder="https://docs.google.com/presentation/d/…/embed?start=true&loop=true&delayms=8000"
-          />
-          <p className="text-white/40 text-xs mt-1">In Google Slides: File → Share → Publish to web → Embed. Paste the src URL here. When set, the slideshow replaces the idle screen background.</p>
-        </div>
-      </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
+              <ImageUpload
+                label="Logo image (optional)"
+                currentUrl={config.logoUrl}
+                slot="logo"
+                onUploaded={(url) => set('logoUrl', url)}
+                onClear={() => set('logoUrl', '')}
+              />
+              <ImageUpload
+                label="Idle background image (optional)"
+                currentUrl={config.idleBackgroundUrl}
+                slot="background"
+                onUploaded={(url) => set('idleBackgroundUrl', url)}
+                onClear={() => set('idleBackgroundUrl', '')}
+              />
+            </div>
+          </div>
+        )}
+      </div>{/* end Idle Screen section */}
 
       <button
         onClick={save}

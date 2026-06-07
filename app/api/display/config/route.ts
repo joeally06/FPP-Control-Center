@@ -72,9 +72,7 @@ export async function PUT(request: NextRequest) {
     };
 
     if (typeof body.showName === 'string') {
-      const v = body.showName.trim().substring(0, 100);
-      if (!v) return NextResponse.json({ error: 'Show name cannot be empty' }, { status: 400 });
-      updates['display_show_name'] = v;
+      updates['display_show_name'] = body.showName.trim().substring(0, 100);
     }
     bool('showQr',    'display_show_qr');
     clamp('queueCount', 'display_queue_count', 1, 5);

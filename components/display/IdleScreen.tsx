@@ -97,99 +97,97 @@ export default function IdleScreen({ config, jukeboxUrl, activeAnnouncement }: P
         className="relative w-screen h-screen overflow-hidden flex flex-col select-none"
         style={bgStyle}
       >
-        {/* Google Slides / embed slideshow — fills entire background */}
-        {config.slideshowUrl && (
+        {/* Announcement overlay always on top */}
+        <AnnouncementOverlay text={activeAnnouncement ?? null} accent={theme.accent} />
+
+        {config.slideshowUrl ? (
+          /* Google Slides mode: fullscreen iframe only */
           <iframe
-            src={config.slideshowUrl}
+            src={config.slideshowUrl
+              .replace('/pub?', '/embed?')
+              .replace('/pub&', '/embed&')}
             className="absolute inset-0 w-full h-full z-0"
             style={{ border: 'none', pointerEvents: 'none' }}
             allowFullScreen
           />
-        )}
-
-        {/* Dark overlay for custom background images (not slideshow) */}
-        {config.idleBackgroundUrl && !config.slideshowUrl && (
-          <div className="absolute inset-0 bg-black/55 z-0" />
-        )}
-
-        {/* â”€â”€ Animations â”€â”€ */}
-        {config.idleAnimation === 'snowflakes' && SNOWFLAKES.map(f => (
-          <span key={f.id} className="idle-anim-snow" style={{ left: f.left, animationDelay: f.delay, animationDuration: f.duration, fontSize: f.size, opacity: f.opacity }}>❄</span>
-        ))}
-        {config.idleAnimation === 'notes' && NOTES.map(f => (
-          <span key={f.id} className="idle-anim-note" style={{ left: f.left, animationDelay: f.delay, animationDuration: f.duration, fontSize: f.size, opacity: f.opacity }}>{f.char}</span>
-        ))}
-        {config.idleAnimation === 'stars' && STARS.map(f => (
-          <span key={f.id} className="idle-anim-star" style={{ left: f.left, top: f.top, animationDelay: f.delay, animationDuration: f.duration, fontSize: f.size, opacity: f.opacity }}>✦</span>
-        ))}
-
-        {/* Announcement overlay */}
-        <AnnouncementOverlay text={activeAnnouncement ?? null} accent={theme.accent} />
-
-        {/* â”€â”€ Main content â”€â”€ */}
-        <div
-          className="relative z-10 flex-1 flex flex-col items-center justify-center gap-8 text-center px-8"
-          style={{ fontFamily: theme.fontFamily }}
-        >
-          {/* Logo or tree */}
-          {config.logoUrl
-            ? <img src={config.logoUrl} alt="Logo" className="h-24 w-auto rounded-xl shadow-2xl" />
-            : <div style={{ fontSize: 'clamp(4rem, 10vw, 7rem)' }}>🎄</div>
-          }
-
-          {/* Show name + idle message */}
-          <div>
-            <h1
-              className="font-bold text-white drop-shadow-lg"
-              style={{ fontSize: 'clamp(2rem, 5vw, 4rem)' }}
-            >
-              {config.showName}
-            </h1>
-            <p className="text-white/45 mt-2" style={{ fontSize: 'clamp(1rem, 2vw, 1.5rem)' }}>
-              {config.idleMessage}
-            </p>
-            {config.fmFrequency && (
-              <p className="mt-3 font-semibold" style={{ color: theme.accent, fontSize: 'clamp(0.9rem, 1.8vw, 1.4rem)' }}>
-                📻 Tune to {config.fmFrequency} FM
-              </p>
+        ) : (
+          /* Custom display mode */
+          <>
+            {config.idleBackgroundUrl && (
+              <div className="absolute inset-0 bg-black/55 z-0" />
             )}
-          </div>
 
-          {/* Clock */}
-          {config.showClock && time && (
+            {config.idleAnimation === 'snowflakes' && SNOWFLAKES.map(f => (
+              <span key={f.id} className="idle-anim-snow" style={{ left: f.left, animationDelay: f.delay, animationDuration: f.duration, fontSize: f.size, opacity: f.opacity }}>❄</span>
+            ))}
+            {config.idleAnimation === 'notes' && NOTES.map(f => (
+              <span key={f.id} className="idle-anim-note" style={{ left: f.left, animationDelay: f.delay, animationDuration: f.duration, fontSize: f.size, opacity: f.opacity }}>{f.char}</span>
+            ))}
+            {config.idleAnimation === 'stars' && STARS.map(f => (
+              <span key={f.id} className="idle-anim-star" style={{ left: f.left, top: f.top, animationDelay: f.delay, animationDuration: f.duration, fontSize: f.size, opacity: f.opacity }}>✦</span>
+            ))}
+
             <div
-              className="font-light text-white/75 tabular-nums tracking-tight"
-              style={{ fontSize: 'clamp(3rem, 8vw, 6rem)' }}
+              className="relative z-10 flex-1 flex flex-col items-center justify-center gap-8 text-center px-8"
+              style={{ fontFamily: theme.fontFamily }}
             >
-              {time}
-            </div>
-          )}
+              {config.logoUrl
+                ? <img src={config.logoUrl} alt="Logo" className="w-auto rounded-xl shadow-2xl" style={{ maxHeight: 'clamp(12rem, 35vw, 28rem)' }} />
+                : <div style={{ fontSize: 'clamp(4rem, 10vw, 7rem)' }}>🎄</div>
+              }
 
-          {/* QR code */}
-          {config.showQr && (
-            <div className="flex flex-col items-center gap-3 mt-2">
-              <p className="text-white/55" style={{ fontSize: 'clamp(0.85rem, 1.5vw, 1.25rem)' }}>
-                🎵 Request a song for the show!
-              </p>
-              <QRCodeWidget url={jukeboxUrl} label="Scan with your phone to request a song" size={140} />
-            </div>
-          )}
-        </div>
+              <div>
+                {config.showName && !config.logoUrl && (
+                  <h1
+                    className="font-bold text-white drop-shadow-lg"
+                    style={{ fontSize: 'clamp(2rem, 5vw, 4rem)' }}
+                  >
+                    {config.showName}
+                  </h1>
+                )}
+                <p className="text-white/45 mt-2" style={{ fontSize: 'clamp(1rem, 2vw, 1.5rem)' }}>
+                  {config.idleMessage}
+                </p>
+                {config.fmFrequency && (
+                  <p className="mt-3 font-semibold" style={{ color: theme.accent, fontSize: 'clamp(0.9rem, 1.8vw, 1.4rem)' }}>
+                    📻 Tune to {config.fmFrequency} FM
+                  </p>
+                )}
+              </div>
 
-        {/* Sponsor text */}
-        {config.sponsorText && (
-          <div
-            className="relative z-10 flex-shrink-0 text-center py-2 text-white/40 text-xs border-t"
-            style={{ borderColor: `${theme.accent}20` }}
-          >
-            {config.sponsorText}
-          </div>
+              {config.showClock && time && (
+                <div
+                  className="font-light text-white/75 tabular-nums tracking-tight"
+                  style={{ fontSize: 'clamp(3rem, 8vw, 6rem)' }}
+                >
+                  {time}
+                </div>
+              )}
+
+              {config.showQr && (
+                <div className="flex flex-col items-center gap-3 mt-2">
+                  <p className="text-white/55" style={{ fontSize: 'clamp(0.85rem, 1.5vw, 1.25rem)' }}>
+                    🎵 Request a song for the show!
+                  </p>
+                  <QRCodeWidget url={jukeboxUrl} label="Scan with your phone to request a song" size={140} />
+                </div>
+              )}
+            </div>
+
+            {config.sponsorText && (
+              <div
+                className="relative z-10 flex-shrink-0 text-center py-2 text-white/40 text-xs border-t"
+                style={{ borderColor: `${theme.accent}20` }}
+              >
+                {config.sponsorText}
+              </div>
+            )}
+
+            <div className="relative z-10">
+              <TickerBar text={config.tickerText} accent={theme.accent} />
+            </div>
+          </>
         )}
-
-        {/* Ticker */}
-        <div className="relative z-10">
-          <TickerBar text={config.tickerText} accent={theme.accent} />
-        </div>
       </div>
     </>
   );

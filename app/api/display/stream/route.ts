@@ -343,7 +343,9 @@ async function pollDisplayState(): Promise<void> {
     };
 
     // Broadcast on meaningful change, or continuously while playing (for progress)
+    const configChanged = JSON.stringify(config) !== JSON.stringify(currentState.config);
     const significantChange =
+      configChanged ||
       newState.isPlaying !== currentState.isPlaying ||
       newState.sequenceName !== currentState.sequenceName ||
       newState.requesterName !== currentState.requesterName ||
