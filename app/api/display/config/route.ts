@@ -4,7 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { getSetting, updateSettings } from '@/lib/settings';
 import type {
   DisplayConfig, ColorTheme, BackgroundStyle, FontStyle,
-  LayoutVariant, QueuePosition, IdleAnimation,
+  LayoutVariant, QueuePosition, IdleAnimation, ZoneConfig, ZoneTemplate, ZoneWidgetType,
 } from '@/types/display';
 
 function readConfig(): DisplayConfig {
@@ -34,6 +34,7 @@ function readConfig(): DisplayConfig {
     idleBackgroundUrl:  s('display_idle_background_url', ''),
     tickerText:         s('display_ticker_text',         ''),
     slideshowUrl:       s('display_slideshow_url',       ''),
+    zoneConfig:         (() => { try { return JSON.parse(s('display_zone_config', '{}')); } catch { return undefined; } })(),
   };
 }
 
@@ -94,6 +95,30 @@ export async function PUT(request: NextRequest) {
     str('idleBackgroundUrl','display_idle_background_url', 500);
     str('tickerText', 'display_ticker_text', 300);
     str('slideshowUrl', 'display_slideshow_url', 500);
+
+    // Zone config — stored as JSON string
+    if (body.zoneConfig && typeof body.zoneConfig === 'object') {
+      const zc = body.zoneConfig as ZoneConfig;
+      const ALLOWED_TEMPLATES: ZoneTemplate[] = ['two-column', 'pip', 'banner-main', 'sidebar-main'];
+      const ALLOWED_WIDGETS: ZoneWidgetType[] = ['now-playing', 'queue', 'clock', 'message', 'image', 'slides', 'empty'];
+      if (typeof zc.enabled === 'boolean' && ALLOWED_TEMPLATES.includes(zc.template)) {
+        // Sanitise each slot
+        const cleanSlots: ZoneConfig['slots'] = {};
+        if (zc.slots && typeof zc.slots === 'object') {
+          for (const [slot, widget] of Object.entries(zc.slots)) {
+            if (ALLOWED_WIDGETS.includes(widget.type)) {
+              cleanSlots[slot] = {
+                type: widget.type,
+                text: typeof widget.text === 'string' ? widget.text.substring(0, 300) : undefined,
+                imageUrl: typeof widget.imageUrl === 'string' ? widget.imageUrl.substring(0, 500) : undefined,
+                slidesUrl: typeof widget.slidesUrl === 'string' ? widget.slidesUrl.substring(0, 500) : undefined,
+              };
+            }
+          }
+        }
+        updates['display_zone_config'] = JSON.stringify({ enabled: zc.enabled, template: zc.template, slots: cleanSlots });
+      }
+    }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'No valid fields provided' }, { status: 400 });

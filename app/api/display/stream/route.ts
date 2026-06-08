@@ -5,10 +5,11 @@ import {
   getQueue,
   getSequenceMetadata,
   getMediaLibraryMetadata,
+  getActiveScheduleRule,
 } from '@/lib/database';
 import { getFppUrl } from '@/lib/fpp-config';
 import { getSetting } from '@/lib/settings';
-import type { DisplayConfig, DisplayState, UpcomingQueueItem, ColorTheme, BackgroundStyle, FontStyle, LayoutVariant, QueuePosition, IdleAnimation } from '@/types/display';
+import type { DisplayConfig, DisplayState, UpcomingQueueItem, ColorTheme, BackgroundStyle, FontStyle, LayoutVariant, QueuePosition, IdleAnimation, ZoneConfig } from '@/types/display';
 
 // ─── Singleton state & clients ──────────────────────────────────────────────
 
@@ -43,6 +44,7 @@ function readConfig(): DisplayConfig {
     idleBackgroundUrl:  s('display_idle_background_url', ''),
     tickerText:         s('display_ticker_text',         ''),
     slideshowUrl:       s('display_slideshow_url',       ''),
+    zoneConfig:         (() => { try { return JSON.parse(s('display_zone_config', '{}')); } catch { return undefined; } })(),
   };
 }
 
@@ -62,6 +64,7 @@ let currentState: DisplayState = {
   jukeboxUrl: JUKEBOX_URL,
   config: readConfig(),
   activeAnnouncement: null,
+  activeScheduleRule: null,
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -288,7 +291,37 @@ async function pollDisplayState(): Promise<void> {
     const announcementText    = getSetting('display_announcement_text')    ?? '';
     const announcementExpires = parseInt(getSetting('display_announcement_expires') ?? '0', 10);
     const nowSec = Math.floor(Date.now() / 1000);
-    const activeAnnouncement  = announcementExpires > nowSec && announcementText ? announcementText : null;
+    let activeAnnouncement  = announcementExpires > nowSec && announcementText ? announcementText : null;
+
+    // Apply active schedule rule overrides (Plan B)
+    let activeScheduleRule: string | null = null;
+    try {
+      const rule = getActiveScheduleRule();
+      if (rule) {
+        activeScheduleRule = rule.name;
+        const payload = JSON.parse(rule.actionPayload || '{}');
+        switch (rule.actionType) {
+          case 'slideshow':
+            config.slideshowUrl = typeof payload.url === 'string' ? payload.url : '';
+            break;
+          case 'custom_display':
+            config.slideshowUrl = '';
+            break;
+          case 'theme':
+            if (payload.colorTheme) config.colorTheme = payload.colorTheme as ColorTheme;
+            if (payload.accentColor) config.accentColor = payload.accentColor;
+            break;
+          case 'announcement':
+            // Manual announcements win over scheduled ones
+            if (!activeAnnouncement && typeof payload.text === 'string') {
+              activeAnnouncement = payload.text;
+            }
+            break;
+        }
+      }
+    } catch {
+      // Ignore schedule errors — never crash the poll
+    }
 
     // Upcoming songs: prefer jukebox queue, fall back to FPP playlist API
     let upcomingQueue: UpcomingQueueItem[] = [];
@@ -340,6 +373,7 @@ async function pollDisplayState(): Promise<void> {
       jukeboxUrl: JUKEBOX_URL,
       config,
       activeAnnouncement,
+      activeScheduleRule,
     };
 
     // Broadcast on meaningful change, or continuously while playing (for progress)

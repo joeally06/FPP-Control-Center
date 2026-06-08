@@ -580,8 +580,61 @@ db.exec(`
     ('display_idle_background_url', '',                      'URL for idle screen background image',       'display'),
     ('display_ticker_text',       '',                        'Scrolling ticker text at the bottom',        'display'),
     ('display_announcement_text', '',                        'Active announcement text',                    'display'),
-    ('display_announcement_expires', '0',                   'Announcement expiry (unix timestamp)',        'display');
+    ('display_announcement_expires', '0',                   'Announcement expiry (unix timestamp)',        'display'),
+    ('display_zone_config',       '{"enabled":false,"template":"two-column","slots":{}}', 'Zone layout JSON config', 'display');
 `);
+
+// Create display schedule table (Plan B)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS display_schedule (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    name         TEXT    NOT NULL,
+    enabled      INTEGER NOT NULL DEFAULT 1,
+    days         TEXT    NOT NULL DEFAULT '0,1,2,3,4,5,6',
+    start_time   TEXT    NOT NULL DEFAULT '00:00',
+    end_time     TEXT    NOT NULL DEFAULT '23:59',
+    action_type  TEXT    NOT NULL CHECK (action_type IN ('slideshow','theme','announcement','custom_display')),
+    action_payload TEXT  NOT NULL DEFAULT '{}',
+    priority     INTEGER NOT NULL DEFAULT 10,
+    created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+/** Returns the singleton better-sqlite3 instance for routes that need raw queries. */
+export function getDb() { return db; }
+
+/** Returns the highest-priority schedule rule whose time window is currently active, or null. */
+export function getActiveScheduleRule(): import('@/types/display').ScheduleRule | null {
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0 = Sunday
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const currentTime = `${hh}:${mm}`;
+
+  const rows = db.prepare(
+    `SELECT * FROM display_schedule WHERE enabled = 1 ORDER BY priority ASC, created_at ASC`
+  ).all() as Record<string, unknown>[];
+
+  for (const row of rows) {
+    const days = String(row.days).split(',').map(Number);
+    if (!days.includes(dayOfWeek)) continue;
+    if (currentTime >= String(row.start_time) && currentTime <= String(row.end_time)) {
+      return {
+        id:            row.id as number,
+        name:          row.name as string,
+        enabled:       row.enabled === 1,
+        days:          row.days as string,
+        startTime:     row.start_time as string,
+        endTime:       row.end_time as string,
+        actionType:    row.action_type as import('@/types/display').ScheduleActionType,
+        actionPayload: row.action_payload as string,
+        priority:      row.priority as number,
+        createdAt:     row.created_at as string,
+      };
+    }
+  }
+  return null;
+}
 
 // Voting prepared statements
 export const insertVote = db.prepare(`
