@@ -28,6 +28,11 @@ const DEFAULT_CONFIG: DisplayConfig = {
   idleBackgroundUrl: '',
   tickerText: '',
   slideshowUrl: '',
+  idleSlideshowImages: [],
+  idleSlideshowInterval: 8,
+  countdownEnabled: false,
+  countdownTime: '20:00',
+  countdownLabel: 'Next show starts in',
   zoneConfig: { enabled: false, template: 'two-column', slots: {} },
 };
 

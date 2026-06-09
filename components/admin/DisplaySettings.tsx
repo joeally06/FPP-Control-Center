@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type {
-  DisplayConfig, ColorTheme, BackgroundStyle, FontStyle, LayoutVariant,
+  DisplayConfig, DisplayProfile, ColorTheme, BackgroundStyle, FontStyle, LayoutVariant,
   QueuePosition, IdleAnimation, ZoneConfig, ZoneTemplate, ZoneWidgetType,
   ZoneWidgetConfig, ScheduleRule, ScheduleActionType,
 } from '@/types/display';
@@ -146,6 +146,11 @@ const DEFAULT_CONFIG: DisplayConfig = {
   idleBackgroundUrl: '',
   tickerText: '',
   slideshowUrl: '',
+  idleSlideshowImages: [],
+  idleSlideshowInterval: 8,
+  countdownEnabled: false,
+  countdownTime: '20:00',
+  countdownLabel: 'Next show starts in',
   zoneConfig: { enabled: false, template: 'two-column', slots: {} },
 };
 
@@ -158,6 +163,69 @@ export default function DisplaySettings() {
   // Plan A: live preview
   const [showPreview, setShowPreview] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
+
+  // Option 1: local slideshow images
+  const [slideshowUploading, setSlideshowUploading] = useState(false);
+  const [slideshowError, setSlideshowError] = useState('');
+  const slideshowInputRef = useRef<HTMLInputElement>(null);
+
+  // Option 4: profiles
+  const [profiles, setProfiles] = useState<Array<{ id: number; name: string; is_active: number; created_at: string }>>([]);
+  const [newProfileName, setNewProfileName] = useState('');
+  const [profileSaving, setProfileSaving] = useState(false);
+
+  const fetchProfiles = useCallback(async () => {
+    const res = await fetch('/api/display/profiles');
+    if (res.ok) { const d = await res.json(); setProfiles(d.profiles ?? []); }
+  }, []);
+
+  async function uploadSlideshowImage(file: File) {
+    setSlideshowError('');
+    setSlideshowUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('slot', 'slideshow');
+      const res = await fetch('/api/display/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (res.ok) {
+        set('idleSlideshowImages', data.images);
+      } else {
+        setSlideshowError(data.error ?? 'Upload failed');
+      }
+    } catch { setSlideshowError('Network error'); }
+    finally { setSlideshowUploading(false); }
+  }
+
+  async function removeSlideshowImage(idx: number) {
+    const res = await fetch(`/api/display/upload?slot=slideshow&index=${idx}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok) set('idleSlideshowImages', data.images);
+  }
+
+  async function saveProfile() {
+    if (!newProfileName.trim()) return;
+    setProfileSaving(true);
+    await fetch('/api/display/profiles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newProfileName.trim() }) });
+    setNewProfileName('');
+    setProfileSaving(false);
+    fetchProfiles();
+  }
+
+  async function activateProfile(id: number) {
+    const res = await fetch('/api/display/profiles', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    if (res.ok) {
+      const d = await res.json();
+      if (d.config) setConfig({ ...DEFAULT_CONFIG, ...d.config });
+      fetchProfiles();
+      setMessage({ type: 'success', text: 'Profile activated.' });
+    }
+  }
+
+  async function deleteProfile(id: number) {
+    await fetch(`/api/display/profiles?id=${id}`, { method: 'DELETE' });
+    fetchProfiles();
+  }
 
   // Plan B: schedule rules
   const [rules, setRules] = useState<ScheduleRule[]>([]);
@@ -182,7 +250,8 @@ export default function DisplaySettings() {
       .then((data) => { setConfig({ ...DEFAULT_CONFIG, ...data }); setLoading(false); })
       .catch(() => setLoading(false));
     fetchRules();
-  }, [fetchRules]);
+    fetchProfiles();
+  }, [fetchRules, fetchProfiles]);
 
   async function save() {
     setSaving(true);
@@ -585,9 +654,171 @@ export default function DisplaySettings() {
                 onClear={() => set('idleBackgroundUrl', '')}
               />
             </div>
+
+            {/* ── Countdown Timer (Option 2) ── */}
+            <div className="border border-white/10 rounded-xl p-4 space-y-3 bg-white/5">
+              <div className="flex items-center gap-3">
+                <input type="checkbox" id="ds-countdown"
+                  checked={config.countdownEnabled ?? false}
+                  onChange={(e) => set('countdownEnabled', e.target.checked)}
+                  className="w-4 h-4 rounded" />
+                <label htmlFor="ds-countdown" className="text-white text-sm font-medium">⏱ Countdown Timer</label>
+              </div>
+              {config.countdownEnabled && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-7">
+                  <div>
+                    <label className={labelClass}>Show start time (24h)</label>
+                    <input type="time" value={config.countdownTime ?? '20:00'}
+                      onChange={(e) => set('countdownTime', e.target.value)}
+                      className={inputClass} />
+                    <p className="text-white/35 text-xs mt-1">Counts down to this time each day (resets daily)</p>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Countdown label</label>
+                    <input type="text" value={config.countdownLabel ?? 'Next show starts in'}
+                      maxLength={100}
+                      onChange={(e) => set('countdownLabel', e.target.value)}
+                      className={inputClass}
+                      placeholder="Next show starts in" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Local Image Slideshow (Option 1) ── */}
+            <div className="border border-white/10 rounded-xl p-4 space-y-3 bg-white/5">
+              <div>
+                <h4 className="text-white text-sm font-medium">🖼 Local Image Slideshow</h4>
+                <p className="text-white/40 text-xs mt-0.5">Upload images to cycle on the idle screen. When images are uploaded, they replace the custom display.</p>
+              </div>
+
+              <div>
+                <label className={labelClass}>Slide interval: {config.idleSlideshowInterval ?? 8} seconds</label>
+                <input type="range" min={3} max={30} step={1}
+                  value={config.idleSlideshowInterval ?? 8}
+                  onChange={(e) => set('idleSlideshowInterval', Number(e.target.value))}
+                  className="w-full" />
+              </div>
+
+              {/* Image gallery */}
+              {(config.idleSlideshowImages?.length ?? 0) > 0 && (
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                  {(config.idleSlideshowImages ?? []).map((url, idx) => (
+                    <div key={idx} className="relative group aspect-video rounded-lg overflow-hidden bg-black/30 border border-white/10">
+                      <img src={url} alt={`Slide ${idx + 1}`} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeSlideshowImage(idx)}
+                        className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity text-white text-lg"
+                        title="Remove"
+                      >✕</button>
+                      <span className="absolute bottom-0 left-0 text-white/60 text-xs px-1">{idx + 1}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {(config.idleSlideshowImages?.length ?? 0) < 20 && (
+                <div>
+                  <div
+                    onClick={() => !slideshowUploading && slideshowInputRef.current?.click()}
+                    onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) uploadSlideshowImage(f); }}
+                    onDragOver={(e) => e.preventDefault()}
+                    className="flex flex-col items-center justify-center gap-2 w-full h-20 rounded-lg border-2 border-dashed border-white/20 hover:border-white/40 cursor-pointer transition-colors bg-white/5"
+                  >
+                    {slideshowUploading ? (
+                      <span className="text-white/60 text-sm">Uploading…</span>
+                    ) : (
+                      <>
+                        <span className="text-xl">➕</span>
+                        <span className="text-white/50 text-xs">Click or drag &amp; drop · max {20 - (config.idleSlideshowImages?.length ?? 0)} more · JPEG, PNG, WebP</span>
+                      </>
+                    )}
+                  </div>
+                  <input
+                    ref={slideshowInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSlideshowImage(f); e.target.value = ''; }}
+                  />
+                </div>
+              )}
+              {slideshowError && <p className="text-red-400 text-xs">{slideshowError}</p>}
+              {(config.idleSlideshowImages?.length ?? 0) > 0 && (
+                <p className="text-white/30 text-xs">💡 Local slideshow takes priority over the custom display. Upload at least 1 image to activate.</p>
+              )}
+            </div>
           </div>
         )}
       </div>{/* end Idle Screen section */}
+
+      {/* ─── Display Profiles (Option 4) ──────────────────────────────────── */}
+      <div className={sectionClass}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-white font-semibold">💾 Display Profiles</h3>
+          <button type="button" onClick={fetchProfiles}
+            className="text-xs px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white">↺ Refresh</button>
+        </div>
+        <p className="text-white/40 text-xs">Save snapshots of your current settings and switch between them instantly.</p>
+
+        {/* Save current as profile */}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newProfileName}
+            onChange={(e) => setNewProfileName(e.target.value)}
+            placeholder="Profile name (e.g. Show Night, Off Season)"
+            maxLength={100}
+            className={`${inputClass} flex-1`}
+            onKeyDown={(e) => { if (e.key === 'Enter') saveProfile(); }}
+          />
+          <button type="button" onClick={saveProfile} disabled={profileSaving || !newProfileName.trim()}
+            className="px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-sm rounded-lg transition-colors whitespace-nowrap">
+            {profileSaving ? 'Saving…' : '💾 Save Current'}
+          </button>
+        </div>
+
+        {/* Profile list */}
+        {profiles.length === 0 ? (
+          <p className="text-white/30 text-sm text-center py-3">No saved profiles yet. Type a name above and save.</p>
+        ) : (
+          <div className="space-y-2">
+            {profiles.map((p) => (
+              <div key={p.id} className={`flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 border transition-colors ${p.is_active ? 'border-green-500/50 bg-green-500/10' : 'border-white/10 bg-white/5'}`}>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    {p.is_active ? <span className="text-green-400 text-xs font-semibold">● ACTIVE</span> : <span className="text-white/20 text-xs">○</span>}
+                    <span className="text-white text-sm truncate">{p.name}</span>
+                  </div>
+                  <p className="text-white/30 text-xs ml-5">{new Date(p.created_at).toLocaleDateString()}</p>
+                </div>
+                <div className="flex gap-1 flex-shrink-0">
+                  {!p.is_active && (
+                    <button type="button" onClick={() => activateProfile(p.id)}
+                      className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors">
+                      Activate
+                    </button>
+                  )}
+                  <button type="button"
+                    onClick={async () => {
+                      await fetch('/api/display/profiles', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: p.id, action: 'update' }) });
+                      fetchProfiles();
+                      setMessage({ type: 'success', text: `Profile "${p.name}" updated with current settings.` });
+                    }}
+                    className="text-xs px-2 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors" title="Update with current settings">
+                    ↑
+                  </button>
+                  <button type="button" onClick={() => deleteProfile(p.id)}
+                    className="text-xs px-2 py-1.5 rounded-lg bg-red-600/30 hover:bg-red-600/50 text-red-300 transition-colors">
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* ─── Schedule (Plan B) ──────────────────────────────────────────────── */}
       <div className={sectionClass}>

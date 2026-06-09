@@ -34,6 +34,11 @@ function readConfig(): DisplayConfig {
     idleBackgroundUrl:  s('display_idle_background_url', ''),
     tickerText:         s('display_ticker_text',         ''),
     slideshowUrl:       s('display_slideshow_url',       ''),
+    idleSlideshowImages: (() => { try { return JSON.parse(s('display_slideshow_images','[]')); } catch { return []; } })(),
+    idleSlideshowInterval: n('display_slideshow_interval', 8),
+    countdownEnabled:   b('display_countdown_enabled',   false),
+    countdownTime:      s('display_countdown_time',      '20:00'),
+    countdownLabel:     s('display_countdown_label',     'Next show starts in'),
     zoneConfig:         (() => { try { return JSON.parse(s('display_zone_config', '{}')); } catch { return undefined; } })(),
   };
 }
@@ -95,6 +100,10 @@ export async function PUT(request: NextRequest) {
     str('idleBackgroundUrl','display_idle_background_url', 500);
     str('tickerText', 'display_ticker_text', 300);
     str('slideshowUrl', 'display_slideshow_url', 500);
+    clamp('idleSlideshowInterval', 'display_slideshow_interval', 3, 30);
+    bool('countdownEnabled', 'display_countdown_enabled');
+    str('countdownTime',  'display_countdown_time',  5);
+    str('countdownLabel', 'display_countdown_label', 100);
 
     // Zone config — stored as JSON string
     if (body.zoneConfig && typeof body.zoneConfig === 'object') {

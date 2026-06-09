@@ -74,10 +74,26 @@ export interface DisplayConfig {
   idleBackgroundUrl: string;
   // Ticker
   tickerText: string;
-  // Idle slideshow
+  // Idle slideshow (Google Slides)
   slideshowUrl: string;
+  // Local image slideshow (Option 1)
+  idleSlideshowImages: string[];   // array of /uploads/display/slideshow-N.jpg URLs
+  idleSlideshowInterval: number;   // seconds between images (3–30)
+  // Countdown timer (Option 2)
+  countdownEnabled: boolean;
+  countdownTime: string;           // HH:MM 24h local time
+  countdownLabel: string;          // e.g. "Next show starts in"
   // Zone layout (Plan C)
   zoneConfig?: ZoneConfig;
+}
+
+// ─── Display Profile (Option 4) ──────────────────────────────────────────────
+export interface DisplayProfile {
+  id: number;
+  name: string;
+  isActive: boolean;
+  config: DisplayConfig;
+  createdAt: string;
 }
 
 export interface UpcomingQueueItem {

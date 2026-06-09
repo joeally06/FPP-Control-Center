@@ -44,6 +44,11 @@ function readConfig(): DisplayConfig {
     idleBackgroundUrl:  s('display_idle_background_url', ''),
     tickerText:         s('display_ticker_text',         ''),
     slideshowUrl:       s('display_slideshow_url',       ''),
+    idleSlideshowImages: (() => { try { return JSON.parse(s('display_slideshow_images','[]')); } catch { return []; } })(),
+    idleSlideshowInterval: n('display_slideshow_interval', 8),
+    countdownEnabled:   b('display_countdown_enabled',   false),
+    countdownTime:      s('display_countdown_time',      '20:00'),
+    countdownLabel:     s('display_countdown_label',     'Next show starts in'),
     zoneConfig:         (() => { try { return JSON.parse(s('display_zone_config', '{}')); } catch { return undefined; } })(),
   };
 }

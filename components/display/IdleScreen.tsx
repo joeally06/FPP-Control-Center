@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import type { DisplayConfig } from '@/types/display';
 import { resolveTheme } from '@/lib/display-theme';
 import QRCodeWidget from './QRCodeWidget';
@@ -43,10 +43,37 @@ const STARS = Array.from({ length: 25 }, (_, i) => ({
   opacity:  Number((0.15 + ((i * 0.035) % 0.4)).toFixed(2)),
 }));
 
+// Return seconds until the next occurrence of HH:MM (24h) local time
+function secondsUntil(hhmm: string): number {
+  const now = new Date();
+  const [hh, mm] = hhmm.split(':').map(Number);
+  if (isNaN(hh) || isNaN(mm)) return 0;
+  const target = new Date(now);
+  target.setHours(hh, mm, 0, 0);
+  let diff = Math.floor((target.getTime() - now.getTime()) / 1000);
+  if (diff < 0) diff += 86400; // next day
+  return diff;
+}
+
+function formatCountdown(secs: number): string {
+  if (secs <= 0) return '0:00:00';
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
 export default function IdleScreen({ config, jukeboxUrl, activeAnnouncement }: Props) {
   const [time, setTime] = useState('');
+  const [slideIdx, setSlideIdx] = useState(0);
+  const [slideFade, setSlideFade] = useState(true);
+  const [countdownSecs, setCountdownSecs] = useState(0);
   const theme = resolveTheme(config);
 
+  const images = config.idleSlideshowImages ?? [];
+  const hasLocalSlideshow = images.length > 0 && !config.slideshowUrl;
+
+  // Clock tick
   useEffect(() => {
     function tick() {
       setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
@@ -55,6 +82,30 @@ export default function IdleScreen({ config, jukeboxUrl, activeAnnouncement }: P
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
+
+  // Local image slideshow cycling
+  useEffect(() => {
+    if (!hasLocalSlideshow || images.length < 2) return;
+    const intervalMs = Math.max(3, config.idleSlideshowInterval ?? 8) * 1000;
+    const id = setInterval(() => {
+      setSlideFade(false);
+      setTimeout(() => {
+        setSlideIdx(i => (i + 1) % images.length);
+        setSlideFade(true);
+      }, 600);
+    }, intervalMs);
+    return () => clearInterval(id);
+  }, [hasLocalSlideshow, images.length, config.idleSlideshowInterval]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (!config.countdownEnabled || !config.countdownTime) return;
+    setCountdownSecs(secondsUntil(config.countdownTime));
+    const id = setInterval(() => {
+      setCountdownSecs(secondsUntil(config.countdownTime));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [config.countdownEnabled, config.countdownTime]);
 
   // Background
   let bgStyle: React.CSSProperties;
@@ -88,9 +139,14 @@ export default function IdleScreen({ config, jukeboxUrl, activeAnnouncement }: P
           0%, 100% { opacity: 0.1; transform: scale(1); }
           50%       { opacity: 0.6; transform: scale(1.5); }
         }
+        @keyframes slideshow-pulse {
+          0%, 100% { opacity: 0.9; }
+          50%      { opacity: 1; }
+        }
         .idle-anim-snow { position:absolute; top:0; animation-name:idle-snow; animation-timing-function:linear; animation-iteration-count:infinite; pointer-events:none; user-select:none; color:#ffffff; }
         .idle-anim-note { position:absolute;       animation-name:idle-note; animation-timing-function:linear; animation-iteration-count:infinite; pointer-events:none; user-select:none; }
         .idle-anim-star { position:absolute;       animation-name:idle-star; animation-timing-function:ease-in-out; animation-iteration-count:infinite; pointer-events:none; user-select:none; color:#ffffff; }
+        .slideshow-img  { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transition:opacity 0.6s ease-in-out; }
       `}</style>
 
       <div
@@ -101,7 +157,7 @@ export default function IdleScreen({ config, jukeboxUrl, activeAnnouncement }: P
         <AnnouncementOverlay text={activeAnnouncement ?? null} accent={theme.accent} />
 
         {config.slideshowUrl ? (
-          /* Google Slides mode: fullscreen iframe only */
+          /* ── Google Slides mode: fullscreen iframe ── */
           <iframe
             src={config.slideshowUrl
               .replace('/pub?', '/embed?')
@@ -110,8 +166,60 @@ export default function IdleScreen({ config, jukeboxUrl, activeAnnouncement }: P
             style={{ border: 'none', pointerEvents: 'none' }}
             allowFullScreen
           />
+        ) : hasLocalSlideshow ? (
+          /* ── Local Image Slideshow mode ── */
+          <>
+            <img
+              key={slideIdx}
+              src={images[slideIdx]}
+              alt=""
+              className="slideshow-img z-0"
+              style={{ opacity: slideFade ? 1 : 0 }}
+            />
+            {/* Dark overlay for readability */}
+            <div className="absolute inset-0 bg-black/40 z-10" />
+
+            {/* Info strip + ticker */}
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-end pb-16 px-8 gap-4 text-center" style={{ fontFamily: theme.fontFamily }}>
+              {config.countdownEnabled && config.countdownTime && (
+                <div className="bg-black/60 rounded-2xl px-8 py-4 backdrop-blur-sm">
+                  <p className="text-white/70 text-lg mb-1">{config.countdownLabel || 'Next show starts in'}</p>
+                  <p className="text-white font-bold tabular-nums" style={{ fontSize: 'clamp(2rem, 6vw, 4.5rem)', color: theme.accent }}>
+                    {formatCountdown(countdownSecs)}
+                  </p>
+                </div>
+              )}
+              {config.fmFrequency && (
+                <p className="font-semibold text-white" style={{ color: theme.accent, fontSize: 'clamp(1rem, 2vw, 1.5rem)' }}>
+                  📻 Tune to {config.fmFrequency} FM
+                </p>
+              )}
+              {config.showQr && (
+                <div className="flex flex-col items-center gap-2">
+                  <p className="text-white/70" style={{ fontSize: 'clamp(0.8rem, 1.4vw, 1.1rem)' }}>🎵 Request a song</p>
+                  <QRCodeWidget url={jukeboxUrl} label="" size={110} />
+                </div>
+              )}
+              {/* Slide counter dots */}
+              {images.length > 1 && (
+                <div className="flex gap-2">
+                  {images.map((_, i) => (
+                    <span
+                      key={i}
+                      className="inline-block rounded-full transition-all duration-300"
+                      style={{ width: i === slideIdx ? '20px' : '8px', height: '8px', background: i === slideIdx ? theme.accent : 'rgba(255,255,255,0.4)' }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="absolute bottom-0 left-0 right-0 z-30">
+              <TickerBar text={config.tickerText} accent={theme.accent} />
+            </div>
+          </>
         ) : (
-          /* Custom display mode */
+          /* ── Custom display mode ── */
           <>
             {config.idleBackgroundUrl && (
               <div className="absolute inset-0 bg-black/55 z-0" />
@@ -155,7 +263,22 @@ export default function IdleScreen({ config, jukeboxUrl, activeAnnouncement }: P
                 )}
               </div>
 
-              {config.showClock && time && (
+              {/* Countdown timer */}
+              {config.countdownEnabled && config.countdownTime && (
+                <div className="flex flex-col items-center gap-1">
+                  <p className="text-white/60" style={{ fontSize: 'clamp(0.85rem, 1.5vw, 1.2rem)' }}>
+                    {config.countdownLabel || 'Next show starts in'}
+                  </p>
+                  <p
+                    className="font-bold tabular-nums tracking-tight"
+                    style={{ color: theme.accent, fontSize: 'clamp(2.5rem, 7vw, 5.5rem)' }}
+                  >
+                    {formatCountdown(countdownSecs)}
+                  </p>
+                </div>
+              )}
+
+              {config.showClock && time && !config.countdownEnabled && (
                 <div
                   className="font-light text-white/75 tabular-nums tracking-tight"
                   style={{ fontSize: 'clamp(3rem, 8vw, 6rem)' }}

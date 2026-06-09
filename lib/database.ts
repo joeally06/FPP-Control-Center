@@ -581,7 +581,23 @@ db.exec(`
     ('display_ticker_text',       '',                        'Scrolling ticker text at the bottom',        'display'),
     ('display_announcement_text', '',                        'Active announcement text',                    'display'),
     ('display_announcement_expires', '0',                   'Announcement expiry (unix timestamp)',        'display'),
-    ('display_zone_config',       '{"enabled":false,"template":"two-column","slots":{}}', 'Zone layout JSON config', 'display');
+    ('display_zone_config',       '{"enabled":false,"template":"two-column","slots":{}}', 'Zone layout JSON config', 'display'),
+    ('display_slideshow_images',  '[]',   'Local image slideshow JSON array of URLs', 'display'),
+    ('display_slideshow_interval','8',    'Seconds between slideshow images (3-30)',   'display'),
+    ('display_countdown_enabled', 'false','Show countdown timer on idle screen',       'display'),
+    ('display_countdown_time',    '20:00','Show start time for countdown HH:MM',       'display'),
+    ('display_countdown_label',   'Next show starts in', 'Countdown label text',       'display');
+`);
+
+// Create display profiles table (Option 4)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS display_profiles (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT    NOT NULL,
+    is_active  INTEGER NOT NULL DEFAULT 0,
+    config_json TEXT   NOT NULL DEFAULT '{}',
+    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
 `);
 
 // Create display schedule table (Plan B)
