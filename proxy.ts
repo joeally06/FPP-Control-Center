@@ -132,7 +132,7 @@ export async function proxy(request: NextRequest) {
       "connect-src 'self' http://192.168.2.186:11434 http://192.168.5.2 https://www.youtube.com https://*.youtube.com https://*.googlevideo.com https://www.googleapis.com",
       "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.youtube.com https://docs.google.com https://slides.google.com",
       "media-src 'self' https://*.googlevideo.com",
-      "frame-ancestors 'none'",
+      "frame-ancestors 'self'",
       "base-uri 'self'",
       "form-action 'self'",
       "object-src 'none'"

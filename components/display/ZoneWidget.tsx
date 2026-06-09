@@ -81,7 +81,7 @@ export default function ZoneWidget({ widget, state }: Props) {
     case 'queue':
       return (
         <div className="w-full h-full flex flex-col justify-center p-3 overflow-hidden">
-          <QueueStrip items={state.upcomingQueue} accentColor={theme.accent} />
+          <QueueStrip queue={state.upcomingQueue} accentColor={theme.accent} />
         </div>
       );
 
