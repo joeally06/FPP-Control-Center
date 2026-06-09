@@ -7,7 +7,7 @@ export type IdleAnimation   = 'snowflakes' | 'notes' | 'stars' | 'none';
 
 // ─── Zone Layout (Plan C) ────────────────────────────────────────────────────
 export type ZoneTemplate   = 'two-column' | 'pip' | 'banner-main' | 'sidebar-main';
-export type ZoneWidgetType = 'now-playing' | 'queue' | 'clock' | 'message' | 'image' | 'slides' | 'empty';
+export type ZoneWidgetType = 'now-playing' | 'queue' | 'clock' | 'message' | 'image' | 'slides' | 'qr' | 'empty';
 
 export const ZONE_TEMPLATE_SLOTS: Record<ZoneTemplate, string[]> = {
   'two-column':   ['left', 'right'],

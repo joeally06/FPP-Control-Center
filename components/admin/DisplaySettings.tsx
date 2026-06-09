@@ -827,6 +827,7 @@ export default function DisplaySettings() {
                       <option value="message" className="bg-gray-900">💬 Custom Message</option>
                       <option value="image" className="bg-gray-900">🖼️ Image</option>
                       <option value="slides" className="bg-gray-900">📊 Google Slides</option>
+                      <option value="qr" className="bg-gray-900">📱 QR Code</option>
                     </select>
                     {widget.type === 'message' && (
                       <input type="text" value={widget.text ?? ''} maxLength={300} className={inputClass}
