@@ -7,10 +7,12 @@ import { debugLog } from '@/lib/logging';
 import db from '@/lib/database';
 import { getFppUrl } from '@/lib/fpp-config';
 import { getDistanceInMiles } from '@/lib/location-utils';
+import { toPublicQueueItem } from '@/lib/jukebox-display';
 
 export async function GET() {
   try {
-    const queue = getQueue.all();
+    // Public endpoint: never expose requester IPs or locations
+    const queue = (getQueue.all() as Parameters<typeof toPublicQueueItem>[0][]).map(toPublicQueueItem);
     return NextResponse.json(queue);
   } catch (error) {
     console.error('Error fetching queue:', error);

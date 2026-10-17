@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentlyPlaying, updateQueueStatus, getFPPState } from '@/lib/database';
 import { getFppUrl } from '@/lib/fpp-config';
+import { toPublicQueueItem } from '@/lib/jukebox-display';
 
 export async function GET() {
   try {
     // First check if there's a song marked as playing in our database
-    const currentlyPlaying = getCurrentlyPlaying.get();
+    const currentlyPlaying = getCurrentlyPlaying.get() as Parameters<typeof toPublicQueueItem>[0] | undefined;
 
     if (currentlyPlaying) {
-      return NextResponse.json(currentlyPlaying);
+      // Public endpoint: never expose requester IPs or locations
+      return NextResponse.json(toPublicQueueItem(currentlyPlaying));
     }
 
     // NEW: Use cached FPP state instead of direct polling
