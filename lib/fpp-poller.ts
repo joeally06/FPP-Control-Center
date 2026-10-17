@@ -27,6 +27,7 @@ import { config } from 'dotenv';
 import { getCircuitBreaker, CircuitState } from './circuit-breaker';
 import { getFppHost, getFppPort, FPP_DEFAULTS } from './fpp-config';
 import { POLLER } from './constants';
+import { nextPollDelay } from './poll-timing';
 
 // Load environment variables from .env.local
 const envPath = path.join(process.cwd(), '.env.local');
@@ -199,6 +200,8 @@ const cleanupOldCachedPlaylists = db.prepare(`
 let consecutiveFailures = 0;
 let currentPollInterval = POLL_INTERVAL;
 let isPolling = false;
+// Seconds left in the song FPP was playing at the last successful poll (null when not playing)
+let playingSecondsRemaining: number | null = null;
 
 // ============================================================================
 // Input Validation & Sanitization
@@ -409,6 +412,7 @@ function updateDatabase(status: any, responseTime: number): void {
     // Reset failure counter on success
     consecutiveFailures = 0;
     currentPollInterval = POLL_INTERVAL;
+    playingSecondsRemaining = status.status_name === 'playing' && Number.isFinite(secondsRemaining) ? secondsRemaining : null;
 
     // ✅ CIRCUIT BREAKER: Record success
     circuitBreaker.recordSuccess();
@@ -495,6 +499,7 @@ function cachePlaylistData(playlistName: string, data: any): void {
 function handleError(error: string, responseTime: number): void {
   try {
     consecutiveFailures++;
+    playingSecondsRemaining = null;
 
     // ✅ CIRCUIT BREAKER: Record failure
     circuitBreaker.recordFailure(error);
@@ -583,7 +588,8 @@ async function pollLoop(): Promise<void> {
       isPolling = false;
     }
 
-    await sleep(currentPollInterval);
+    // Check again just after the current song ends if that is sooner, so the next song shows up right away
+    await sleep(nextPollDelay(currentPollInterval, playingSecondsRemaining));
   }
 }
 

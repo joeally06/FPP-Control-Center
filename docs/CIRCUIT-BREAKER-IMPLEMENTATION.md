@@ -354,7 +354,7 @@ pm2 save
 ## 🎯 How It Works
 
 ### Normal Operation (CLOSED)
-1. FPP poller polls every 10 seconds
+1. FPP poller polls every 10 seconds, or about 1 second after the current song should end if that is sooner (so Now Playing switches quickly; `lib/poll-timing.ts`)
 2. Each successful poll resets failure counter
 3. Queue processor runs normally
 4. All services operate at full capacity
