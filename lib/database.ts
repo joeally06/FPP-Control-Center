@@ -1,6 +1,9 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import { DateTime } from 'luxon';
 import { NEXT_QUEUED_LETTER_SQL } from './santa-confirmation';
+import { isInDailyWindow } from './show-schedule';
+import { APP_TIMEZONE } from './time-utils';
 
 // Initialize database
 const dbPath = process.env.VOTES_DB_PATH || path.join(process.cwd(), 'votes.db');
@@ -666,20 +669,15 @@ export function getDb() { return db; }
 
 /** Returns the highest-priority schedule rule whose time window is currently active, or null. */
 export function getActiveScheduleRule(): import('@/types/display').ScheduleRule | null {
-  const now = new Date();
-  const dayOfWeek = now.getDay(); // 0 = Sunday
-  const hh = String(now.getHours()).padStart(2, '0');
-  const mm = String(now.getMinutes()).padStart(2, '0');
-  const currentTime = `${hh}:${mm}`;
+  // Rule times are entered in the show's local time, so compare with the show's clock, not the server's
+  const now = DateTime.now().setZone(APP_TIMEZONE);
 
   const rows = db.prepare(
     `SELECT * FROM display_schedule WHERE enabled = 1 ORDER BY priority ASC, created_at ASC`
   ).all() as Record<string, unknown>[];
 
   for (const row of rows) {
-    const days = String(row.days).split(',').map(Number);
-    if (!days.includes(dayOfWeek)) continue;
-    if (currentTime >= String(row.start_time) && currentTime <= String(row.end_time)) {
+    if (isInDailyWindow({ days: String(row.days), startTime: String(row.start_time), endTime: String(row.end_time) }, now)) {
       return {
         id:            row.id as number,
         name:          row.name as string,

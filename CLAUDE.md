@@ -165,7 +165,7 @@ under `tmp/` and a mocked mail transport — they never touch `votes.db` or send
 script individually** and report per-script results:
 `test-email-retries`, `test-email-retries-auth-fail`, `test-jukebox-queue-transaction`,
 `test-request-status`, `test-time-utils`, `test-migrations`, `test-trivia-logic`, `test-csrf`,
-`test-jukebox-display`, `test-jukebox-audience`, `test-theme-assets`, `test-poll-timing`, `test-santa-confirmation`, `test-client-ip`. All of them pass; any failure counts against the change.
+`test-jukebox-display`, `test-jukebox-audience`, `test-theme-assets`, `test-poll-timing`, `test-santa-confirmation`, `test-client-ip`, `test-show-schedule`. All of them pass; any failure counts against the change.
 
 New logic gets a new `scripts/test-<name>.ts` (pattern: `scripts/test-trivia-logic.ts`) and is
 appended to the `test:ci` script in `package.json`. `.github/workflows/ci.yml` lists tests
