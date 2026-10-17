@@ -47,16 +47,21 @@ export default function RadioBar({
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-3">
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${accent.button}`} aria-hidden="true">
+          {/* Decorative; dropped on the narrowest phones to leave room for the text */}
+          <div className={`hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl min-[380px]:flex ${accent.button}`} aria-hidden="true">
             <Radio className="h-5 w-5" />
           </div>
+          {/* Text truncates instead of wrapping, so the bar never grows taller than the space left for it */}
           <div className="min-w-0">
             <p className="themed-title truncate text-sm font-bold text-white sm:text-base">{siteName}</p>
-            <p className="flex items-center gap-2 text-xs text-white/80">
+            <p className="flex min-w-0 items-center gap-2 text-xs text-white/80">
               {fmFrequency ? (
-                <span className={`font-semibold ${accent.text}`}>Tune your radio to {fmFrequency}</span>
+                <span className={`truncate font-semibold ${accent.text}`}>
+                  <span className="sm:hidden">Tune to {fmFrequency}</span>
+                  <span className="hidden sm:inline">Tune your radio to {fmFrequency}</span>
+                </span>
               ) : (
-                <span>{isPlaying ? 'Playing now' : 'Light show jukebox'}</span>
+                <span className="truncate">{isPlaying ? 'Playing now' : 'Light show jukebox'}</span>
               )}
               {isPlaying && <Equalizer accent={accent} />}
             </p>
@@ -69,7 +74,7 @@ export default function RadioBar({
               type="button"
               onClick={onToggleListen}
               aria-pressed={listening}
-              className={`flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 ${accent.focus} ${
+              className={`flex min-h-11 items-center gap-2 whitespace-nowrap rounded-xl px-3 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 ${accent.focus} ${
                 listening ? 'bg-white text-black' : 'border border-white/20 bg-white/10 text-white hover:bg-white/20'
               }`}
             >

@@ -47,14 +47,19 @@ export default function Toast({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -50, scale: 0.9 }}
           transition={{ type: 'spring', duration: 0.5 }}
-          className="fixed top-4 right-4 z-50"
+          // Below the jukebox's fixed radio bar (z-50, ~4 rem tall) and above everything else;
+          // full width on phones, top-right from sm up
+          className="fixed inset-x-4 z-[70] sm:left-auto sm:right-4"
+          style={{ top: 'calc(4.75rem + env(safe-area-inset-top))' }}
+          role={type === 'error' ? 'alert' : 'status'}
         >
-          <div className={`backdrop-blur-md bg-linear-to-r ${colors[type]} border rounded-xl shadow-2xl px-6 py-4 min-w-[300px] max-w-md`}>
+          <div className={`backdrop-blur-md bg-linear-to-r ${colors[type]} border rounded-xl shadow-2xl px-6 py-4 sm:min-w-[300px] sm:max-w-md`}>
             <div className="flex items-center gap-3">
-              <span className="text-2xl">{icons[type]}</span>
+              <span className="text-2xl" aria-hidden="true">{icons[type]}</span>
               <p className="text-white font-semibold flex-1">{message}</p>
               <button
                 onClick={onClose}
+                aria-label="Dismiss"
                 className="text-white/80 hover:text-white transition-colors ml-2"
               >
                 ✕

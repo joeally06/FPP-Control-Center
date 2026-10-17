@@ -4,6 +4,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { LayoutDashboard, LogIn, LogOut } from 'lucide-react';
 import { useVisitorTracking } from '@/hooks/useVisitorTracking';
 import { useTheme } from '@/lib/themes/theme-context';
 import ThemedJukeboxWrapper from '@/components/ThemedJukeboxWrapper';
@@ -91,6 +92,8 @@ interface FppProgress {
 }
 
 const ADMIN_BUTTON = 'min-h-11 rounded-xl px-3 text-sm font-semibold text-white transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60';
+// Radio-bar buttons: a square icon on phones, the label from sm up, never wrapping
+const BAR_BUTTON = 'flex min-w-11 items-center justify-center whitespace-nowrap';
 
 export default function JukeboxPage() {
   // Track visitor engagement
@@ -1005,31 +1008,40 @@ export default function JukeboxPage() {
         onToggleListen={() => setListening((v) => !v)}
         accent={accent}
         adminSlot={
+          // Icon-only on phones so the bar fits on one line; words from the sm breakpoint up
           !session ? (
-            <button type="button" onClick={() => signIn()} className={`${ADMIN_BUTTON} bg-white/10 hover:bg-white/20`}>
-              Admin
+            <button type="button" onClick={() => signIn()} aria-label="Admin sign in" className={`${ADMIN_BUTTON} ${BAR_BUTTON} bg-white/10 hover:bg-white/20`}>
+              <LogIn className="h-4 w-4 sm:hidden" aria-hidden="true" />
+              <span className="hidden sm:inline">Admin</span>
             </button>
           ) : (
             <>
               {isAdmin && (
-                <button type="button" onClick={() => router.push('/')} className={`${ADMIN_BUTTON} bg-blue-600 hover:bg-blue-500`}>
-                  Dashboard
+                <button type="button" onClick={() => router.push('/')} aria-label="Dashboard" className={`${ADMIN_BUTTON} ${BAR_BUTTON} bg-blue-600 hover:bg-blue-500`}>
+                  <LayoutDashboard className="h-4 w-4 sm:hidden" aria-hidden="true" />
+                  <span className="hidden sm:inline">Dashboard</span>
                 </button>
               )}
               <button
                 type="button"
                 onClick={() => signOut({ callbackUrl: '/jukebox' })}
+                aria-label="Log out"
                 title={session.user?.name ? `Signed in as ${session.user.name}` : undefined}
-                className={`${ADMIN_BUTTON} bg-white/10 hover:bg-white/20`}
+                className={`${ADMIN_BUTTON} ${BAR_BUTTON} bg-white/10 hover:bg-white/20`}
               >
-                Log out
+                <LogOut className="h-4 w-4 sm:hidden" aria-hidden="true" />
+                <span className="hidden sm:inline">Log out</span>
               </button>
             </>
           )
         }
       />
 
-      <div className="mx-auto max-w-6xl space-y-5 pb-4" style={{ paddingTop: 'calc(4.25rem + env(safe-area-inset-top))' }}>
+      {/* Clears the fixed radio bar, plus the string lights hanging under it in the Christmas theme */}
+      <div
+        className="mx-auto max-w-6xl space-y-5 pb-4"
+        style={{ paddingTop: `calc(${theme.atmosphere === 'winter' ? '5.25rem' : '4.25rem'} + env(safe-area-inset-top))` }}
+      >
         {/* In-browser audio, opened from the radio bar */}
         {listening && showInteractiveFeatures && <AudioSyncPlayer />}
 
