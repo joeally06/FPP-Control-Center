@@ -131,8 +131,9 @@ integrating an external service (Spotify, Google OAuth, FPP REST API, Ollama, Cl
 an existing in-repo pattern.
 
 Before adding a dependency: justify it (Simplicity First), check it runs on Node 20 (CI) and
-Node 22 (dev host) and on ARM Linux (production runs on a Raspberry-Pi-class box with PM2) —
-native modules like `better-sqlite3` and `sharp` are the usual trouble.
+Node 22 (dev host) and on the production show machine (an Ubuntu Server VM, x64, running PM2) —
+native modules like `better-sqlite3` and `sharp` are the usual trouble (prebuilt binaries need a
+recent enough glibc and, for `sharp`, a CPU with SSE4.2).
 
 ---
 
@@ -342,7 +343,7 @@ Summary + ALL modified/created file paths.
 4. **Performance** — no N+1 queries in loops, indexes for new query patterns, no extra work on hot
    public endpoints, no new polling of the FPP player
 5. **Deployability** — would `git pull → npm install → build → migrate → restart` succeed on the live box?
-   Migration safe on an existing populated DB? Works on Node 20 / ARM Linux?
+   Migration safe on an existing populated DB? Works on Node 20 / the Ubuntu x64 show machine?
 6. **API currency** — Next 16 / React 19 / next-auth v4 patterns, no deprecated usage
 7. **Build validation** — run ONLY the Commands-table commands approved in the spec:
    `npx tsc --noEmit`, `npx eslint <touched files>` (compare to baseline), the relevant
