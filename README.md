@@ -32,10 +32,10 @@ FPP Control Center is a **complete web-based control panel** for your Falcon Pla
 
 ### 🎅 **Santa Letter Generator**
 - **AI-Powered Responses** - Personalized letters using Ollama AI
-- **Email Delivery** - Automatic email to parents with Santa's reply
-- **Admin Review** - Approve/reject letters before sending
+- **Email Delivery** - Parents confirm their email address with a link first; Santa's reply is sent only after they do
+- **Admin Review** - Reject a letter before it's answered, edit replies and resend them
 - **Queue Processing** - Handles multiple submissions gracefully
-- **Rate Limiting** - 2 letters per day per visitor
+- **Rate Limiting** - Daily limit per email address and per visitor, plus a daily cap for all visitors together (Settings page)
 
 ### 📊 **Real-Time Monitoring**
 - **Device Status** - Live FPP connection status
@@ -434,7 +434,7 @@ The `test:ci` script runs the project's TypeScript test files sequentially and p
 1. Log in with Google OAuth
 2. Monitor FPP device status
 3. Review and manage song requests
-4. Approve Santa letters
+4. Review Santa letters (reject any that shouldn't get a reply)
 5. View analytics and engagement
 
 ### **Backend:**

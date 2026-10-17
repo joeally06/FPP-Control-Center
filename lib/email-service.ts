@@ -298,6 +298,89 @@ export async function sendSantaReply(params: SantaEmailParams): Promise<boolean>
 }
 
 /**
+ * Email asking the parent to confirm a letter to Santa.
+ * ✅ SECURITY: fixed wording only — nothing the letter's sender typed (child name, letter text)
+ * goes into it, so the public form cannot deliver someone else's words to a stranger.
+ */
+export function createConfirmationEmail(siteName: string, confirmUrl: string) {
+  const name = siteName.replace(/[\r\n]/g, ' ').trim() || 'our light show';
+  const safeName = escapeHtml(name);
+  const safeUrl = escapeHtml(confirmUrl);
+
+  const subject = `Please confirm your letter to Santa - ${name}`;
+  const text = [
+    `Someone used this email address to write a letter to Santa on the ${name} website.`,
+    '',
+    'If that was you, open this link within 3 days and press the button to send the letter on to Santa. His reply will come to this address:',
+    confirmUrl,
+    '',
+    "If it wasn't you, just ignore this email. Nothing else will be sent to you.",
+  ].join('\n');
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline';">
+</head>
+<body style="margin:0;padding:24px;background:#1a472a;font-family:Georgia,'Times New Roman',serif;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;border:4px solid #c41e3a;padding:32px;color:#333333;line-height:1.6;">
+    <h1 style="margin:0 0 16px;color:#c41e3a;font-size:26px;text-align:center;">🎅 Confirm your letter to Santa</h1>
+    <p>Someone used this email address to write a letter to Santa on the <strong>${safeName}</strong> website.</p>
+    <p>If that was you, press the button within 3 days to send the letter on to Santa. His reply will come to this address.</p>
+    <p style="text-align:center;margin:28px 0;">
+      <a href="${safeUrl}" style="display:inline-block;background:#c41e3a;color:#ffffff;text-decoration:none;font-weight:bold;padding:14px 28px;border-radius:999px;">Confirm my letter</a>
+    </p>
+    <p style="font-size:13px;color:#666666;">Button not working? Copy this link into your browser:<br>${safeUrl}</p>
+    <p style="font-size:13px;color:#666666;">If it wasn't you, just ignore this email. Nothing else will be sent to you.</p>
+  </div>
+</body>
+</html>
+  `;
+  return { subject, text, html };
+}
+
+/**
+ * Send the confirmation email for a new Santa letter
+ */
+export async function sendSantaConfirmation(params: { parentEmail: string; confirmUrl: string; siteName: string }): Promise<boolean> {
+  try {
+    const sanitizedEmail = sanitizeEmailHeader(params.parentEmail);
+    if (!validator.isEmail(sanitizedEmail)) {
+      throw new Error('Invalid email address');
+    }
+
+    const nodemailer = await import('nodemailer');
+    const config = getEmailConfig();
+    if (!config.auth.user || !config.auth.pass) {
+      console.error('❌ Email configuration missing: SMTP_USER and SMTP_PASS required');
+      return false;
+    }
+
+    const { subject, text, html } = createConfirmationEmail(params.siteName, params.confirmUrl);
+    await sendMailWithRetries(config, {
+      from: `"Santa Claus 🎅" <${config.auth.user}>`,
+      to: sanitizedEmail,
+      subject,
+      text,
+      html,
+    }, {
+      attempts: parseInt(process.env.SMTP_RETRY_ATTEMPTS || '3', 10),
+      initialDelayMs: parseInt(process.env.SMTP_RETRY_INITIAL_MS || '1000', 10),
+      factor: 2,
+      verify: true,
+      createTransport: () => nodemailer.default.createTransport(config),
+    });
+    debugLog('✅ Santa confirmation email sent');
+    return true;
+  } catch (error) {
+    console.error('❌ Error sending Santa confirmation email:', error);
+    return false;
+  }
+}
+
+/**
  * Test email configuration
  */
 export async function testEmailConnection(): Promise<boolean> {

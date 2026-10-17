@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '@/components/AdminLayout';
-import { formatDateTime } from '@/lib/time-utils';
+import { formatDateTime, parseDbTimestamp } from '@/lib/time-utils';
 import { 
   AdminH1, 
   AdminH2, 
@@ -38,7 +38,14 @@ interface SantaLetter {
   processing_completed_at: string | null;
   retry_count: number;
   last_error: string | null;
+  awaiting_confirmation: number; // 1 while the parent hasn't clicked the email link
+  confirm_expires_at: string | null;
 }
+
+// Letters waiting for the parent's email confirmation; the queue skips them until confirmed
+const isAwaitingParent = (letter: SantaLetter) => letter.awaiting_confirmation === 1;
+const isLinkExpired = (letter: SantaLetter) =>
+  isAwaitingParent(letter) && (parseDbTimestamp(letter.confirm_expires_at)?.toMillis() ?? 0) <= Date.now();
 
 export default function SantaLettersPage() {
   const { data: session, status } = useSession();
@@ -88,6 +95,9 @@ export default function SantaLettersPage() {
       if (response.ok) {
         await fetchLetters();
         setSelectedLetter(null);
+      } else {
+        const data = await response.json().catch(() => ({}));
+        alert(data.error || 'Failed to update the letter');
       }
     } catch (error) {
       console.error('Error updating status:', error);
@@ -108,6 +118,9 @@ export default function SantaLettersPage() {
       if (response.ok) {
         await fetchLetters();
         setSelectedLetter(null);
+      } else {
+        const data = await response.json().catch(() => ({}));
+        alert(data.error || 'Failed to save the reply');
       }
     } catch (error) {
       console.error('Error updating reply:', error);
@@ -243,7 +256,7 @@ export default function SantaLettersPage() {
                 <AdminValueMedium>{letters.length}</AdminValueMedium>
               </div>
               <div className="text-center p-4 bg-yellow-500/20 rounded-lg border border-yellow-500/30">
-                <AdminTextSmall className="mb-2 text-yellow-200">Pending Review</AdminTextSmall>
+                <AdminTextSmall className="mb-2 text-yellow-200">Not Yet Answered</AdminTextSmall>
                 <AdminValueMedium className="text-yellow-100">
                   {letters.filter(l => l.status === 'pending').length}
                 </AdminValueMedium>
@@ -266,11 +279,17 @@ export default function SantaLettersPage() {
           {/* Queue Status */}
           <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
             <AdminH3 className="mb-4">⚡ Queue Status</AdminH3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center p-4 bg-yellow-500/20 rounded-lg border border-yellow-500/30">
+                <AdminTextSmall className="mb-2 text-yellow-200">Awaiting Parent</AdminTextSmall>
+                <AdminValueMedium className="text-yellow-100">
+                  {letters.filter(l => isAwaitingParent(l) && !isLinkExpired(l)).length}
+                </AdminValueMedium>
+              </div>
               <div className="text-center p-4 bg-blue-500/20 rounded-lg border border-blue-500/30">
                 <AdminTextSmall className="mb-2 text-blue-200">In Queue</AdminTextSmall>
                 <AdminValueMedium className="text-blue-100">
-                  {letters.filter(l => l.queue_status === 'queued').length}
+                  {letters.filter(l => l.queue_status === 'queued' && !isAwaitingParent(l) && l.status !== 'rejected').length}
                 </AdminValueMedium>
               </div>
               <div className="text-center p-4 bg-purple-500/20 rounded-lg border border-purple-500/30">
@@ -361,9 +380,15 @@ export default function SantaLettersPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-1">
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${getQueueBadge(letter.queue_status)}`}>
-                            {letter.queue_status === 'processing' ? '⚙️ ' : ''}{letter.queue_status}
-                          </span>
+                          {isAwaitingParent(letter) ? (
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${isLinkExpired(letter) ? 'bg-gray-100 text-gray-800 border-gray-300' : 'bg-yellow-100 text-yellow-800 border-yellow-300'}`}>
+                              {isLinkExpired(letter) ? '⌛ link expired' : '✉️ awaiting parent'}
+                            </span>
+                          ) : (
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${getQueueBadge(letter.queue_status)}`}>
+                              {letter.queue_status === 'processing' ? '⚙️ ' : ''}{letter.queue_status}
+                            </span>
+                          )}
                           {letter.retry_count > 0 && (
                             <AdminTextTiny className="text-red-300">
                               Retries: {letter.retry_count}
@@ -468,23 +493,24 @@ export default function SantaLettersPage() {
 
                 {/* Actions */}
                 <div className="flex flex-wrap gap-2 pt-4 border-t border-white/10">
-                  {selectedLetter.status === 'pending' && (
-                    <>
-                      <button
-                        onClick={() => updateLetterStatus(selectedLetter.id, 'approved', adminNotes)}
-                        disabled={updating}
-                        className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50"
-                      >
-                        ✓ Approve
-                      </button>
-                      <button
-                        onClick={() => updateLetterStatus(selectedLetter.id, 'rejected', adminNotes)}
-                        disabled={updating}
-                        className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50"
-                      >
-                        ✕ Reject
-                      </button>
-                    </>
+                  {/* Reject = this letter is never answered; only possible before the reply goes out */}
+                  {selectedLetter.status !== 'sent' && selectedLetter.status !== 'rejected' && selectedLetter.queue_status !== 'processing' && (
+                    <button
+                      onClick={() => updateLetterStatus(selectedLetter.id, 'rejected', adminNotes)}
+                      disabled={updating}
+                      className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50"
+                    >
+                      ✕ Reject (don&apos;t answer)
+                    </button>
+                  )}
+                  {selectedLetter.status === 'rejected' && (
+                    <button
+                      onClick={() => updateLetterStatus(selectedLetter.id, 'pending', adminNotes)}
+                      disabled={updating}
+                      className="bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600 transition disabled:opacity-50"
+                    >
+                      ↩ Restore
+                    </button>
                   )}
                   {(selectedLetter.status === 'approved' || selectedLetter.status === 'sent') && (
                     <button

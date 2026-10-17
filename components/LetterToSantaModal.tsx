@@ -135,14 +135,14 @@ export default function LetterToSantaModal({ isOpen, onClose }: LetterToSantaMod
         // Verify count from server (optional, for accuracy)
         await checkLetterCount();
         
-        // Auto-close after 5 seconds
+        // Auto-close after 10 seconds (long enough to read the "check your email" note)
         setTimeout(() => {
           onClose();
           setSubmitStatus({ type: null, message: '' });
-        }, 5000);
+        }, 10000);
       } else {
         // Handle rate limit errors with dual limit info
-        if (response.status === 429 && data.reason) {
+        if (response.status === 429 && (data.reason === 'email_limit' || data.reason === 'ip_limit')) {
           const limitType = data.reason === 'email_limit' ? 'email address' : 'location';
           setSubmitStatus({
             type: 'error',
@@ -275,7 +275,7 @@ export default function LetterToSantaModal({ isOpen, onClose }: LetterToSantaMod
               disabled={isSubmitting}
             />
             <p className="text-sm text-gray-600 mt-1">
-              Santa will read your letter and send a magical reply to this email! 📧✨
+              We&apos;ll email you a link to confirm first, then Santa&apos;s magical reply comes here! 📧✨
             </p>
           </div>
 
@@ -348,7 +348,7 @@ export default function LetterToSantaModal({ isOpen, onClose }: LetterToSantaMod
               )}
             </p>
             <p className="text-xs">
-              ✉️ Your letter will be delivered to Santa's workshop, and he'll send a personalized reply to your email soon!
+              ✉️ Click the link in the confirmation email and your letter goes to Santa's workshop. He'll send a personalized reply soon after!
             </p>
             <p className="text-xs text-gray-500 mt-2">
               🔒 We track letters by both email address and location to ensure fair access for all children.

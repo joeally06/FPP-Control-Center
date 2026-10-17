@@ -49,11 +49,25 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const validStatuses = ['pending', 'approved', 'sent', 'rejected'];
+    // Reject = never answer this letter; pending = restore a rejected letter
+    const validStatuses = ['pending', 'rejected'];
     if (!validStatuses.includes(status)) {
       return NextResponse.json(
         { error: 'Invalid status' },
         { status: 400 }
+      );
+    }
+
+    const letter = getSantaLetter.get(letterId) as { status: string; queue_status: string } | undefined;
+    if (!letter) {
+      return NextResponse.json({ error: 'Letter not found' }, { status: 404 });
+    }
+
+    // A reply that has gone out (or is going out right now) can't be taken back
+    if (status === 'rejected' && (letter.status === 'sent' || letter.queue_status === 'processing')) {
+      return NextResponse.json(
+        { error: "This letter has already been answered, so it can't be rejected" },
+        { status: 409 }
       );
     }
 
@@ -80,19 +94,18 @@ export async function PATCH(request: NextRequest) {
   try {
     const { letterId, santaReply } = await request.json();
 
-    if (!letterId || !santaReply) {
+    if (!letterId || typeof santaReply !== 'string' || !santaReply.trim()) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    updateSantaReply.run(
-      santaReply,
-      'approved',
-      new Date().toISOString(),
-      letterId
-    );
+    // Saves the text only; "Resend Email" sends it
+    const result = updateSantaReply.run(santaReply, letterId);
+    if (result.changes === 0) {
+      return NextResponse.json({ error: 'Letter not found' }, { status: 404 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

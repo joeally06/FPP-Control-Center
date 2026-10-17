@@ -230,6 +230,7 @@ function ThemeSettings() {
 function SantaLetterSettings() {
   const [santaEnabled, setSantaEnabled] = useState(true);
   const [dailyLimit, setDailyLimit] = useState(1);
+  const [dailyCap, setDailyCap] = useState(50);
   const [ollamaModel, setOllamaModel] = useState('llama3.2:latest');
   const [availableModels, setAvailableModels] = useState<any[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
@@ -364,6 +365,7 @@ function SantaLetterSettings() {
         if (data.settings) {
           setSantaEnabled(data.settings.santa_letters_enabled === 'true');
           setDailyLimit(parseInt(data.settings.santa_daily_limit || '1', 10));
+          setDailyCap(parseInt(data.settings.santa_daily_cap || '50', 10));
           setOllamaModel(data.settings.ollama_model || 'llama3.2:latest');
         }
       } catch (error) {
@@ -391,6 +393,7 @@ function SantaLetterSettings() {
           settings: {
             santa_letters_enabled: santaEnabled.toString(),
             santa_daily_limit: dailyLimit.toString(),
+            santa_daily_cap: dailyCap.toString(),
             ollama_model: ollamaModel,
           },
         }),
@@ -475,6 +478,29 @@ function SantaLetterSettings() {
           </div>
           <AdminTextSmall className="mt-1">
             Prevent spam while allowing genuine submissions
+          </AdminTextSmall>
+        </div>
+
+        <div>
+          <AdminLabel>Daily Letter Cap (all visitors)</AdminLabel>
+          <div className="flex items-center gap-4">
+            <input
+              type="number"
+              value={dailyCap}
+              onChange={(e) => {
+                const num = parseInt(e.target.value, 10);
+                if (!isNaN(num) && num >= 1 && num <= 1000) {
+                  setDailyCap(num);
+                }
+              }}
+              min={1}
+              max={1000}
+              className="w-32 px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white"
+            />
+            <AdminTextSmall>letters per day</AdminTextSmall>
+          </div>
+          <AdminTextSmall className="mt-1">
+            Once this many letters arrive in a day (UTC), new ones are turned away until tomorrow. Each letter sends one confirmation email and, after the parent confirms, one reply.
           </AdminTextSmall>
         </div>
 

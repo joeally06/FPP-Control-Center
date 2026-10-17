@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import { NEXT_QUEUED_LETTER_SQL } from './santa-confirmation';
 
 // Initialize database
 const dbPath = process.env.VOTES_DB_PATH || path.join(process.cwd(), 'votes.db');
@@ -229,6 +230,17 @@ db.exec(`
     data BLOB NOT NULL,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (theme_id, kind)
+  );
+`);
+
+// Parent email confirmation for Santa letters (also migration 022)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS santa_letter_confirmations (
+    letter_id INTEGER PRIMARY KEY REFERENCES santa_letters(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL UNIQUE,
+    expires_at DATETIME NOT NULL,
+    confirmed_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
 
@@ -1101,11 +1113,17 @@ export const getSantaLetter = db.prepare(`
 `);
 
 export const getAllSantaLetters = db.prepare(`
-  SELECT * FROM santa_letters ORDER BY created_at DESC
+  SELECT l.*,
+    (c.letter_id IS NOT NULL AND c.confirmed_at IS NULL) AS awaiting_confirmation,
+    c.expires_at AS confirm_expires_at
+  FROM santa_letters l
+  LEFT JOIN santa_letter_confirmations c ON c.letter_id = l.id
+  ORDER BY l.created_at DESC
 `);
 
+// Admin edit of Santa's reply text; sending it again is a separate "Resend Email" step
 export const updateSantaReply = db.prepare(`
-  UPDATE santa_letters SET santa_reply = ?, status = ?, sent_at = CURRENT_TIMESTAMP WHERE id = ?
+  UPDATE santa_letters SET santa_reply = ? WHERE id = ?
 `);
 
 export const updateSantaLetterStatus = db.prepare(`
@@ -1113,12 +1131,7 @@ export const updateSantaLetterStatus = db.prepare(`
 `);
 
 // Queue management prepared statements
-export const getNextQueuedLetter = db.prepare(`
-  SELECT * FROM santa_letters 
-  WHERE queue_status = 'queued' 
-  ORDER BY created_at ASC 
-  LIMIT 1
-`);
+export const getNextQueuedLetter = db.prepare(NEXT_QUEUED_LETTER_SQL);
 
 export const markLetterProcessing = db.prepare(`
   UPDATE santa_letters 

@@ -1,11 +1,21 @@
 // API Route: Send Letter to Santa
 
 import { NextRequest, NextResponse } from 'next/server';
-import {
+import db, {
   insertSantaLetter,
 } from '@/lib/database';
+import { sendSantaConfirmation } from '@/lib/email-service';
 import { validateAndSanitizeSantaLetter } from '@/lib/input-sanitization';
+import {
+  confirmationUrl,
+  createLetterConfirmation,
+  DEFAULT_SANTA_DAILY_CAP,
+  deleteUnconfirmedLetter,
+  lettersToday,
+  parseSantaDailyCap,
+} from '@/lib/santa-confirmation';
 import { checkSantaRateLimit, getClientIP } from '@/lib/santa-rate-limit';
+import { getSetting, getSettingBoolean } from '@/lib/settings';
 
 interface SendLetterRequest {
   childName: string;
@@ -26,6 +36,13 @@ export async function POST(request: NextRequest) {
     const body: SendLetterRequest = await request.json();
     
     console.log('📬 Received letter from:', body.childName);
+
+    if (!getSettingBoolean('santa_letters_enabled', true)) {
+      return NextResponse.json(
+        { error: "Santa's mailbox is closed right now. Please check back later! 🎄" },
+        { status: 403 }
+      );
+    }
 
     // Get client IP for rate limiting
     const clientIP = getClientIP(request);
@@ -51,7 +68,16 @@ export async function POST(request: NextRequest) {
         reason: rateLimitResult.reason
       }, { status: 429 });
     }
-    
+
+    // ✅ Cap on letters from all visitors together, which bounds how much email the form can trigger
+    const dailyCap = parseSantaDailyCap(getSetting('santa_daily_cap')) ?? DEFAULT_SANTA_DAILY_CAP;
+    if (lettersToday(db) >= dailyCap) {
+      return NextResponse.json({
+        error: "Santa's mailbag is full for today! Please try again tomorrow. 🎅",
+        reason: 'daily_cap'
+      }, { status: 429 });
+    }
+
     // ✅ SECURITY: Validate and sanitize ALL inputs
     const validation = validateAndSanitizeSantaLetter(
       body.childName || '',
@@ -74,26 +100,50 @@ export async function POST(request: NextRequest) {
 
     // Use sanitized values from this point forward
     const sanitized = validation.sanitized!;
-    
-    // Insert letter into database with 'queued' status
-    // The queue processor will handle LLM generation and email sending
-    const result = insertSantaLetter.run(
-      sanitized.childName,
-      sanitized.childAge,
-      sanitized.parentEmail,
-      sanitized.letterContent,
-      clientIP
-    );
-    
-    const letterId = result.lastInsertRowid as number;
+
+    // The confirmation link must point at the public site, never at the request's Host header
+    const baseUrl = process.env.NEXTAUTH_URL;
+    if (!baseUrl) {
+      console.error('[Santa] NEXTAUTH_URL is not set - cannot build the confirmation link');
+      return NextResponse.json(
+        { error: 'Santa letters are not available right now. Please try again later.' },
+        { status: 500 }
+      );
+    }
+
+    // Insert the letter ('queued') with its confirmation; the queue processor only answers
+    // it after the parent clicks the link in the confirmation email
+    const { letterId, token } = db.transaction(() => {
+      const result = insertSantaLetter.run(
+        sanitized.childName,
+        sanitized.childAge,
+        sanitized.parentEmail,
+        sanitized.letterContent,
+        clientIP
+      );
+      const id = result.lastInsertRowid as number;
+      return { letterId: id, token: createLetterConfirmation(db, id) };
+    })();
     console.log('✅ Letter saved to database with ID:', letterId);
-    console.log('📬 Letter queued for processing - Santa will read it soon!');
-    
-    // Return instant success - no waiting for LLM or email
+
+    const emailSent = await sendSantaConfirmation({
+      parentEmail: sanitized.parentEmail,
+      confirmUrl: confirmationUrl(baseUrl, token),
+      siteName: getSetting('site_name') ?? '',
+    });
+    if (!emailSent) {
+      deleteUnconfirmedLetter(db, letterId);
+      return NextResponse.json(
+        { error: "We couldn't send the confirmation email right now. Please try again in a few minutes." },
+        { status: 503 }
+      );
+    }
+    console.log('📬 Confirmation email sent for letter ID:', letterId);
+
     return NextResponse.json({
       success: true,
       letterId,
-      message: "Your letter is on its way to the North Pole! 🎅✨ Santa will read it soon and send a magical reply to your email!"
+      message: "Almost there! 🎅 Check your email and click the link within 3 days to send your letter to the North Pole. Santa's reply will come to the same address."
     });
     
   } catch (error) {

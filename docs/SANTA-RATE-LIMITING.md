@@ -88,6 +88,31 @@ We track letters by both email address and location to ensure fair access.
 
 ---
 
+## Email Confirmation and Daily Cap
+
+The per-visitor limits alone don't stop a stranger from making the show's mail account write to
+someone else's address, so two more checks apply (`lib/santa-confirmation.ts`):
+
+1. **The parent confirms first.** `POST /api/santa/send-letter` saves the letter and emails a
+   fixed-text confirmation (nothing the sender typed is in it) with a link to `/santa/confirm`.
+   The parent presses the button on that page (`POST /api/santa/confirm`, 10 tries per IP per
+   10 minutes). Only then does the queue processor write and send Santa's reply. Links expire
+   after 72 hours and work once; only a SHA-256 of the token is stored
+   (`santa_letter_confirmations`, migration 022). If the confirmation email can't be sent, the
+   letter is removed so it doesn't use up the parent's daily allowance.
+2. **Daily cap for all visitors.** Settings → Santa Letter Configuration → *Daily Letter Cap*
+   (`santa_daily_cap`, default 50, 1–1000). Once that many letters arrive in a UTC day, new ones
+   get "Santa's mailbag is full for today" (429, `reason: 'daily_cap'`).
+
+The *Enable Santa Letter Submissions* switch is enforced too: when off, the form is refused (403).
+
+The Santa Letters admin page marks waiting letters "awaiting parent" (or "link expired");
+the queue skips them. Letters submitted before this existed are answered as before.
+An admin can also **Reject** a letter that hasn't been answered yet — the queue never answers it
+(**Restore** undoes that).
+
+---
+
 ## Technical Implementation
 
 ### File: `lib/santa-rate-limit.ts`
@@ -348,7 +373,7 @@ AND DATE(created_at) = DATE('now');
 Potential improvements:
 
 1. **Sliding Window**: Instead of daily reset at midnight, use 24-hour rolling window
-2. **Email Verification**: Require verified emails to prevent disposable addresses
+2. ~~**Email Verification**~~: done — see *Email Confirmation and Daily Cap*
 3. **CAPTCHA**: Add CAPTCHA for additional bot protection
 4. **Whitelist/Blacklist**: Admin ability to whitelist schools or blacklist IPs
 5. **Analytics**: Dashboard showing abuse attempts and IP patterns

@@ -165,7 +165,7 @@ under `tmp/` and a mocked mail transport — they never touch `votes.db` or send
 script individually** and report per-script results:
 `test-email-retries`, `test-email-retries-auth-fail`, `test-jukebox-queue-transaction`,
 `test-request-status`, `test-time-utils`, `test-migrations`, `test-trivia-logic`, `test-csrf`,
-`test-jukebox-display`, `test-jukebox-audience`, `test-theme-assets`, `test-poll-timing`. All of them pass; any failure counts against the change.
+`test-jukebox-display`, `test-jukebox-audience`, `test-theme-assets`, `test-poll-timing`, `test-santa-confirmation`. All of them pass; any failure counts against the change.
 
 New logic gets a new `scripts/test-<name>.ts` (pattern: `scripts/test-trivia-logic.ts`) and is
 appended to the `test:ci` script in `package.json`. `.github/workflows/ci.yml` lists tests
@@ -227,7 +227,7 @@ Note `eslint.config.mjs` ignores `scripts/**`, `migrations/**`, shell/PowerShell
    (b) `migrations/NNN_name.sql` are applied in filename order by `scripts/migrate-database.js`
    (tracked in the `schema_migrations` table, each file in one transaction) — this is what the
    self-update runs. New tables/columns normally go in a **new** migration file with the next
-   number (currently next is `022`), following `migrations/018_trivia.sql`. Never edit an
+   number (currently next is `023`), following `migrations/018_trivia.sql`. Never edit an
    already-applied migration. Note `013` is used twice (`013_fpp_status_cache.sql`,
    `013_game_scores.sql`) — don't reuse a number. `lib/migrations-runner.ts` is a legacy
    `game_scores`-only helper used by `scripts/test-migrations.ts`; it is NOT the real runner.
