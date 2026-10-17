@@ -2,6 +2,8 @@
 
 import type { ReactNode } from 'react';
 import { Headphones, Radio, X } from 'lucide-react';
+import { useTheme } from '@/lib/themes/theme-context';
+import { StringLights } from '@/components/ThemeAtmosphere';
 import type { ThemeAccent } from './theme-accent';
 
 interface RadioBarProps {
@@ -36,6 +38,8 @@ export default function RadioBar({
   accent,
   adminSlot,
 }: RadioBarProps) {
+  const { theme } = useTheme();
+
   return (
     <header
       className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-black/75 backdrop-blur-md"
@@ -47,7 +51,7 @@ export default function RadioBar({
             <Radio className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-white sm:text-base">{siteName}</p>
+            <p className="themed-title truncate text-sm font-bold text-white sm:text-base">{siteName}</p>
             <p className="flex items-center gap-2 text-xs text-white/80">
               {fmFrequency ? (
                 <span className={`font-semibold ${accent.text}`}>Tune your radio to {fmFrequency}</span>
@@ -77,6 +81,12 @@ export default function RadioBar({
           {adminSlot}
         </div>
       </div>
+      {/* Christmas lights hang just below the bar */}
+      {theme.atmosphere === 'winter' && (
+        <div className="pointer-events-none absolute inset-x-0 top-full">
+          <StringLights />
+        </div>
+      )}
     </header>
   );
 }

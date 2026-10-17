@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import AdminLayout from '@/components/AdminLayout';
 import { getAllThemes, ThemeConfig } from '@/lib/themes/theme-config';
 import ParticleEffects from '@/lib/themes/particle-effects';
+import ThemeAtmosphere from '@/components/ThemeAtmosphere';
 
 export default function ThemeSettings() {
   const { data: session, status: sessionStatus } = useSession();
@@ -166,6 +167,7 @@ export default function ThemeSettings() {
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setPreviewTheme(null)}>
           <div className="max-w-4xl w-full" onClick={(e) => e.stopPropagation()}>
             <div className={`bg-linear-to-br ${previewTheme.gradient} rounded-2xl p-8 shadow-2xl relative overflow-hidden`}>
+              <ThemeAtmosphere atmosphere={previewTheme.atmosphere} contained />
               {previewTheme.particles && previewTheme.particles !== 'none' && (
                 <ParticleEffects type={previewTheme.particles} />
               )}

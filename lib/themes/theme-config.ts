@@ -19,6 +19,7 @@ export interface ThemeConfig {
   };
   particles?: 'snowfall' | 'leaves' | 'hearts' | 'fireworks' | 'fog' | 'sparkles' | 'bats' | 'stars' | 'cherry-blossoms' | 'balloons' | 'wind-swirls' | 'ghosts' | 'spider-webs' | 'lightning' | 'candy-canes' | 'ornaments' | 'reindeer' | 'none';
   font?: string; // Optional custom font
+  atmosphere?: 'haunted' | 'winter'; // Optional background layer drawn alongside the particles
 }
 
 export const THEME_PRESETS: Record<string, ThemeConfig> = {
@@ -61,6 +62,7 @@ export const THEME_PRESETS: Record<string, ThemeConfig> = {
     },
     particles: 'bats',
     font: 'Creepster',
+    atmosphere: 'haunted',
   },
   
   christmas: {
@@ -82,6 +84,7 @@ export const THEME_PRESETS: Record<string, ThemeConfig> = {
     },
     particles: 'stars',
     font: 'Mountains of Christmas',
+    atmosphere: 'winter',
   },
   
   valentines: {

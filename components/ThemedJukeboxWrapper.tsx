@@ -3,6 +3,7 @@
 import { ReactNode } from 'react';
 import { useTheme } from '@/lib/themes/theme-context';
 import ParticleEffects from '@/lib/themes/particle-effects';
+import ThemeAtmosphere from '@/components/ThemeAtmosphere';
 
 interface ThemedJukeboxWrapperProps {
   children: ReactNode;
@@ -23,7 +24,10 @@ export default function ThemedJukeboxWrapper({ children }: ThemedJukeboxWrapperP
   }
 
   return (
-    <div className={`min-h-screen bg-linear-to-br ${theme.gradient} p-4 relative overflow-hidden`}>
+    <div className={`min-h-screen bg-linear-to-br ${theme.gradient} p-4 relative overflow-hidden`} data-atmosphere={theme.atmosphere}>
+      {/* Seasonal background (fog, moon, snow…) under the particles */}
+      <ThemeAtmosphere atmosphere={theme.atmosphere} />
+
       {/* Particle Effects */}
       {theme.particles && theme.particles !== 'none' && (
         <ParticleEffects type={theme.particles} />
