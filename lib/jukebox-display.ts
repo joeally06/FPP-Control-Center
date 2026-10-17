@@ -88,6 +88,14 @@ export function anchorElapsed(anchor: PlaybackAnchor, now: number): number {
 }
 
 /**
+ * When the page should look again for the next song: 1.5 s after this one should end (the poller checks
+ * FPP 1 s after, then the cache is ready). Never sooner than half a second from now.
+ */
+export function msUntilSongChange(anchor: PlaybackAnchor, now: number): number {
+  return Math.max(500, anchor.sampledAt + anchor.remaining * 1000 + 1500 - now);
+}
+
+/**
  * Keep counting from the current anchor while a new sample agrees with it (FPP reports whole seconds and the
  * cache time has 1 s resolution, so small disagreements are noise); switch on a new song or a real jump.
  */

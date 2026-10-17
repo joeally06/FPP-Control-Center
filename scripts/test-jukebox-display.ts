@@ -21,6 +21,7 @@ import {
   sampleTimeFromAge,
   anchorElapsed,
   nextPlaybackAnchor,
+  msUntilSongChange,
   type PlaybackAnchor,
   type CatalogSong,
 } from '../lib/jukebox-display';
@@ -338,6 +339,16 @@ const SONGS: CatalogSong[] = [
     assert.strictEqual(sampleTimeFromAge(100_000, bad), 100_000, `untrusted age ${String(bad)} → treat as fresh`);
   }
   print('Test 18 OK');
+})();
+
+// Test 19: msUntilSongChange - when the page looks for the next song
+(() => {
+  print('Test 19: msUntilSongChange');
+  const a: PlaybackAnchor = { sequence: 'A', played: 60, remaining: 140, sampledAt: 10_000 };
+  assert.strictEqual(msUntilSongChange(a, 10_000), 141_500, '1.5 s after the expected end');
+  assert.strictEqual(msUntilSongChange(a, 147_000), 4_500, 'counts from the sample, not from now');
+  assert.strictEqual(msUntilSongChange(a, 200_000), 500, 'already past the end → look again shortly');
+  print('Test 19 OK');
 })();
 
 print('All tests passed.');

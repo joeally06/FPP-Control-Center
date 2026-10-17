@@ -33,6 +33,7 @@ import { getBrowserLocation, getDistanceInMiles, type UserLocation } from '@/lib
 import {
   anchorElapsed,
   estimateWaits,
+  msUntilSongChange,
   nextPlaybackAnchor,
   sampleTimeFromAge,
   showStatus,
@@ -134,6 +135,7 @@ export default function JukeboxPage() {
   const [confirmSong, setConfirmSong] = useState<CatalogSong | null>(null);
   // Playback position reported by the FPP poller cache (/api/fpp/cached-status)
   const [fppProgress, setFppProgress] = useState<PlaybackAnchor | null>(null);
+  const fetchDataRef = useRef<(() => Promise<void>) | null>(null);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [locationError, setLocationError] = useState<string | null>(null);
   const [checkingLocation, setCheckingLocation] = useState(false);
@@ -509,6 +511,8 @@ export default function JukeboxPage() {
   // Playback position for the progress bar - polled from the FPP poller cache while the page is visible
   useEffect(() => {
     let cancelled = false;
+    let songEndTimer: ReturnType<typeof setTimeout> | undefined;
+    let lastSequence: string | null | undefined; // undefined until the first answer
     const poll = async () => {
       if (document.visibilityState !== 'visible') return;
       try {
@@ -517,21 +521,29 @@ export default function JukeboxPage() {
         const data = await response.json();
         const played = Number(data.seconds_played);
         const remaining = Number(data.seconds_remaining);
-        if (
+        const playing =
           data.status === 'playing' &&
           !data.cache?.is_stale &&
           Number.isFinite(played) &&
           Number.isFinite(remaining) &&
-          played + remaining > 0
-        ) {
+          played + remaining > 0;
+        clearTimeout(songEndTimer);
+        if (playing) {
           // Date the sample by when the poller took it (the cache refreshes less often than we poll),
           // and keep counting smoothly unless FPP really moved
           const now = Date.now();
           const sample = { sequence: data.current_sequence || null, played, remaining, sampledAt: sampleTimeFromAge(now, data.cache?.age_ms) };
           setFppProgress((current) => nextPlaybackAnchor(current, sample, now));
+          // Look again just after this song ends instead of waiting for the next regular poll
+          songEndTimer = setTimeout(poll, msUntilSongChange(sample, now));
         } else {
           setFppProgress(null);
         }
+
+        // A different song: refresh the title and queue now rather than on their next 5 s poll
+        const sequence = playing ? data.current_sequence || null : null;
+        if (lastSequence !== undefined && sequence !== lastSequence) fetchDataRef.current?.();
+        lastSequence = sequence;
       } catch {
         // Keep the last known position; the next poll will correct it
       }
@@ -541,8 +553,14 @@ export default function JukeboxPage() {
     return () => {
       cancelled = true;
       clearInterval(interval);
+      clearTimeout(songEndTimer);
     };
   }, []);
+
+  // Latest fetchData for the song-change refresh above, which lives in a mount-once effect
+  useEffect(() => {
+    fetchDataRef.current = fetchData;
+  });
 
   // Advance the progress bar smoothly between polls
   useEffect(() => {
