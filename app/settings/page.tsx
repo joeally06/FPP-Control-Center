@@ -8,6 +8,7 @@ import BannerSettings from '@/components/admin/BannerSettings';
 import TriviaSettings from '@/components/admin/TriviaSettings';
 import DisplaySettings from '@/components/admin/DisplaySettings';
 import { formatDateTime } from '@/lib/time-utils';
+import { DEFAULT_COURTESY_TEXT, VISITOR_SETTING_LIMITS } from '@/lib/jukebox-display';
 import { getModelWarning, getColorClasses, requiresConfirmation, getEstimatedResponseTime } from '@/lib/model-warnings';
 import { 
   AdminH1, 
@@ -1503,6 +1504,9 @@ function TriviaSettingsSection() {
 function JukeboxSettings() {
   const [rateLimit, setRateLimit] = useState<number>(3);
   const [insertMode, setInsertMode] = useState<string>('after_current');
+  const [fmFrequency, setFmFrequency] = useState('');
+  const [courtesyEnabled, setCourtesyEnabled] = useState(false);
+  const [courtesyText, setCourtesyText] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
@@ -1525,6 +1529,9 @@ function JukeboxSettings() {
         const data = await response.json();
         setRateLimit(parseInt(data.settings.jukebox_rate_limit || '3', 10));
         setInsertMode(data.settings.jukebox_insert_mode || 'after_current');
+        setFmFrequency(data.settings.jukebox_fm_frequency || '');
+        setCourtesyEnabled(data.settings.jukebox_courtesy_enabled === 'true');
+        setCourtesyText(data.settings.jukebox_courtesy_text || '');
       }
     } catch (err) {
       console.error('Error fetching jukebox settings:', err);
@@ -1640,7 +1647,10 @@ function JukeboxSettings() {
         body: JSON.stringify({
           settings: {
             jukebox_rate_limit: rateLimit.toString(),
-            jukebox_insert_mode: insertMode
+            jukebox_insert_mode: insertMode,
+            jukebox_fm_frequency: fmFrequency.trim(),
+            jukebox_courtesy_enabled: courtesyEnabled ? 'true' : 'false',
+            jukebox_courtesy_text: courtesyText.trim()
           }
         })
       });
@@ -1788,6 +1798,63 @@ function JukeboxSettings() {
               {insertMode === 'end_of_playlist' && '📋 End of Playlist'}
             </strong>
           </AdminInfo>
+        </div>
+
+        {/* Visitor Page Section */}
+        <div className="mt-8 space-y-4">
+          <div>
+            <AdminH3>📻 Visitor Page</AdminH3>
+            <AdminTextMuted>
+              What visitors see at the top of the jukebox page
+            </AdminTextMuted>
+          </div>
+
+          <label className="block">
+            <AdminLabel>FM frequency</AdminLabel>
+            <input
+              type="text"
+              value={fmFrequency}
+              onChange={(e) => setFmFrequency(e.target.value)}
+              maxLength={VISITOR_SETTING_LIMITS.jukebox_fm_frequency}
+              placeholder="e.g. 91.5 FM"
+              className="mt-2 w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/40"
+            />
+            <AdminTextSmall className="text-white/60 mt-1">
+              Leave empty to hide the radio frequency (the Listen Online button still shows).
+            </AdminTextSmall>
+          </label>
+
+          <label className="flex items-start gap-3 p-4 bg-white/5 rounded-lg border border-white/20 cursor-pointer hover:bg-white/10 transition-all">
+            <input
+              type="checkbox"
+              checked={courtesyEnabled}
+              onChange={(e) => setCourtesyEnabled(e.target.checked)}
+              className="mt-1"
+            />
+            <div className="flex-1">
+              <AdminLabel>🚗 Show the courtesy reminders card</AdminLabel>
+              <AdminTextSmall className="text-white/60">
+                A dismissible card with viewing reminders for visitors in cars.
+              </AdminTextSmall>
+            </div>
+          </label>
+
+          {courtesyEnabled && (
+            <label className="block">
+              <AdminLabel>Courtesy reminders (one per line, up to 5)</AdminLabel>
+              <textarea
+                value={courtesyText}
+                onChange={(e) => setCourtesyText(e.target.value)}
+                maxLength={VISITOR_SETTING_LIMITS.jukebox_courtesy_text}
+                rows={4}
+                placeholder={DEFAULT_COURTESY_TEXT}
+                className="mt-2 w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/40"
+              />
+              <AdminTextSmall className="text-white/60 mt-1">
+                Leave empty to use the default reminders shown above.
+              </AdminTextSmall>
+            </label>
+          )}
         </div>
 
         {/* Save Button */}

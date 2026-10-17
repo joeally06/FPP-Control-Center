@@ -8,51 +8,36 @@ import { useVisitorTracking } from '@/hooks/useVisitorTracking';
 import { useTheme } from '@/lib/themes/theme-context';
 import ThemedJukeboxWrapper from '@/components/ThemedJukeboxWrapper';
 import LetterToSantaModal from '@/components/LetterToSantaModal';
-import LocationPermissionModal, { 
-  getCachedLocation, 
-  getStoredPermissionStatus, 
-  clearLocationPermission 
+import LocationPermissionModal, {
+  getCachedLocation,
+  getStoredPermissionStatus,
+  clearLocationPermission
 } from '@/components/LocationPermissionModal';
 import LocationStatusBadge, { type LocationStatus } from '@/components/LocationStatusBadge';
 import Toast from '@/components/Toast';
 import { YouTubePlayer } from '@/components/YouTubePlayer';
-import EnhancedVotingCard from '@/components/EnhancedVotingCard';
 import JukeboxBanner from '@/components/JukeboxBanner';
 import AudioSyncPlayer from '@/components/AudioSyncPlayer';
 import Footer from '@/components/Footer';
+import RadioBar from '@/components/jukebox/RadioBar';
+import ShowStatusStrip from '@/components/jukebox/ShowStatusStrip';
+import CourtesyCard from '@/components/jukebox/CourtesyCard';
+import NowPlayingCard, { type NowPlayingInfo } from '@/components/jukebox/NowPlayingCard';
+import UpNextList from '@/components/jukebox/UpNextList';
+import SongCatalog from '@/components/jukebox/SongCatalog';
+import RequestConfirmModal from '@/components/jukebox/RequestConfirmModal';
+import { getThemeAccent, CARD } from '@/components/jukebox/theme-accent';
 import { formatDateTime } from '@/lib/time-utils';
 import { getBrowserLocation, getDistanceInMiles, type UserLocation } from '@/lib/location-utils';
-import { Radio, Music } from 'lucide-react';
+import { stripFseq, type PublicQueueItem } from '@/lib/jukebox-display';
 import { TIMING } from '@/lib/constants';
 
-interface QueueItem {
-  id: number;
-  sequence_name: string; // Now contains sequence names without .fseq extension
-  requester_name: string;
-  status: string;
-  created_at: string;
-  priority: number;
-}
-
-interface PopularSequence {
-  sequence_name: string; // Now contains sequence names without .fseq extension
-  total_requests: number;
-  upvotes: number;
-  downvotes: number;
-  popularity_score: number;
-}
-
-interface VoteCounts {
-  upvotes: number;
-  downvotes: number;
-}
-
 interface CurrentlyPlaying {
-  id: number;
+  id: number | null; // null when the song comes from the FPP schedule, not the request queue
   sequence_name: string; // Original sequence name without .fseq extension
-  media_name?: string; // MP3/media filename for Spotify matching
-  requester_name: string;
-  played_at: string;
+  media_name?: string | null; // MP3/media filename for Spotify matching
+  requester_name?: string | null;
+  played_at?: string | null;
   cached?: boolean; // Whether data is from cache or direct FPP query
   cache_age_seconds?: number; // Age of cached data in seconds
 }
@@ -96,26 +81,33 @@ interface ScheduleStatus {
   lastChecked: string;
 }
 
+/** Playback position reported by the FPP poller cache (/api/fpp/cached-status) */
+interface FppProgress {
+  sequence: string | null;
+  played: number;
+  remaining: number;
+  fetchedAt: number;
+}
+
+const ADMIN_BUTTON = 'min-h-11 rounded-xl px-3 text-sm font-semibold text-white transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60';
+
 export default function JukeboxPage() {
   // Track visitor engagement
   useVisitorTracking('/jukebox');
-  
+
   const { data: session } = useSession();
   const { theme } = useTheme();
+  const accent = getThemeAccent(theme.id);
   const isAdmin = session?.user?.role === 'admin';
   const router = useRouter();
-  const [queue, setQueue] = useState<QueueItem[]>([]);
-  const [popularSequences, setPopularSequences] = useState<PopularSequence[]>([]);
+  const [queue, setQueue] = useState<PublicQueueItem[]>([]);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<CurrentlyPlaying | null>(null);
   const [currentMetadata, setCurrentMetadata] = useState<SequenceMetadata | null>(null);
   const [availableSequences, setAvailableSequences] = useState<string[]>([]);
-  const [newRequest, setNewRequest] = useState('');
   const [requesterName, setRequesterName] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [loadingSequences, setLoadingSequences] = useState(true);
-  const [voteCounts, setVoteCounts] = useState<Record<string, VoteCounts>>({});
-  const [userVotes, setUserVotes] = useState<Record<string, string | null>>({});
   const [showSantaModal, setShowSantaModal] = useState(false);
   const isChristmasTheme = theme.id === 'christmas';
   const [youtubeVideos, setYoutubeVideos] = useState<YouTubeVideo[]>([]);
@@ -125,6 +117,13 @@ export default function JukeboxPage() {
   const [loadingSchedule, setLoadingSchedule] = useState(true);
   const [jukeboxRateLimit, setJukeboxRateLimit] = useState<number>(3);
   const [requestsRemaining, setRequestsRemaining] = useState<number | null>(null);
+  const [siteName, setSiteName] = useState('');
+  const [fmFrequency, setFmFrequency] = useState('');
+  const [courtesyLines, setCourtesyLines] = useState<string[]>([]);
+  const [listening, setListening] = useState(false);
+  const [confirmSong, setConfirmSong] = useState<string | null>(null);
+  const [fppProgress, setFppProgress] = useState<FppProgress | null>(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
   const [locationError, setLocationError] = useState<string | null>(null);
   const [checkingLocation, setCheckingLocation] = useState(false);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -132,12 +131,12 @@ export default function JukeboxPage() {
   const [distanceFromShow, setDistanceFromShow] = useState<number | null>(null);
   const [showLocation, setShowLocation] = useState<{ lat: number; lng: number; maxDistance: number } | null>(null);
   const [locationRestrictionsEnabled, setLocationRestrictionsEnabled] = useState<boolean | null>(null); // null = loading, true/false = loaded
-  
+
   // Lazy location modal state - only show when user tries to take action
   const [showLocationModal, setShowLocationModal] = useState(false);
   // Use a ref for pendingAction to avoid stale closure issues
   const pendingActionRef = useRef<((location?: UserLocation) => void) | null>(null);
-  
+
   // Toast notification state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; isVisible: boolean }>({
     message: '',
@@ -159,7 +158,7 @@ export default function JukeboxPage() {
     // Don't show badge if restrictions are disabled or still loading
     if (locationRestrictionsEnabled === false) return null;
     if (locationRestrictionsEnabled === null) return null; // Still loading
-    
+
     // Only show badge when we have location and can display the distance
     // Don't show "Enable", "Blocked", or "Checking" states - keep it minimal
     if (userLocation && showLocation && distanceFromShow !== null) {
@@ -168,7 +167,7 @@ export default function JukeboxPage() {
       }
       return 'granted';
     }
-    
+
     // Return null for all other states - badge won't show
     return null;
   }, [userLocation, showLocation, distanceFromShow, locationRestrictionsEnabled]);
@@ -178,7 +177,7 @@ export default function JukeboxPage() {
     // Try localStorage first (persistent)
     const cachedLocation = getCachedLocation();
     const storedStatus = getStoredPermissionStatus();
-    
+
     if (cachedLocation) {
       setUserLocation(cachedLocation);
       setLocationPermissionStatus('granted');
@@ -190,12 +189,12 @@ export default function JukeboxPage() {
       const sessionLocation = sessionStorage.getItem('user-location');
       const sessionTimestamp = sessionStorage.getItem('user-location-timestamp');
       const sessionPermission = sessionStorage.getItem('location-permission-requested');
-      
+
       if (sessionLocation && sessionTimestamp) {
         try {
           const locationAge = Date.now() - parseInt(sessionTimestamp);
           const LOCATION_MAX_AGE = 30 * 60 * 1000;
-          
+
           if (locationAge < LOCATION_MAX_AGE) {
             const location = JSON.parse(sessionLocation);
             setUserLocation(location);
@@ -206,7 +205,7 @@ export default function JukeboxPage() {
           console.error('Failed to parse cached location:', error);
         }
       }
-      
+
       if (sessionPermission && !cachedLocation) {
         setLocationPermissionStatus(sessionPermission as 'granted' | 'denied' | 'skipped');
       }
@@ -216,26 +215,26 @@ export default function JukeboxPage() {
   // Check browser's actual geolocation permission on mount (when restrictions enabled)
   useEffect(() => {
     console.log('[Location] Mount effect - locationRestrictionsEnabled:', locationRestrictionsEnabled, 'userLocation:', userLocation ? 'exists' : 'null');
-    
+
     // ONLY check if restrictions are explicitly ENABLED (true)
     // Don't check if null (loading) or false (disabled)
     if (locationRestrictionsEnabled !== true) {
       console.log('[Location] Skipping auto-check - restrictions not enabled');
       return;
     }
-    
+
     // Don't check if we already have location
     if (userLocation) {
       console.log('[Location] Already have location - skipping auto-check');
       return;
     }
-    
+
     console.log('[Location] Starting browser permission check...');
     // Check browser's permission state using Permissions API
     if (navigator.permissions && navigator.permissions.query) {
       navigator.permissions.query({ name: 'geolocation' as PermissionName }).then((permissionStatus) => {
         console.log('[Location] Browser permission state:', permissionStatus.state);
-        
+
         if (permissionStatus.state === 'granted') {
           // Browser already has permission - fetch location silently
           console.log('[Location] Permission already granted by browser - fetching location...');
@@ -243,12 +242,12 @@ export default function JukeboxPage() {
             .then((location) => {
               setUserLocation(location);
               setLocationPermissionStatus('granted'); // Only set after successful fetch
-              
+
               // Store for persistence
               localStorage.setItem('fpp-user-location', JSON.stringify(location));
               localStorage.setItem('fpp-location-timestamp', Date.now().toString());
               localStorage.setItem('fpp-location-permission-status', 'granted');
-              
+
               console.log('[Location] Location fetched successfully on mount');
             })
             .catch((error) => {
@@ -276,15 +275,15 @@ export default function JukeboxPage() {
     setLocationPermissionStatus('granted');
     setLocationError(null);
     setShowLocationModal(false);
-    
+
     // localStorage is now handled in the modal itself
     // Also update sessionStorage for backwards compatibility
     sessionStorage.setItem('user-location', JSON.stringify(location));
     sessionStorage.setItem('user-location-timestamp', Date.now().toString());
     sessionStorage.setItem('location-permission-requested', 'granted');
-    
+
     showToast('✅ Location enabled! Your action will continue...', 'success');
-    
+
     // Execute pending action if any (using ref to avoid stale closure)
     // IMPORTANT: Pass location directly since React state update is async
     if (pendingActionRef.current) {
@@ -303,9 +302,9 @@ export default function JukeboxPage() {
     sessionStorage.removeItem('user-location');
     sessionStorage.setItem('location-permission-requested', 'denied');
     pendingActionRef.current = null;
-    
-    // Informative toast - let user know they can try again when voting
-    showToast('📍 Location not enabled. You\'ll be prompted again when voting.', 'info');
+
+    // Informative toast - let user know they can try again when requesting
+    showToast('📍 Location not enabled. You\'ll be asked again when you request a song.', 'info');
   };
 
   const handleLocationSkipped = () => {
@@ -313,9 +312,9 @@ export default function JukeboxPage() {
     setShowLocationModal(false);
     sessionStorage.setItem('location-permission-requested', 'skipped');
     pendingActionRef.current = null;
-    
+
     // Subtle toast - user can still browse, just can't interact
-    showToast('📍 You can browse songs. Enable location when ready to vote!', 'info');
+    showToast('📍 You can browse songs. Enable location when you\'re ready to request one!', 'info');
   };
 
   const resetLocationPermission = () => {
@@ -338,25 +337,25 @@ export default function JukeboxPage() {
       console.log('[Location] Restrictions disabled - skipping location check');
       return true;
     }
-    
+
     // If still loading restriction settings, wait - don't ask for location yet
     if (locationRestrictionsEnabled === null) {
       console.log('[Location] Still loading restriction settings... waiting');
       showToast('⏳ Loading settings...', 'info');
       return false;
     }
-    
+
     console.log('[Location] Restrictions enabled - checking location availability');
-    
+
     // Already have location? Great!
     if (userLocation) {
       console.log('[Location] Already have location');
       return true;
     }
-    
+
     // Clear any previous location errors when showing the modal
     setLocationError(null);
-    
+
     // Permission was denied? Show modal to let user try again
     if (locationPermissionStatus === 'denied') {
       console.log('[Location] Permission denied - showing modal');
@@ -364,7 +363,7 @@ export default function JukeboxPage() {
       setShowLocationModal(true);
       return false;
     }
-    
+
     // No previous interaction? Show the explanation modal
     if (locationPermissionStatus === null || locationPermissionStatus === 'skipped') {
       console.log('[Location] No permission yet - showing modal');
@@ -372,7 +371,7 @@ export default function JukeboxPage() {
       setShowLocationModal(true);
       return false;
     }
-    
+
     // Permission was granted but no location (expired?) - try to get it silently
     console.log('[Location] Permission granted but location missing - fetching silently...');
     setCheckingLocation(true);
@@ -380,18 +379,18 @@ export default function JukeboxPage() {
       const location = await getBrowserLocation();
       setUserLocation(location);
       setLocationPermissionStatus('granted');
-      
+
       // Store in localStorage for persistence
       localStorage.setItem('fpp-user-location', JSON.stringify(location));
       localStorage.setItem('fpp-location-timestamp', Date.now().toString());
-      
+
       // Also sessionStorage for backwards compatibility
       sessionStorage.setItem('user-location', JSON.stringify(location));
       sessionStorage.setItem('user-location-timestamp', Date.now().toString());
-      
+
       setCheckingLocation(false);
       console.log('[Location] Location fetched successfully');
-      
+
       // If there's a pending action callback, call it immediately with the fresh location
       // This prevents race condition where state hasn't updated yet
       if (onSuccess) {
@@ -399,12 +398,12 @@ export default function JukeboxPage() {
         await onSuccess(location);
         return false; // Return false to prevent double-execution in caller
       }
-      
+
       return true;
     } catch (error: any) {
       setCheckingLocation(false);
       console.log('[Location] Silent location fetch failed:', error.message);
-      
+
       // Browser needs user gesture - show modal to explain and let user try
       pendingActionRef.current = onSuccess || null;
       setShowLocationModal(true);
@@ -434,22 +433,21 @@ export default function JukeboxPage() {
   useEffect(() => {
     fetchAvailableSequences();
     fetchData();
-    fetchVotes();
     fetchYouTubeVideos();
     fetchScheduleStatus(); // Check schedule status
-    fetchJukeboxSettings(); // Fetch jukebox rate limit and insert mode
+    fetchJukeboxSettings(); // Fetch jukebox rate limit, insert mode, and visitor page settings
     fetchLocationRestrictions(); // Fetch location settings for distance calculation
-    
+
     const interval = setInterval(fetchData, TIMING.POLL_INTERVAL_FAST);
     const scheduleInterval = setInterval(fetchScheduleStatus, TIMING.POLL_INTERVAL_SLOW);
-    
+
     // Refresh request status to keep it up to date
     const requestStatusInterval = setInterval(() => {
       if (jukeboxRateLimit > 0) {
         fetchRequestStatus(jukeboxRateLimit);
       }
     }, TIMING.POLL_INTERVAL_MEDIUM);
-    
+
     // Background queue processor - check every 10 seconds (runs for everyone)
     const queueProcessorInterval = setInterval(async () => {
       try {
@@ -458,17 +456,17 @@ export default function JukeboxPage() {
         console.error('Queue processor failed:', error);
       }
     }, 10000); // 10 seconds
-    
+
     // Admin-only background operations
     let cacheRefreshInterval: NodeJS.Timeout | undefined;
-    
+
     if (isAdmin) {
       // Background cache refresh every 10 minutes (admin only)
       cacheRefreshInterval = setInterval(async () => {
         try {
           const response = await fetch('/api/jukebox/refresh-cache', { method: 'POST' });
           const data = await response.json();
-          
+
           if (data.success) {
             console.log(`[Jukebox] Background cache refresh: ${data.sequencesCached} sequences cached`);
           } else {
@@ -486,7 +484,7 @@ export default function JukeboxPage() {
         }
       }, 10 * 60 * 1000); // 10 minutes
     }
-    
+
     // ✅ MEMORY LEAK FIX: Clear all intervals on unmount
     return () => {
       clearInterval(interval);
@@ -497,11 +495,51 @@ export default function JukeboxPage() {
     };
   }, [isAdmin]);
 
+  // Playback position for the progress bar - polled from the FPP poller cache while the page is visible
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const response = await fetch('/api/fpp/cached-status');
+        if (!response.ok || cancelled) return;
+        const data = await response.json();
+        const played = Number(data.seconds_played);
+        const remaining = Number(data.seconds_remaining);
+        if (
+          data.status === 'playing' &&
+          !data.cache?.is_stale &&
+          Number.isFinite(played) &&
+          Number.isFinite(remaining) &&
+          played + remaining > 0
+        ) {
+          setFppProgress({ sequence: data.current_sequence || null, played, remaining, fetchedAt: Date.now() });
+        } else {
+          setFppProgress(null);
+        }
+      } catch {
+        // Keep the last known position; the next poll will correct it
+      }
+    };
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Advance the progress bar smoothly between polls
+  useEffect(() => {
+    if (!fppProgress) return;
+    const interval = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [fppProgress]);
+
   const fetchData = async () => {
     try {
-      const [queueRes, popularRes, statusRes] = await Promise.all([
+      const [queueRes, statusRes] = await Promise.all([
         fetch('/api/jukebox/queue'),
-        fetch('/api/jukebox/popular'),
         fetch('/api/jukebox/status')
       ]);
 
@@ -510,45 +548,12 @@ export default function JukeboxPage() {
         setQueue(queueData);
       }
 
-      if (popularRes.ok) {
-        const popularData = await popularRes.json();
-        setPopularSequences(popularData);
-      }
-
       if (statusRes.ok) {
         const statusData = await statusRes.json();
         setCurrentlyPlaying(statusData);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
-    }
-  };
-
-  const fetchVotes = async () => {
-    try {
-      const response = await fetch('/api/votes');
-      if (response.ok) {
-        const counts = await response.json();
-        setVoteCounts(counts);
-      }
-    } catch (err) {
-      console.error('Failed to fetch votes:', err);
-    }
-  };
-
-  const fetchUserVotes = async () => {
-    try {
-      const userVotesMap: Record<string, string | null> = {};
-      for (const sequence of availableSequences) {
-        const response = await fetch(`/api/votes?sequence=${encodeURIComponent(sequence)}`);
-        if (response.ok) {
-          const data = await response.json();
-          userVotesMap[sequence] = data.userVote;
-        }
-      }
-      setUserVotes(userVotesMap);
-    } catch (err) {
-      console.error('Failed to fetch user votes:', err);
     }
   };
 
@@ -590,7 +595,10 @@ export default function JukeboxPage() {
         const data = await response.json();
         setJukeboxRateLimit(data.rateLimit || 3);
         // Insert mode is used server-side only, visitors don't need to see it
-        
+        setSiteName(data.siteName || '');
+        setFmFrequency(data.fmFrequency || '');
+        setCourtesyLines(data.courtesy?.enabled && Array.isArray(data.courtesy.lines) ? data.courtesy.lines : []);
+
         // After getting rate limit, fetch current request status
         await fetchRequestStatus(data.rateLimit || 3);
       }
@@ -623,7 +631,7 @@ export default function JukeboxPage() {
         // Track if restrictions are enabled
         const isEnabled = Boolean(data.enabled && data.show_latitude && data.show_longitude);
         setLocationRestrictionsEnabled(isEnabled);
-        
+
         if (isEnabled) {
           setShowLocation({
             lat: data.show_latitude,
@@ -642,74 +650,20 @@ export default function JukeboxPage() {
     }
   };
 
-  const handleVote = async (sequenceName: string, voteType: 'up' | 'down', locationOverride?: UserLocation) => {
-    // Ensure location permission first (lazy approach)
-    // The callback receives location directly when called from handleLocationGranted
-    const hasLocation = await ensureLocationPermission((location?: UserLocation) => handleVote(sequenceName, voteType, location));
-    if (!hasLocation) {
-      // If false is returned, the action was already executed or modal will be shown
-      return;
-    }
-
-    // Use override if provided (from pending action), otherwise use state
-    // Only required if restrictions are enabled
-    const locationToUse = locationOverride || userLocation;
-
-    try {
-      const response = await fetch('/api/votes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          sequenceName, 
-          voteType,
-          userLocation: locationToUse
-        })
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        // Refresh votes after voting
-        await fetchVotes();
-        await fetchUserVotes();
-      } else {
-        if (data.requiresLocation) {
-          setLocationError(data.error);
-          showToast(data.error, 'error');
-        } else if (data.error?.includes('too far')) {
-          showToast(`📍 ${data.error}`, 'error');
-        } else {
-          console.error('Failed to vote:', data.error);
-          showToast(`Failed to vote: ${data.error}`, 'error');
-        }
-      }
-    } catch (err) {
-      console.error('Failed to vote:', err);
-      showToast('Failed to submit vote. Please try again.', 'error');
-    }
-  };
-
-  // Fetch user votes when sequences are available
-  useEffect(() => {
-    if (availableSequences.length > 0) {
-      fetchUserVotes();
-    }
-  }, [availableSequences]);
-
   const fetchAvailableSequences = async () => {
     setLoadingSequences(true);
     setMessage('');
-    
+
     try {
       console.log('[Jukebox] Fetching available sequences from cache...');
-      
+
       // Always use the public cached sequences endpoint
       const response = await fetch('/api/jukebox/sequences');
-      
+
       if (response.ok) {
         const data = await response.json();
         setAvailableSequences(Array.isArray(data.sequences) ? data.sequences : []);
-        
+
         if (data.sequences.length === 0) {
           setMessage('⚠️ No songs available. Admin needs to refresh the cache.');
         } else {
@@ -734,17 +688,17 @@ export default function JukeboxPage() {
       setMessage('⚠️ Only admins can refresh the song cache.');
       return;
     }
-    
+
     setLoadingSequences(true);
     setMessage('🔄 Refreshing sequence cache from FPP...');
-    
+
     try {
       const response = await fetch('/api/jukebox/refresh-cache', {
         method: 'POST'
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         setMessage(`✅ Cache refreshed! ${data.sequencesCached} sequences loaded.`);
         // Reload sequences from cache
@@ -795,15 +749,13 @@ export default function JukeboxPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setMessage(data.message || '✅ Song added to queue!');
         showToast(data.message || '🎵 Song added to queue!', 'success');
-        
+
         // Update remaining requests count
         if (typeof data.requestsRemaining === 'number') {
           setRequestsRemaining(data.requestsRemaining);
         }
-        
-        setNewRequest('');
+
         fetchData(); // Refresh the queue
       } else {
         if (data.requiresLocation) {
@@ -825,84 +777,21 @@ export default function JukeboxPage() {
     }
   };
 
-  const handleRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newRequest.trim()) return;
-
-    // Capture values before async call (in case they change)
-    const capturedRequest = newRequest.trim();
+  // Confirm modal → location gate → submit (same flow the old request form used)
+  const confirmRequest = async () => {
+    if (!confirmSong) return;
+    const capturedSong = confirmSong;
     const capturedName = requesterName.trim();
+    setConfirmSong(null);
 
-    // Ensure location permission first, passing the pending action
     // The callback receives location directly when called from handleLocationGranted
-    const hasLocation = await ensureLocationPermission((location?: UserLocation) => submitRequest(capturedRequest, capturedName, location));
+    const hasLocation = await ensureLocationPermission((location?: UserLocation) => submitRequest(capturedSong, capturedName, location));
     if (!hasLocation) {
       // If false is returned, the action was already executed or modal will be shown
       return;
     }
 
-    await submitRequest(capturedRequest, capturedName);
-  };
-
-  const requestPopularSequence = async (sequenceName: string, locationOverride?: UserLocation) => {
-    // Ensure location permission first, passing the pending action
-    // The callback receives location directly when called from handleLocationGranted
-    const hasLocation = await ensureLocationPermission((location?: UserLocation) => requestPopularSequence(sequenceName, location));
-    if (!hasLocation) {
-      // If false is returned, the action was already executed or modal will be shown
-      return;
-    }
-
-    // Use override if provided (from pending action), otherwise use state
-    // Will be undefined if restrictions are disabled (which is fine)
-    const locationToUse = locationOverride || userLocation;
-
-    setLoading(true);
-    setLocationError(null);
-
-    try {
-      const response = await fetch('/api/jukebox/queue', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          sequence_name: sequenceName,
-          requester_name: requesterName.trim() || undefined,
-          userLocation: locationToUse
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage(data.message || `✅ "${sequenceName}" added to queue!`);
-        showToast(`🎵 "${sequenceName}" added to queue!`, 'success');
-        
-        // Update remaining requests count
-        if (typeof data.requestsRemaining === 'number') {
-          setRequestsRemaining(data.requestsRemaining);
-        }
-        
-        fetchData();
-      } else {
-        if (data.requiresLocation) {
-          setLocationError(data.error);
-          showToast(data.error, 'error');
-        } else if (data.error?.includes('too far')) {
-          showToast(`📍 ${data.error}`, 'error');
-          setMessage(`📍 ${data.error}`);
-        } else {
-          setMessage(`❌ ${data.error || 'Failed to add sequence'}`);
-          showToast(data.error || 'Failed to add sequence', 'error');
-        }
-      }
-    } catch (error) {
-      setMessage('❌ Error submitting request');
-      showToast('Error submitting request. Please try again.', 'error');
-    } finally {
-      setLoading(false);
-    }
+    await submitRequest(capturedSong, capturedName);
   };
 
   const updateStatus = async (id: number, status: string) => {
@@ -956,15 +845,15 @@ export default function JukeboxPage() {
     const parts = timeStr.split(':');
     const hours = parseInt(parts[0]);
     const minutes = parts[1];
-    
+
     // Convert to 12-hour format
     const period = hours >= 12 ? 'PM' : 'AM';
     const hours12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
     const standardTime = `${hours12}:${minutes} ${period}`;
-    
+
     // Military time (already in 24-hour format)
     const militaryTime = `${String(hours).padStart(2, '0')}:${minutes}`;
-    
+
     return `${standardTime} (${militaryTime})`;
   };
 
@@ -973,12 +862,12 @@ export default function JukeboxPage() {
     if (!isoString) return null;
     const date = new Date(isoString);
     const now = new Date();
-    
+
     // Calculate time until show
     const msUntil = date.getTime() - now.getTime();
     const hoursUntil = Math.floor(msUntil / (1000 * 60 * 60));
     const minutesUntil = Math.floor((msUntil % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     const formattedDate = date.toLocaleString('en-US', {
       weekday: 'long',
       month: 'short',
@@ -987,7 +876,7 @@ export default function JukeboxPage() {
       minute: '2-digit',
       hour12: true
     });
-    
+
     // Add countdown if less than 24 hours away
     if (hoursUntil < 24 && hoursUntil >= 0) {
       if (hoursUntil > 0) {
@@ -998,9 +887,39 @@ export default function JukeboxPage() {
         return `${formattedDate} (Starting soon!)`;
       }
     }
-    
+
     return formattedDate;
   };
+
+  // ── Derived display state ──────────────────────────────────────────────────
+  // Progress applies only when FPP is playing the song the card shows
+  const progressMatchesCard =
+    fppProgress !== null &&
+    (!currentlyPlaying || stripFseq(fppProgress.sequence) === stripFseq(currentlyPlaying.sequence_name));
+  const progress = fppProgress && progressMatchesCard
+    ? (() => {
+        const total = fppProgress.played + fppProgress.remaining;
+        const elapsed = Math.min(total, fppProgress.played + Math.max(0, nowTick - fppProgress.fetchedAt) / 1000);
+        return { elapsed, total };
+      })()
+    : null;
+  const currentRemainingSec = progress ? Math.max(0, progress.total - progress.elapsed) : null;
+  const currentSequenceName = currentlyPlaying?.sequence_name ?? (fppProgress?.sequence ? stripFseq(fppProgress.sequence) : null);
+
+  const nowPlayingInfo: NowPlayingInfo | null = currentlyPlaying
+    ? {
+        title: currentMetadata?.song_title || currentlyPlaying.media_name || currentlyPlaying.sequence_name,
+        artist: currentMetadata?.artist,
+        album: currentMetadata?.album,
+        coverUrl: currentMetadata?.album_cover_url,
+        requesterName: currentlyPlaying.requester_name,
+        startedLabel: currentlyPlaying.played_at ? formatDateTime(currentlyPlaying.played_at, 'short') : null,
+        spotifyUrl: currentMetadata?.spotify_url,
+        cacheAgeSeconds: currentlyPlaying.cached ? currentlyPlaying.cache_age_seconds ?? null : null,
+      }
+    : null;
+
+  const locationBadgeStatus = getLocationBadgeStatus();
 
   return (
     <ThemedJukeboxWrapper>
@@ -1015,6 +934,20 @@ export default function JukeboxPage() {
         />
       )}
 
+      {/* Request confirmation */}
+      {confirmSong && (
+        <RequestConfirmModal
+          song={confirmSong}
+          position={queue.length + 1}
+          currentRemainingSec={currentRemainingSec}
+          requesterName={requesterName}
+          onRequesterNameChange={setRequesterName}
+          onConfirm={confirmRequest}
+          onCancel={() => setConfirmSong(null)}
+          accent={accent}
+        />
+      )}
+
       {/* Toast Notifications */}
       <Toast
         message={toast.message}
@@ -1024,60 +957,51 @@ export default function JukeboxPage() {
         duration={4000}
       />
 
-      <div className="max-w-6xl mx-auto">
-        {/* Header with Admin Login */}
-        <div className="mb-6">
-          {/* Title - Full width on mobile */}
-          <div className="text-center mb-4">
-            <h1 className="text-3xl md:text-4xl font-bold text-white mb-2 themed-font flex items-center justify-center gap-2 md:gap-3">
-              <span className="text-4xl md:text-5xl">{theme.icons.nowPlaying}</span>
-              <span className="wrap-break-word">Light Show Jukebox</span>
-            </h1>
-            <p className="text-white/80 text-sm md:text-base px-4">Request your favorite songs and see what's playing!</p>
-            
-            {/* Location Status Badge - Only shows when restrictions are enabled */}
-            {getLocationBadgeStatus() !== null && (
-              <div className="mt-3 flex justify-center">
-                <LocationStatusBadge
-                  status={getLocationBadgeStatus()!}
-                  distanceFromShow={distanceFromShow}
-                  maxDistance={showLocation?.maxDistance}
-                  onRequestPermission={() => setShowLocationModal(true)}
-                />
-              </div>
-            )}
-          </div>
-          
-          {/* Admin Controls - Centered on mobile, right-aligned on desktop */}
-          <div className="flex justify-center lg:justify-end">
-            {!session ? (
-              <button
-                onClick={() => signIn()}
-                className={`bg-${theme.primaryColor}/80 hover:bg-${theme.primaryColor} text-white px-4 py-2 md:px-6 md:py-3 rounded-lg font-semibold transition shadow-lg backdrop-blur-sm text-sm md:text-base`}
-              >
-                🔐 Admin Login
-              </button>
-            ) : (
-              <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
-                <span className="text-white font-medium text-sm md:text-base">Welcome, {session.user?.name}</span>
-                {isAdmin && (
-                  <button
-                    onClick={() => router.push('/')}
-                    className="bg-blue-600 text-white px-4 py-2 md:px-6 md:py-3 rounded-lg font-semibold hover:bg-blue-700 transition shadow-md text-sm md:text-base whitespace-nowrap"
-                  >
-                    📊 Dashboard
-                  </button>
-                )}
-                <button
-                  onClick={() => signOut({ callbackUrl: '/jukebox' })}
-                  className={`bg-${theme.secondaryColor}/80 hover:bg-${theme.secondaryColor} text-white px-4 py-2 md:px-6 md:py-3 rounded-lg font-semibold transition shadow-lg backdrop-blur-sm text-sm md:text-base whitespace-nowrap`}
-                >
-                  🚪 Logout
+      <RadioBar
+        siteName={siteName || 'Light Show Jukebox'}
+        fmFrequency={fmFrequency}
+        isPlaying={Boolean(currentlyPlaying || fppProgress)}
+        showListenButton={Boolean(showInteractiveFeatures)}
+        listening={listening}
+        onToggleListen={() => setListening((v) => !v)}
+        accent={accent}
+        adminSlot={
+          !session ? (
+            <button type="button" onClick={() => signIn()} className={`${ADMIN_BUTTON} bg-white/10 hover:bg-white/20`}>
+              Admin
+            </button>
+          ) : (
+            <>
+              {isAdmin && (
+                <button type="button" onClick={() => router.push('/')} className={`${ADMIN_BUTTON} bg-blue-600 hover:bg-blue-500`}>
+                  Dashboard
                 </button>
-              </div>
-            )}
-          </div>
-        </div>
+              )}
+              <button
+                type="button"
+                onClick={() => signOut({ callbackUrl: '/jukebox' })}
+                title={session.user?.name ? `Signed in as ${session.user.name}` : undefined}
+                className={`${ADMIN_BUTTON} bg-white/10 hover:bg-white/20`}
+              >
+                Log out
+              </button>
+            </>
+          )
+        }
+      />
+
+      <div className="mx-auto max-w-6xl space-y-5 pb-4" style={{ paddingTop: 'calc(4.25rem + env(safe-area-inset-top))' }}>
+        {/* In-browser audio, opened from the radio bar */}
+        {listening && showInteractiveFeatures && <AudioSyncPlayer />}
+
+        <ShowStatusStrip
+          isActive={Boolean(scheduleStatus?.isActive)}
+          nextShowDay={scheduleStatus?.nextShowDay ?? null}
+          nextShowStartTime={scheduleStatus?.nextShowStartTime ?? null}
+          nextShowEndTime={scheduleStatus?.nextShowEndTime ?? null}
+          countdown={scheduleStatus?.countdown ?? null}
+          accent={accent}
+        />
 
         {/* Unified Banner System */}
         <JukeboxBanner
@@ -1086,490 +1010,140 @@ export default function JukeboxPage() {
           timeUntilNextShow={scheduleStatus?.countdown || undefined}
         />
 
-        {/* Admin Override Notice - Also Themed */}
+        {/* Admin Override Notice */}
         {isAdmin && !scheduleStatus?.isActive && (
-          <div className={`backdrop-blur-md ${
-            theme.id === 'christmas' 
-              ? 'bg-blue-600/20 border-2 border-blue-500/40 shadow-lg shadow-blue-500/20'
-              : theme.id === 'halloween'
-              ? 'bg-purple-600/20 border-2 border-purple-500/40 shadow-lg shadow-purple-500/20'
-              : 'bg-blue-500/20 border-2 border-blue-500/40'
-          } rounded-xl shadow-2xl p-4 mb-6`}>
-            <p className="text-white text-center text-sm flex items-center justify-center gap-2">
-              <span className="text-xl">🔧</span>
-              <span className="font-semibold">Admin Mode:</span> 
-              <span>Show is inactive but you can still test requests and voting</span>
-            </p>
-          </div>
+          <p className="rounded-xl border border-blue-400/40 bg-blue-600/25 px-4 py-3 text-center text-sm text-white backdrop-blur-md">
+            🔧 <span className="font-semibold">Admin mode:</span> the show is inactive, but you can still test requests.
+          </p>
         )}
 
-        {/* Write to Santa Button (Christmas theme only) */}
+        <CourtesyCard lines={courtesyLines} />
+
+        {/* Write to Santa (Christmas theme only) */}
         {isChristmasTheme && (
-          <div className={`backdrop-blur-md ${theme.cardBg} rounded-xl shadow-2xl p-6 mb-6 border ${theme.cardBorder}`}>
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <h3 className="text-2xl font-bold text-white mb-2 themed-font flex items-center gap-2">
-                  🎅 Write a Letter to Santa! 🎄
-                </h3>
-                <p className="text-white/80 text-sm">
-                  Send your Christmas wishes to the North Pole and receive a magical reply from Santa himself!
-                </p>
-              </div>
-              <button
-                onClick={() => setShowSantaModal(true)}
-                className="bg-linear-to-r from-red-600 to-green-600 text-white px-8 py-4 rounded-full text-lg font-bold hover:shadow-2xl transform hover:scale-105 transition-all duration-200 shadow-lg"
-              >
-                ✉️ Write to Santa! ✉️
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Currently Playing */}
-        <div className="bg-linear-to-br from-purple-600/20 to-blue-600/20 border-purple-500/30 backdrop-blur-md rounded-xl shadow-2xl p-6 mb-6 border">
-          <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2 text-white themed-font">
-            <span className="text-3xl">{theme.icons.nowPlaying}</span>
-            Now Playing
-          </h2>
-          {currentlyPlaying ? (
-            <div className="bg-white/5 border border-white/20 rounded-xl p-4 backdrop-blur-sm">
-              {/* Cache status indicator - only show if using cached data and it's stale */}
-              {currentlyPlaying.cached && currentlyPlaying.cache_age_seconds && currentlyPlaying.cache_age_seconds > 30 && (
-                <div className="mb-3 px-3 py-2 bg-yellow-500/20 border border-yellow-500/40 rounded-lg">
-                  <p className="text-yellow-200 text-sm flex items-center gap-2">
-                    <span>⚠️</span>
-                    <span>
-                      Data may be outdated ({currentlyPlaying.cache_age_seconds}s old) - FPP poller may be offline
-                    </span>
-                  </p>
-                </div>
-              )}
-              
-              <div className="flex items-start space-x-4">
-                {currentMetadata?.album_cover_url ? (
-                  <img
-                    src={currentMetadata.album_cover_url}
-                    alt={`${currentMetadata.album} cover`}
-                    className="w-24 h-24 rounded-lg object-cover shadow-md ring-2 ring-white/30"
-                  />
-                ) : (
-                  <div className="w-24 h-24 bg-purple-500/30 rounded-lg flex items-center justify-center backdrop-blur-sm">
-                    <span className="text-white text-3xl">{theme.icons.nowPlaying}</span>
-                  </div>
-                )}
-                <div className="flex-1">
-                  <h3 className="text-xl font-semibold text-white mb-1">
-                    {currentMetadata?.song_title || currentlyPlaying.media_name || currentlyPlaying.sequence_name}
-                  </h3>
-                  {currentMetadata && (
-                    <div className="text-white/90 space-y-1 text-sm">
-                      <p><strong>Artist:</strong> {currentMetadata.artist}</p>
-                      <p><strong>Album:</strong> {currentMetadata.album}</p>
-                      {currentMetadata.release_year && (
-                        <p><strong>Year:</strong> {currentMetadata.release_year}</p>
-                      )}
-                    </div>
-                  )}
-                  <p className="text-white/80 mt-2 text-sm">
-                    Requested by: {currentlyPlaying.requester_name}
-                  </p>
-                  <p className="text-sm text-white/70 flex items-center gap-1">
-                    <span>{theme.icons.time}</span>
-                    Started: {formatDateTime(currentlyPlaying.played_at, 'short')}
-                  </p>
-                </div>
-              </div>
-              
-              {/* Spotify Link Button - Shows for all users when URL is available */}
-              {currentMetadata?.spotify_url && (
-                <div className="mt-4">
-                  <a
-                    href={currentMetadata.spotify_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Listen on Spotify"
-                    className={`inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-lg font-semibold text-white transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl ${theme.id === 'christmas' ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-600 hover:bg-orange-700'}`}
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                      xmlns="http://www.w3.org/2000/svg"
-                      aria-hidden="true"
-                    >
-                      <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
-                    </svg>
-                    <span>Listen on Spotify</span>
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      xmlns="http://www.w3.org/2000/svg"
-                      aria-hidden="true"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </a>
-                </div>
-              )}
-              
-              {session?.user?.role === 'admin' && currentlyPlaying.id && (
-                <div className="mt-4 space-x-2">
-                  <button
-                    onClick={() => updateStatus(currentlyPlaying.id, 'completed')}
-                    className={`bg-green-500/80 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold backdrop-blur-sm transition-all`}
-                  >
-                    ✓ Mark Complete
-                  </button>
-                  <button
-                    onClick={() => updateStatus(currentlyPlaying.id, 'skipped')}
-                    className={`bg-red-500/80 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold backdrop-blur-sm transition-all`}
-                  >
-                    ⏭️ Skip
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="bg-white/5 border border-white/20 rounded-xl p-4 backdrop-blur-sm">
-              <p className="text-white/60">No sequence currently playing</p>
-            </div>
-          )}
-        </div>
-
-        {/* Audio Sync Player - Show when schedule is active or user is admin */}
-        {showInteractiveFeatures && (
-          <div className="mb-6">
-            <AudioSyncPlayer />
-          </div>
-        )}
-
-        {/* Interactive Features - Only show when active or admin */}
-        {showInteractiveFeatures && (
-          <>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Request Form */}
-              <div className="bg-linear-to-br from-purple-600/20 to-blue-600/20 border-purple-500/30 backdrop-blur-md rounded-xl shadow-2xl p-6 border">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-semibold text-white themed-font flex items-center gap-2">
-                <span className="text-3xl">{theme.icons.queue}</span>
-                Request a Song
-              </h2>
-            </div>
-
-            {/* Rate Limit Info */}
-            <div className="mb-4 p-4 bg-blue-500/20 rounded-lg border border-blue-500/30 backdrop-blur-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">💡</span>
-                  <div>
-                    <p className="text-white/90 text-sm font-medium">
-                      You can request up to <strong className="text-blue-300">{jukeboxRateLimit} {jukeboxRateLimit === 1 ? 'song' : 'songs'} per hour</strong>
-                    </p>
-                    {requestsRemaining !== null && (
-                      <p className="text-white/70 text-xs mt-1">
-                        {requestsRemaining > 0 
-                          ? `${requestsRemaining} ${requestsRemaining === 1 ? 'request' : 'requests'} remaining` 
-                          : 'No requests remaining this hour'}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Show remaining count badge */}
-                {requestsRemaining !== null && (
-                  <div className="text-right">
-                    <div className={`text-3xl font-bold ${requestsRemaining > 0 ? 'text-blue-300' : 'text-red-300'}`}>
-                      {requestsRemaining}
-                    </div>
-                    <p className="text-white/70 text-xs">
-                      left
-                    </p>
-                  </div>
-                )}
-              </div>
-              
-              {/* Visual progress bar */}
-              {requestsRemaining !== null && (
-                <div className="mt-3">
-                  <div className="w-full bg-blue-900/30 rounded-full h-2">
-                    <div 
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        requestsRemaining > 0 ? 'bg-blue-400' : 'bg-red-400'
-                      }`}
-                      style={{ 
-                        width: `${(requestsRemaining / jukeboxRateLimit) * 100}%` 
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <form onSubmit={handleRequest} className="space-y-4">
-              {/* Checking Location Status */}
-              {checkingLocation && (
-                <div className="p-4 bg-blue-500/20 border border-blue-500/40 rounded-lg backdrop-blur-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="animate-spin">📍</div>
-                    <p className="text-blue-200">Getting your location...</p>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-white/90 mb-2">
-                  Your Name (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={requesterName}
-                  onChange={(e) => setRequesterName(e.target.value)}
-                  placeholder="Enter your name"
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/40 backdrop-blur-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-white/90 mb-2">
-                  Song Name *
-                </label>
-                {loadingSequences ? (
-                  <div className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg backdrop-blur-sm">
-                    <span className="text-white/60">Loading sequences...</span>
-                  </div>
-                ) : (
-                  <select
-                    value={newRequest}
-                    onChange={(e) => setNewRequest(e.target.value)}
-                    required
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/40 backdrop-blur-sm"
-                  >
-                    <option value="" className="bg-gray-800 text-white">Select a song...</option>
-                    {availableSequences.map((sequence) => (
-                      <option key={sequence} value={sequence} className="bg-gray-800 text-white">
-                        {sequence}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                {availableSequences.length === 0 && !loadingSequences && (
-                  <p className="text-sm text-white/60 mt-1">
-                    No songs available. Make sure playlists are scheduled in FPP and try refreshing.
-                  </p>
-                )}
-              </div>
-              <button
-                type="submit"
-                disabled={loading || checkingLocation}
-                className={`w-full bg-linear-to-r from-${theme.primaryColor} to-${theme.secondaryColor} text-white py-3 px-4 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg backdrop-blur-sm`}
-              >
-                {checkingLocation ? '📍 Getting Location...' : loading ? 'Adding...' : '✓ Add to Queue'}
-              </button>
-            </form>
-            {message && (
-              <div className="mt-4 p-4 rounded-lg bg-white/10 border border-white/20 backdrop-blur-sm">
-                <p className="text-sm text-white">{message}</p>
-              </div>
-            )}
-          </div>
-
-          {/* Popular Sequences */}
-          <div className="bg-linear-to-br from-purple-600/20 to-blue-600/20 border-purple-500/30 backdrop-blur-md rounded-xl shadow-2xl p-6 border">
-            <h2 className="text-2xl font-semibold mb-4 text-white themed-font flex items-center gap-2">
-              <span className="text-3xl">{theme.icons.popular}</span>
-              Popular Songs
-            </h2>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {popularSequences
-                .filter(seq => availableSequences.includes(seq.sequence_name))
-                .map((seq) => {
-                  const counts = voteCounts[seq.sequence_name] || { upvotes: 0, downvotes: 0 };
-                  const userVote = userVotes[seq.sequence_name];
-                  return (
-                    <div key={seq.sequence_name} className="p-4 bg-white/5 rounded-lg border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-all">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-medium flex-1 text-white">{seq.sequence_name}</h3>
-                        <button
-                          onClick={() => requestPopularSequence(seq.sequence_name)}
-                          disabled={loading}
-                          className={`bg-linear-to-r from-${theme.primaryColor} to-${theme.secondaryColor} text-white px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md backdrop-blur-sm`}
-                        >
-                          + Request
-                        </button>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => handleVote(seq.sequence_name, 'up')}
-                          className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${userVote === 'up' ? 'bg-green-500 text-white shadow-md' : 'bg-white/10 text-white hover:bg-white/20'}`}
-                        >
-                          👍 {counts.upvotes}
-                        </button>
-                        <button
-                          onClick={() => handleVote(seq.sequence_name, 'down')}
-                          className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${userVote === 'down' ? 'bg-red-500 text-white shadow-md' : 'bg-white/10 text-white hover:bg-white/20'}`}
-                        >
-                          👎 {counts.downvotes}
-                        </button>
-                        <span className="text-sm text-white/70 flex items-center gap-1">
-                          <span>{theme.icons.nowPlaying}</span>
-                          {seq.total_requests} requests
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              {popularSequences.filter(seq => availableSequences.includes(seq.sequence_name)).length === 0 && (
-                <p className="text-white/60 text-center py-4">
-                  No popular sequences available from current schedule.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Queue */}
-        <div className="bg-linear-to-br from-purple-600/20 to-blue-600/20 border-purple-500/30 backdrop-blur-md rounded-xl shadow-2xl p-6 mt-6 border">
-          <h2 className="text-2xl font-semibold mb-4 text-white themed-font flex items-center gap-2">
-            <span className="text-3xl">{theme.icons.queue}</span>
-            Queue ({queue.length} items)
-          </h2>
-          {queue.length > 0 ? (
-            <div className="space-y-3">
-              {queue.map((item, index) => (
-                <div key={item.id} className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-all">
-                  <div className="flex items-center space-x-4">
-                    <span className="bg-linear-to-r from-purple-600 to-blue-600 text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-md">
-                      #{index + 1}
-                    </span>
-                    <div>
-                      <h3 className="font-medium text-white">{item.sequence_name}</h3>
-                      <p className="text-sm text-white/70 flex items-center gap-1">
-                        <span>{theme.icons.time}</span>
-                        By: {item.requester_name} • {formatDateTime(item.created_at, 'medium')}
-                      </p>
-                    </div>
-                  </div>
-                  {session?.user?.role === 'admin' && (
-                    <div className="space-x-2">
-                      <button
-                        onClick={() => updateStatus(item.id, 'playing')}
-                        className="bg-blue-500/80 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold backdrop-blur-sm transition-all"
-                      >
-                        ▶️ Play Now
-                      </button>
-                      <button
-                        onClick={() => updateStatus(item.id, 'skipped')}
-                        className="bg-red-500/80 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold backdrop-blur-sm transition-all"
-                      >
-                        ✕ Remove
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center text-white/60 py-8">
-              <p>No songs in queue. Be the first to request one!</p>
-            </div>
-          )}
-        </div>
-
-        {/* All Available Songs with Voting */}
-        <div className="bg-linear-to-br from-purple-600/20 to-blue-600/20 border-purple-500/30 backdrop-blur-md rounded-xl shadow-2xl p-6 mt-6 border">
-          {/* Enhanced Header with Animation */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                <Radio className="w-6 h-6 sm:w-8 sm:h-8 text-purple-400 animate-pulse shrink-0" />
-                <h2 className="text-xl sm:text-3xl font-bold bg-linear-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                  🎵 Music Jukebox
-                </h2>
-                <Music className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400 animate-bounce shrink-0" />
-              </div>
-              <p className="text-sm sm:text-lg text-gray-300 font-light sm:ml-11">
-                Vote for your favorite songs and help build the perfect playlist! 🎶
+          <section className={`${CARD} flex flex-col items-start justify-between gap-4 p-5 sm:flex-row sm:items-center`}>
+            <div>
+              <h2 className="text-xl font-bold text-white themed-font">🎅 Write a letter to Santa!</h2>
+              <p className="mt-1 text-sm text-white/80">
+                Send your Christmas wishes to the North Pole and get a magical reply from Santa himself.
               </p>
             </div>
-          </div>
+            <button
+              type="button"
+              onClick={() => setShowSantaModal(true)}
+              className="min-h-11 shrink-0 rounded-full bg-linear-to-r from-red-600 to-green-600 px-6 font-bold text-white shadow-lg transition hover:shadow-2xl motion-safe:hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            >
+              ✉️ Write to Santa
+            </button>
+          </section>
+        )}
 
-          <div className="max-h-[600px] overflow-y-auto space-y-3">
-            {availableSequences
-              .sort((a, b) => {
-                // Sort by votes (descending)
-                const votesA = (voteCounts[a]?.upvotes || 0) - (voteCounts[a]?.downvotes || 0);
-                const votesB = (voteCounts[b]?.upvotes || 0) - (voteCounts[b]?.downvotes || 0);
-                return votesB - votesA;
-              })
-              .map((sequence, index) => {
-                const counts = voteCounts[sequence] || { upvotes: 0, downvotes: 0 };
-                const userVote = userVotes[sequence];
-                const netVotes = counts.upvotes - counts.downvotes;
-                
-                return (
-                  <EnhancedVotingCard
-                    key={sequence}
-                    song={{
-                      id: index,
-                      name: sequence,
-                      votes: counts.upvotes,
-                      position: index + 1 <= 10 ? index + 1 : undefined,
-                      hasVoted: userVote === 'up',
-                      playCount: undefined
-                    }}
-                    onVote={async () => {
-                      await handleVote(sequence, 'up');
-                    }}
-                    loading={loading}
-                    compact={true}
+        <NowPlayingCard
+          info={nowPlayingInfo}
+          progress={progress}
+          themeIcon={theme.icons.nowPlaying}
+          accent={accent}
+          adminActions={
+            isAdmin && currentlyPlaying?.id ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => updateStatus(currentlyPlaying.id as number, 'completed')}
+                  className={`${ADMIN_BUTTON} bg-green-600/90 hover:bg-green-600`}
+                >
+                  ✓ Mark complete
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateStatus(currentlyPlaying.id as number, 'skipped')}
+                  className={`${ADMIN_BUTTON} bg-red-600/90 hover:bg-red-600`}
+                >
+                  ⏭️ Skip
+                </button>
+              </>
+            ) : undefined
+          }
+        />
+
+        {/* Requests - only while the show is active (or for admins) */}
+        {showInteractiveFeatures && (
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <SongCatalog
+              songs={availableSequences}
+              loading={loadingSequences}
+              message={checkingLocation ? '📍 Getting your location…' : message}
+              currentSequence={currentSequenceName}
+              queuedNames={queue.map((item) => item.sequence_name)}
+              requestsRemaining={requestsRemaining}
+              rateLimit={jukeboxRateLimit}
+              busy={loading || checkingLocation}
+              onRequest={setConfirmSong}
+              accent={accent}
+              headerSlot={
+                locationBadgeStatus !== null ? (
+                  <LocationStatusBadge
+                    status={locationBadgeStatus}
+                    distanceFromShow={distanceFromShow}
+                    maxDistance={showLocation?.maxDistance}
+                    onRequestPermission={() => setShowLocationModal(true)}
                   />
-                );
-              })}
+                ) : undefined
+              }
+            />
+            <UpNextList
+              items={queue}
+              currentRemainingSec={currentRemainingSec}
+              accent={accent}
+              renderAdminActions={
+                isAdmin
+                  ? (item) => (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => updateStatus(item.id, 'playing')}
+                          className={`${ADMIN_BUTTON} bg-blue-600/90 hover:bg-blue-600`}
+                        >
+                          ▶️ Play now
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateStatus(item.id, 'skipped')}
+                          className={`${ADMIN_BUTTON} bg-red-600/90 hover:bg-red-600`}
+                        >
+                          ✕ Remove
+                        </button>
+                      </>
+                    )
+                  : undefined
+              }
+            />
           </div>
-          
-          {availableSequences.length === 0 && !loadingSequences && (
-            <p className="text-white/60 text-center py-8">
-              No songs available. Try refreshing the sequence cache.
-            </p>
-          )}
-        </div>
-          </>
         )}
 
         {/* YouTube Videos */}
         {youtubeVideos.length > 0 && (
-          <div className={`backdrop-blur-md ${theme.cardBg} rounded-xl shadow-2xl p-6 mt-6 border ${theme.cardBorder}`}>
-            <h2 className="text-2xl font-semibold mb-4 text-white themed-font flex items-center gap-2">
-              <span className="text-3xl">🎬</span>
-              Watch Past Light Shows
+          <section aria-labelledby="videos-heading" className={`${CARD} p-5`}>
+            <h2 id="videos-heading" className="text-xl font-bold text-white themed-font">
+              🎬 Watch past light shows
             </h2>
-            <p className="text-sm text-white/80 mb-4">
-              Enjoy videos of previous light shows and holiday displays!
-            </p>
+            <p className="mt-1 text-sm text-white/80">Enjoy videos of previous light shows and holiday displays!</p>
 
             {/* YouTube Player */}
             {selectedYouTubeVideo && (
-              <div className="space-y-4">
-                <div className="bg-black/50 rounded-lg overflow-hidden aspect-video">
+              <div className="mt-4 space-y-3">
+                <div className="aspect-video overflow-hidden rounded-xl bg-black/60">
                   <YouTubePlayer
                     videoId={selectedYouTubeVideo.videoId}
                     width="100%"
                     height="100%"
                   />
                 </div>
-
-                {/* Video Info */}
-                <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-                  <h3 className="text-lg font-semibold text-white mb-2">
-                    {selectedYouTubeVideo.title}
-                  </h3>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                  <h3 className="font-semibold text-white">{selectedYouTubeVideo.title}</h3>
                   {selectedYouTubeVideo.description && (
-                    <p className="text-white/80 text-sm mb-2">
-                      {selectedYouTubeVideo.description}
-                    </p>
+                    <p className="mt-1 text-sm text-white/80">{selectedYouTubeVideo.description}</p>
                   )}
-                  <p className="text-white/60 text-xs">
+                  <p className="mt-1 text-xs text-white/60">
                     Published {formatDateTime(selectedYouTubeVideo.publishedAt, 'medium')}
                   </p>
                 </div>
@@ -1577,72 +1151,33 @@ export default function JukeboxPage() {
             )}
 
             {/* Video Thumbnails Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-6">
+            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
               {youtubeVideos.map((video) => (
-                <div
+                <button
+                  type="button"
                   key={video.id}
                   onClick={() => setSelectedYouTubeVideo(video)}
-                  className={`cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
-                    selectedYouTubeVideo?.id === video.id
-                      ? 'border-white shadow-lg scale-105'
-                      : 'border-white/20 hover:border-white/40'
+                  aria-pressed={selectedYouTubeVideo?.id === video.id}
+                  className={`overflow-hidden rounded-xl border-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+                    selectedYouTubeVideo?.id === video.id ? 'border-white shadow-lg' : 'border-white/15 hover:border-white/40'
                   }`}
                 >
                   {video.thumbnailUrl ? (
-                    <img
-                      src={video.thumbnailUrl}
-                      alt={video.title}
-                      className="w-full h-24 object-cover"
-                    />
+                    // eslint-disable-next-line @next/next/no-img-element -- remote YouTube thumbnail
+                    <img src={video.thumbnailUrl} alt="" className="h-24 w-full object-cover" />
                   ) : (
-                    <div className="w-full h-24 bg-white/10 flex items-center justify-center">
-                      <span className="text-white/60 text-2xl">🎬</span>
-                    </div>
+                    <div className="flex h-24 w-full items-center justify-center bg-white/10 text-2xl" aria-hidden="true">🎬</div>
                   )}
-                  <div className="p-2 bg-white/5">
-                    <h4 className="text-xs font-medium text-white truncate">
-                      {video.title}
-                    </h4>
-                  </div>
-                </div>
+                  <span className="block truncate bg-black/40 p-2 text-xs font-medium text-white">{video.title}</span>
+                </button>
               ))}
             </div>
-          </div>
+          </section>
         )}
       </div>
 
       {/* Letter to Santa Modal */}
       <LetterToSantaModal isOpen={showSantaModal} onClose={() => setShowSantaModal(false)} />
-
-      {/* Enhanced Animation Styles */}
-      <style jsx>{`
-        @keyframes gradient {
-          0%, 100% {
-            background-position: 0% 50%;
-          }
-          50% {
-            background-position: 100% 50%;
-          }
-        }
-        
-        @keyframes pulse-subtle {
-          0%, 100% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.95;
-          }
-        }
-        
-        .animate-pulse-subtle {
-          animation: pulse-subtle 3s ease-in-out infinite;
-        }
-        
-        h2.bg-linear-to-r {
-          background-size: 200% 200%;
-          animation: gradient 3s ease infinite;
-        }
-      `}</style>
 
       {/* Footer - inside themed wrapper for seamless background */}
       <Footer />

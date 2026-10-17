@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminWithRateLimit } from '@/lib/auth-helpers';
 import { toErrorMessage } from '@/lib/api-errors';
 import { getSettings, getSettingsDetailed, updateSettings } from '@/lib/settings';
+import { VISITOR_SETTING_LIMITS } from '@/lib/jukebox-display';
 
 /**
  * GET /api/settings
@@ -87,6 +88,23 @@ export async function PUT(request: NextRequest) {
           { status: 400 }
         );
       }
+    }
+
+    // Validate visitor-page display settings
+    for (const [key, max] of Object.entries(VISITOR_SETTING_LIMITS)) {
+      if (key in settings && String(settings[key]).length > max) {
+        return NextResponse.json(
+          { error: `${key} must be at most ${max} characters` },
+          { status: 400 }
+        );
+      }
+    }
+
+    if ('jukebox_courtesy_enabled' in settings && !['true', 'false'].includes(String(settings.jukebox_courtesy_enabled))) {
+      return NextResponse.json(
+        { error: 'jukebox_courtesy_enabled must be true or false' },
+        { status: 400 }
+      );
     }
 
     // Convert all values to strings
