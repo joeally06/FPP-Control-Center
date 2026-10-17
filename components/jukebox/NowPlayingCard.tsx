@@ -36,7 +36,7 @@ export default function NowPlayingCard({ info, progress, adminActions }: NowPlay
     <section aria-labelledby="now-playing-heading" className="sp-np-card">
       <h2 id="now-playing-heading" className="sp-eyebrow">
         {info && <Equalizer />}
-        Now on the lights
+        Now playing
       </h2>
 
       {!info ? (

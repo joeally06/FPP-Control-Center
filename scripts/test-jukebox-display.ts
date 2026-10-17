@@ -18,6 +18,10 @@ import {
   readOffSeasonBanner,
   parseOffSeasonBanner,
   OFF_SEASON_BANNER_DEFAULTS,
+  sampleTimeFromAge,
+  anchorElapsed,
+  nextPlaybackAnchor,
+  type PlaybackAnchor,
   type CatalogSong,
 } from '../lib/jukebox-display';
 
@@ -271,6 +275,69 @@ const SONGS: CatalogSong[] = [
   assert.throws(() => parseOffSeasonBanner({ enabled: true, heading: 5, subtitle: '' }), /must be text/);
   assert.throws(() => parseOffSeasonBanner(null), /true or false/);
   print('Test 16 OK');
+})();
+
+// Test 17: the song countdown never jumps back between polls (owner saw -1:06 then -1:10)
+(() => {
+  print('Test 17: playback anchor vs. a 10 s cache polled every 3 s');
+  // FPP poller refreshes the cache every 10 s; the page polls every 3 s and ticks every second.
+  // The song is 200 s long; at t=0 FPP is 60 s in.
+  const T0 = 1_000_000;
+  const fppPlayedAt = (t: number) => 60 + Math.floor((t - T0) / 1000); // FPP's whole-second counter
+  const cacheAt = (t: number) => T0 + Math.floor((t - T0) / 10_000) * 10_000; // last poller write
+  const fetchSample = (t: number) => {
+    const written = cacheAt(t);
+    const played = fppPlayedAt(written);
+    return { sequence: 'Song A', played, remaining: 200 - played, ageMs: t - written };
+  };
+
+  let oldAnchor: { played: number; remaining: number; fetchedAt: number } | null = null;
+  let newAnchor: PlaybackAnchor | null = null;
+  let oldBackJumps = 0;
+  let newBackJumps = 0;
+  let maxError = 0;
+  let prevOld = -1;
+  let prevNew = -1;
+  for (let t = T0; t <= T0 + 60_000; t += 1000) {
+    if ((t - T0) % 3000 === 0) {
+      const s = fetchSample(t);
+      oldAnchor = { played: s.played, remaining: s.remaining, fetchedAt: t }; // what the page did before
+      newAnchor = nextPlaybackAnchor(newAnchor, { sequence: s.sequence, played: s.played, remaining: s.remaining, sampledAt: sampleTimeFromAge(t, s.ageMs) }, t);
+    }
+    const oldElapsed = Math.min(200, oldAnchor!.played + (t - oldAnchor!.fetchedAt) / 1000);
+    const newElapsed = anchorElapsed(newAnchor!, t);
+    if (prevOld >= 0 && oldElapsed < prevOld) oldBackJumps++;
+    if (prevNew >= 0 && newElapsed < prevNew) newBackJumps++;
+    maxError = Math.max(maxError, Math.abs(newElapsed - (60 + (t - T0) / 1000)));
+    prevOld = oldElapsed;
+    prevNew = newElapsed;
+  }
+  assert.ok(oldBackJumps > 0, 'reproduces the bug: anchoring at fetch time jumps back');
+  assert.strictEqual(newBackJumps, 0, 'anchoring at sample time never goes backwards');
+  assert.ok(maxError <= 1, `stays within FPP's 1 s resolution of the real position (max error ${maxError}s)`);
+  print('Test 17 OK');
+})();
+
+// Test 18: nextPlaybackAnchor switches when it should
+(() => {
+  print('Test 18: nextPlaybackAnchor, anchorElapsed, sampleTimeFromAge');
+  const a: PlaybackAnchor = { sequence: 'A', played: 60, remaining: 140, sampledAt: 0 };
+  assert.strictEqual(nextPlaybackAnchor(null, a, 0), a, 'first sample');
+  const noisy = { ...a, played: 71, remaining: 129, sampledAt: 10_000 }; // 1 s off at t=10s
+  assert.strictEqual(nextPlaybackAnchor(a, noisy, 10_000), a, 'within tolerance → keep counting smoothly');
+  const seek = { ...a, played: 120, remaining: 80, sampledAt: 10_000 };
+  assert.strictEqual(nextPlaybackAnchor(a, seek, 10_000), seek, 'real jump → follow FPP');
+  const next = { sequence: 'B', played: 0, remaining: 180, sampledAt: 10_000 };
+  assert.strictEqual(nextPlaybackAnchor(a, next, 10_000), next, 'new song → new anchor');
+  const restart = { ...a, played: 0, remaining: 200, sampledAt: 10_000 };
+  assert.strictEqual(nextPlaybackAnchor(a, restart, 10_000), restart, 'same song restarted → new anchor');
+  assert.strictEqual(anchorElapsed(a, 500_000), 200, 'never counts past the end');
+  assert.strictEqual(anchorElapsed(a, -5_000), 60, 'never counts back from the sample');
+  assert.strictEqual(sampleTimeFromAge(100_000, 7_000), 93_000);
+  for (const bad of [-1, 30_001, NaN, '7000', undefined, null]) {
+    assert.strictEqual(sampleTimeFromAge(100_000, bad), 100_000, `untrusted age ${String(bad)} → treat as fresh`);
+  }
+  print('Test 18 OK');
 })();
 
 print('All tests passed.');

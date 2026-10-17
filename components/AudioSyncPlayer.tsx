@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Volume2, VolumeX, Play, Pause, Radio } from 'lucide-react';
+import { Headphones, Pause, Play, Square, Volume2, VolumeX, X } from 'lucide-react';
 
 interface AudioSyncPlayerProps {
-  className?: string;
+  /** Shows a close button in the corner */
+  onClose?: () => void;
 }
 
 interface SyncState {
@@ -18,7 +18,7 @@ interface SyncState {
 
 type SyncStatus = 'synced' | 'adjusting' | 'seeking';
 
-export default function AudioSyncPlayer({ className = '' }: AudioSyncPlayerProps) {
+export default function AudioSyncPlayer({ onClose }: AudioSyncPlayerProps) {
   const [isConnected, setIsConnected] = useState(false);
   const [syncState, setSyncState] = useState<SyncState | null>(null);
   const [isMuted, setIsMuted] = useState(false);
@@ -292,145 +292,121 @@ export default function AudioSyncPlayer({ className = '' }: AudioSyncPlayerProps
   };
 
   return (
-    <div className="bg-linear-to-br from-purple-600/20 to-blue-600/20 border-purple-500/30 backdrop-blur-md rounded-xl shadow-2xl p-6 border">
-      <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2 text-white">
-        <Radio className={`w-6 h-6 ${isConnected ? 'text-green-400 animate-pulse' : 'text-gray-400'}`} />
-        Live Audio Sync
-      </h2>
-      
-      <div className="bg-white/5 border border-white/20 rounded-xl p-4 backdrop-blur-sm">
-        <p className="text-white/80 text-sm mb-4">
-          {isConnected 
-            ? syncState?.currentSequence 
-              ? `Now Playing: ${syncState.currentSequence}`
-              : 'Connected - waiting for show to start...'
-            : 'Connecting...'}
-        </p>
-        
-        {/* Connection Status */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`} />
-            <span className="text-xs text-white/70">
-              {isConnected ? 'Connected' : 'Disconnected'}
-            </span>
-          </div>
-          {syncState?.audioFile && (
-            <span className="text-xs text-white/50">
-              {syncState.audioFile}
-            </span>
-          )}
+    <section aria-labelledby="listen-heading" className="sp-panel">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <span className="sp-eyebrow">
+            <Headphones className="h-4 w-4" aria-hidden="true" />
+            Listen online
+          </span>
+          <h2 id="listen-heading" className="sp-display sp-h2">Hear the show on your phone</h2>
         </div>
-
-        {/* Sync Quality Indicator */}
-        {syncState?.isPlaying && !audioRef.current?.paused && (
-          <div className="mb-3 bg-black/20 rounded-lg p-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-white/70">Status:</span>
-              <span className={`text-xs font-semibold ${getSyncStatusColor()}`}>
-                {getSyncStatusText()}
-              </span>
-            </div>
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-xs text-white/50">Drift:</span>
-              <span className={`text-xs font-mono ${getDriftColor()}`}>
-                {driftMs >= 0 ? '+' : ''}{driftMs}ms
-              </span>
-            </div>
-            {audioRef.current && Math.abs(audioRef.current.playbackRate - 1.0) > 0.01 && (
-              <div className="flex items-center justify-between mt-1">
-                <span className="text-xs text-white/50">Speed:</span>
-                <span className="text-xs font-mono text-purple-400">
-                  {audioRef.current.playbackRate.toFixed(2)}x
-                </span>
-              </div>
-            )}
-          </div>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close the player"
+            className="sp-muted -mr-2 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition hover:bg-white/10 hover:text-white"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
         )}
-
-        {/* Playback Controls */}
-        {syncState?.audioFile && (
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handlePlay}
-              disabled={!audioRef.current?.paused}
-              className="h-10 w-10 p-0 hover:bg-white/20 disabled:opacity-50"
-              title="Play"
-            >
-              <Play className="h-5 w-5 fill-current" />
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handlePause}
-              disabled={audioRef.current?.paused}
-              className="h-10 w-10 p-0 hover:bg-white/20 disabled:opacity-50"
-              title="Pause"
-            >
-              <Pause className="h-5 w-5" />
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleStop}
-              className="h-10 w-10 p-0 hover:bg-white/20"
-              title="Stop"
-            >
-              <span className="text-lg font-bold">■</span>
-            </Button>
-          </div>
-        )}
-
-        {/* Volume Control */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-white">Volume</label>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setIsMuted(!isMuted)}
-              className="h-8 w-8 p-0"
-            >
-              {isMuted ? (
-                <VolumeX className="h-4 w-4" />
-              ) : (
-                <Volume2 className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={isMuted ? 0 : volume * 100}
-            onChange={(e) => {
-              const newVolume = parseInt(e.target.value) / 100;
-              setVolume(newVolume);
-              if (newVolume > 0) setIsMuted(false);
-            }}
-            className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-purple-500"
-          />
-          <div className="text-xs text-white/60 text-center">
-            {isMuted ? 'Muted' : `${Math.round(volume * 100)}%`}
-          </div>
-        </div>
-
-        {/* Instructions */}
-        {!syncState?.isPlaying && (
-          <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3 mt-4">
-            <p className="text-sm text-blue-200">
-              🎵 Your audio will automatically sync with the light show when it starts!
-            </p>
-          </div>
-        )}
-
-        {/* Info */}
-        <div className="text-xs text-white/50 text-center pt-3 mt-3 border-t border-white/10">
-          Audio syncs automatically with the light show. Keep your device volume up!
-        </div>
       </div>
-    </div>
+
+      <p className="sp-muted mt-3 flex items-center gap-2 text-sm">
+        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${isConnected ? 'sp-live-dot' : 'bg-white/30'}`} aria-hidden="true" />
+        <span className="min-w-0 truncate">
+          {isConnected
+            ? syncState?.currentSequence
+              ? `Streaming ${syncState.currentSequence}`
+              : 'Connected. Waiting for the show to start…'
+            : 'Connecting…'}
+        </span>
+      </p>
+
+      {/* Playback Controls */}
+      {syncState?.audioFile && (
+        <div className="mt-4 flex items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={handlePlay}
+            disabled={!audioRef.current?.paused}
+            aria-label="Play"
+            className="sp-btn-accent flex h-14 w-14 items-center justify-center rounded-full transition disabled:opacity-50"
+          >
+            <Play className="h-6 w-6 fill-current" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={handlePause}
+            disabled={audioRef.current?.paused}
+            aria-label="Pause"
+            className="sp-btn-outline flex h-12 w-12 items-center justify-center rounded-full transition disabled:opacity-50"
+          >
+            <Pause className="h-5 w-5" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={handleStop}
+            aria-label="Stop"
+            className="sp-btn-quiet flex h-12 w-12 items-center justify-center rounded-full transition"
+          >
+            <Square className="h-4 w-4 fill-current" aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
+      {/* Sync Quality Indicator */}
+      {syncState?.isPlaying && !audioRef.current?.paused && (
+        <p className="mt-3 text-center text-xs tabular-nums">
+          <span className={`font-semibold ${getSyncStatusColor()}`}>{getSyncStatusText()}</span>
+          <span className="sp-muted">
+            {' · drift '}
+            <span className={getDriftColor()}>{driftMs >= 0 ? '+' : ''}{driftMs}ms</span>
+            {audioRef.current && Math.abs(audioRef.current.playbackRate - 1.0) > 0.01 && ` · ${audioRef.current.playbackRate.toFixed(2)}×`}
+          </span>
+        </p>
+      )}
+
+      {/* Volume Control */}
+      <div className="mt-4 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setIsMuted(!isMuted)}
+          aria-label={isMuted ? 'Unmute' : 'Mute'}
+          className="sp-btn-quiet flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition"
+        >
+          {isMuted ? <VolumeX className="h-4 w-4" aria-hidden="true" /> : <Volume2 className="h-4 w-4" aria-hidden="true" />}
+        </button>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={isMuted ? 0 : volume * 100}
+          onChange={(e) => {
+            const newVolume = parseInt(e.target.value) / 100;
+            setVolume(newVolume);
+            if (newVolume > 0) setIsMuted(false);
+          }}
+          aria-label="Volume"
+          className="h-2 min-w-0 flex-1 cursor-pointer"
+          style={{ accentColor: 'var(--sp-accent)' }}
+        />
+        <span className="sp-muted w-12 shrink-0 text-right text-xs tabular-nums">
+          {isMuted ? 'Muted' : `${Math.round(volume * 100)}%`}
+        </span>
+      </div>
+
+      {/* Instructions */}
+      {!syncState?.isPlaying && (
+        <p className="sp-row mt-4 px-3 py-2.5 text-sm">
+          🎵 Press play when the show starts and your audio stays in time with the lights.
+        </p>
+      )}
+
+      <p className="sp-muted mt-3 border-t border-white/10 pt-3 text-center text-xs">
+        Audio follows the light show automatically. Keep your phone&apos;s volume up!
+      </p>
+    </section>
   );
 }

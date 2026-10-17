@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Headphones, Radio, X } from 'lucide-react';
+import { Radio } from 'lucide-react';
 import { useTheme } from '@/lib/themes/theme-context';
 import { StringLights } from '@/components/ThemeAtmosphere';
 import { formatFmFrequency } from '@/lib/jukebox-display';
@@ -11,22 +11,11 @@ interface RadioBarProps {
   siteName: string;
   fmFrequency: string;
   isPlaying: boolean;
-  showListenButton: boolean;
-  listening: boolean;
-  onToggleListen: () => void;
   adminSlot?: ReactNode;
 }
 
-/** Fixed top bar: badge, show name, FM frequency and the "Listen online" toggle, with the string lights hanging below. */
-export default function RadioBar({
-  siteName,
-  fmFrequency,
-  isPlaying,
-  showListenButton,
-  listening,
-  onToggleListen,
-  adminSlot,
-}: RadioBarProps) {
+/** Fixed top bar: badge, show name and FM frequency, with the string lights hanging below. */
+export default function RadioBar({ siteName, fmFrequency, isPlaying, adminSlot }: RadioBarProps) {
   const { theme, assets } = useTheme();
   // The uploaded badge, else the middle of the logo, else a radio icon
   const badgeSrc = assets.badge?.url ?? assets.logo?.url ?? null;
@@ -56,21 +45,7 @@ export default function RadioBar({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          {showListenButton && (
-            <button
-              type="button"
-              onClick={onToggleListen}
-              aria-pressed={listening}
-              className="sp-btn-outline flex min-h-11 items-center gap-2 whitespace-nowrap rounded-full px-3.5 text-sm font-bold transition"
-            >
-              {listening ? <X className="h-4 w-4" aria-hidden="true" /> : <Headphones className="h-4 w-4" aria-hidden="true" />}
-              <span className="sm:hidden">{listening ? 'Close' : 'Listen'}</span>
-              <span className="hidden sm:inline">{listening ? 'Close player' : 'Listen online'}</span>
-            </button>
-          )}
-          {adminSlot}
-        </div>
+        {adminSlot && <div className="flex shrink-0 items-center gap-2">{adminSlot}</div>}
       </div>
       <div className="pointer-events-none absolute inset-x-0 top-full px-4">
         <StringLights colors={theme.bulbs} />

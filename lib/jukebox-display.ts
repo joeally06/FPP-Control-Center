@@ -65,6 +65,38 @@ export function formatFmFrequency(value: string): string {
   return /[a-z]/i.test(trimmed) ? trimmed : `${trimmed} FM`;
 }
 
+/** Where FPP was in a song at a known moment, so the page can count forward smoothly between polls. */
+export interface PlaybackAnchor {
+  sequence: string | null;
+  played: number;
+  remaining: number;
+  /** When FPP reported `played` (ms since epoch) - not when the page fetched it */
+  sampledAt: number;
+}
+
+const MAX_SAMPLE_AGE_MS = 30_000;
+
+/** The cache says how old its sample is; trust that only within the window the page treats as fresh. */
+export function sampleTimeFromAge(now: number, ageMs: unknown): number {
+  return typeof ageMs === 'number' && Number.isFinite(ageMs) && ageMs >= 0 && ageMs <= MAX_SAMPLE_AGE_MS ? now - ageMs : now;
+}
+
+/** Seconds into the song at `now`, never past its end. */
+export function anchorElapsed(anchor: PlaybackAnchor, now: number): number {
+  const total = anchor.played + anchor.remaining;
+  return Math.min(total, anchor.played + Math.max(0, now - anchor.sampledAt) / 1000);
+}
+
+/**
+ * Keep counting from the current anchor while a new sample agrees with it (FPP reports whole seconds and the
+ * cache time has 1 s resolution, so small disagreements are noise); switch on a new song or a real jump.
+ */
+export function nextPlaybackAnchor(current: PlaybackAnchor | null, sample: PlaybackAnchor, now: number, toleranceSec = 2): PlaybackAnchor {
+  if (!current || current.sequence !== sample.sequence) return sample;
+  if (Math.abs(current.played + current.remaining - (sample.played + sample.remaining)) > toleranceSec) return sample;
+  return Math.abs(anchorElapsed(current, now) - anchorElapsed(sample, now)) > toleranceSec ? sample : current;
+}
+
 export interface ShowStatus {
   live: boolean;
   label: string;

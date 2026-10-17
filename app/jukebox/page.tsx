@@ -30,7 +30,18 @@ import RequestConfirmModal from '@/components/jukebox/RequestConfirmModal';
 import ShowSpecsCard from '@/components/jukebox/ShowSpecsCard';
 import { formatDateTime } from '@/lib/time-utils';
 import { getBrowserLocation, getDistanceInMiles, type UserLocation } from '@/lib/location-utils';
-import { estimateWaits, showStatus, stripFseq, type CatalogSong, type PublicQueueItem, type ShowSpec } from '@/lib/jukebox-display';
+import {
+  anchorElapsed,
+  estimateWaits,
+  nextPlaybackAnchor,
+  sampleTimeFromAge,
+  showStatus,
+  stripFseq,
+  type CatalogSong,
+  type PlaybackAnchor,
+  type PublicQueueItem,
+  type ShowSpec,
+} from '@/lib/jukebox-display';
 import { TIMING } from '@/lib/constants';
 
 interface CurrentlyPlaying {
@@ -83,14 +94,6 @@ interface ScheduleStatus {
   lastChecked: string;
 }
 
-/** Playback position reported by the FPP poller cache (/api/fpp/cached-status) */
-interface FppProgress {
-  sequence: string | null;
-  played: number;
-  remaining: number;
-  fetchedAt: number;
-}
-
 const ADMIN_BUTTON = 'min-h-11 rounded-xl px-3 text-sm font-semibold text-white transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60';
 // Radio-bar buttons: a square icon on phones, the label from sm up, never wrapping
 const BAR_BUTTON = 'flex min-w-11 items-center justify-center whitespace-nowrap';
@@ -127,8 +130,10 @@ export default function JukeboxPage() {
   const [audienceEnabled, setAudienceEnabled] = useState(false);
   const [audienceCount, setAudienceCount] = useState<number | null>(null);
   const [listening, setListening] = useState(false);
+  const playerRef = useRef<HTMLDivElement>(null);
   const [confirmSong, setConfirmSong] = useState<CatalogSong | null>(null);
-  const [fppProgress, setFppProgress] = useState<FppProgress | null>(null);
+  // Playback position reported by the FPP poller cache (/api/fpp/cached-status)
+  const [fppProgress, setFppProgress] = useState<PlaybackAnchor | null>(null);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [locationError, setLocationError] = useState<string | null>(null);
   const [checkingLocation, setCheckingLocation] = useState(false);
@@ -519,7 +524,11 @@ export default function JukeboxPage() {
           Number.isFinite(remaining) &&
           played + remaining > 0
         ) {
-          setFppProgress({ sequence: data.current_sequence || null, played, remaining, fetchedAt: Date.now() });
+          // Date the sample by when the poller took it (the cache refreshes less often than we poll),
+          // and keep counting smoothly unless FPP really moved
+          const now = Date.now();
+          const sample = { sequence: data.current_sequence || null, played, remaining, sampledAt: sampleTimeFromAge(now, data.cache?.age_ms) };
+          setFppProgress((current) => nextPlaybackAnchor(current, sample, now));
         } else {
           setFppProgress(null);
         }
@@ -541,6 +550,13 @@ export default function JukeboxPage() {
     const interval = setInterval(() => setNowTick(Date.now()), 1000);
     return () => clearInterval(interval);
   }, [fppProgress]);
+
+  // Bring the player into view when it opens (it sits under Now Playing, which may be below the fold)
+  useEffect(() => {
+    if (!listening) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    playerRef.current?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest' });
+  }, [listening]);
 
   // "Online now" counter - only when the admin has switched it on; each poll also counts this visitor
   useEffect(() => {
@@ -930,8 +946,7 @@ export default function JukeboxPage() {
   const progress = fppProgress && progressMatchesCard
     ? (() => {
         const total = fppProgress.played + fppProgress.remaining;
-        const elapsed = Math.min(total, fppProgress.played + Math.max(0, nowTick - fppProgress.fetchedAt) / 1000);
-        return { elapsed, total };
+        return { elapsed: anchorElapsed(fppProgress, nowTick), total };
       })()
     : null;
   const currentRemainingSec = progress ? Math.max(0, progress.total - progress.elapsed) : null;
@@ -1001,9 +1016,6 @@ export default function JukeboxPage() {
         siteName={siteName || 'Light Show Jukebox'}
         fmFrequency={fmFrequency}
         isPlaying={Boolean(currentlyPlaying || fppProgress)}
-        showListenButton={Boolean(showInteractiveFeatures)}
-        listening={listening}
-        onToggleListen={() => setListening((v) => !v)}
         adminSlot={
           // Icon-only on phones so the bar fits on one line; words from the sm breakpoint up
           !session ? (
@@ -1036,13 +1048,6 @@ export default function JukeboxPage() {
 
       {/* Clears the fixed radio bar and the string lights hanging under it */}
       <div className="mx-auto max-w-6xl px-4 pb-4" style={{ paddingTop: 'calc(5.75rem + env(safe-area-inset-top))' }}>
-        {/* In-browser audio, opened from the radio bar or the hero */}
-        {listening && showInteractiveFeatures && (
-          <div className="mb-5">
-            <AudioSyncPlayer />
-          </div>
-        )}
-
         <ShowHero
           siteName={siteName || 'Light Show Jukebox'}
           fmFrequency={fmFrequency}
@@ -1072,30 +1077,39 @@ export default function JukeboxPage() {
           )}
 
           <div className={`grid grid-cols-[minmax(0,1fr)] gap-5 ${showInteractiveFeatures ? 'lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]' : ''}`}>
-            <NowPlayingCard
-              info={nowPlayingInfo}
-              progress={progress}
-              adminActions={
-                isAdmin && currentlyPlaying?.id ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => updateStatus(currentlyPlaying.id as number, 'completed')}
-                      className={`${ADMIN_BUTTON} bg-green-600/90 hover:bg-green-600`}
-                    >
-                      ✓ Mark complete
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateStatus(currentlyPlaying.id as number, 'skipped')}
-                      className={`${ADMIN_BUTTON} bg-red-600/90 hover:bg-red-600`}
-                    >
-                      ⏭️ Skip
-                    </button>
-                  </>
-                ) : undefined
-              }
-            />
+            {/* Now Playing, with the in-browser player (opened from the hero) right under it */}
+            <div className="grid content-start gap-5">
+              <NowPlayingCard
+                info={nowPlayingInfo}
+                progress={progress}
+                adminActions={
+                  isAdmin && currentlyPlaying?.id ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => updateStatus(currentlyPlaying.id as number, 'completed')}
+                        className={`${ADMIN_BUTTON} bg-green-600/90 hover:bg-green-600`}
+                      >
+                        ✓ Mark complete
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateStatus(currentlyPlaying.id as number, 'skipped')}
+                        className={`${ADMIN_BUTTON} bg-red-600/90 hover:bg-red-600`}
+                      >
+                        ⏭️ Skip
+                      </button>
+                    </>
+                  ) : undefined
+                }
+              />
+
+              {listening && showInteractiveFeatures && (
+                <div ref={playerRef} className="scroll-mt-28">
+                  <AudioSyncPlayer onClose={() => setListening(false)} />
+                </div>
+              )}
+            </div>
 
             {/* Requests - only while the show is active (or for admins) */}
             {showInteractiveFeatures && (

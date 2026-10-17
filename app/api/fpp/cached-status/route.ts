@@ -18,6 +18,7 @@
 
 import { NextResponse } from 'next/server';
 import { getFPPState, getCachedPlaylist, getCachedPlaylistSequences } from '@/lib/database';
+import { parseDbTimestamp } from '@/lib/time-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,14 +38,15 @@ export async function GET() {
       );
     }
 
-    // Calculate staleness
-    const lastUpdate = new Date(state.last_updated).getTime();
+    // Calculate staleness. last_updated is SQLite CURRENT_TIMESTAMP (UTC without a zone); new Date() would
+    // read it as local time and be off by the server's UTC offset
+    const lastUpdate = parseDbTimestamp(state.last_updated)?.toMillis() ?? NaN;
     const now = Date.now();
     const ageMs = now - lastUpdate;
     const ageSeconds = Math.floor(ageMs / 1000);
 
-    // Flag stale data (older than 30 seconds)
-    const isStale = ageSeconds > 30;
+    // Flag stale data (older than 30 seconds, or no usable timestamp)
+    const isStale = !Number.isFinite(ageMs) || ageSeconds > 30;
 
     // Get active playlist if playing
     let activePlaylist = null;
