@@ -165,7 +165,7 @@ under `tmp/` and a mocked mail transport — they never touch `votes.db` or send
 script individually** and report per-script results:
 `test-email-retries`, `test-email-retries-auth-fail`, `test-jukebox-queue-transaction`,
 `test-request-status`, `test-time-utils`, `test-migrations`, `test-trivia-logic`, `test-csrf`,
-`test-jukebox-display`, `test-jukebox-audience`, `test-theme-assets`, `test-poll-timing`, `test-santa-confirmation`. All of them pass; any failure counts against the change.
+`test-jukebox-display`, `test-jukebox-audience`, `test-theme-assets`, `test-poll-timing`, `test-santa-confirmation`, `test-client-ip`. All of them pass; any failure counts against the change.
 
 New logic gets a new `scripts/test-<name>.ts` (pattern: `scripts/test-trivia-logic.ts`) and is
 appended to the `test:ci` script in `package.json`. `.github/workflows/ci.yml` lists tests
@@ -199,7 +199,8 @@ Note `eslint.config.mjs` ignores `scripts/**`, `migrations/**`, shell/PowerShell
 
 - **Route handler → `lib/` function → better-sqlite3.** Handlers stay thin; logic lives in `lib/`.
   There is no controller/service/ORM layer — don't invent one.
-- **Two processes in production (PM2):** `fpp-control` (`next start`) and `fpp-poller`
+- **Two processes in production (PM2):** `fpp-control` (`npm start` → `server.js`, Next's custom-server
+  wrapper that sets the trusted `x-fpp-client-ip` header used by `getClientIP`) and `fpp-poller`
   (`lib/fpp-poller.ts`, run via `tsx`, polls FPP every 10 s and caches state in SQLite).
 - **Public vs admin:** visitor-facing endpoints (jukebox, votes, santa-letters, trivia, display)
   are unauthenticated and protected by IP-based rate limiting; admin endpoints require Google
@@ -246,7 +247,7 @@ Note `eslint.config.mjs` ignores `scripts/**`, `migrations/**`, shell/PowerShell
    `NEXTAUTH_SECRET` (≥32 chars, entropy-checked, required in production), `GOOGLE_CLIENT_ID/SECRET`,
    `ADMIN_EMAILS` (comma list), `FPP_URL`, `SPOTIFY_CLIENT_ID/SECRET`, `OLLAMA_URL`,
    `NEXT_PUBLIC_OLLAMA_URL`, `SMTP_HOST/PORT/SECURE/USER/PASS`, `NEXT_PUBLIC_TIMEZONE`,
-   `INTERNAL_API_KEY`, optional `TRUSTED_DOMAINS`, `VOTES_DB_PATH`, `AUTO_RUN_MIGRATIONS`.
+   `INTERNAL_API_KEY`, optional `TRUSTED_DOMAINS`, `TRUSTED_PROXY_IPS`, `VOTES_DB_PATH`, `AUTO_RUN_MIGRATIONS`.
    Any `NEXT_PUBLIC_*` value is shipped to browsers — never put a secret there.
    There is no `.env.example`; if you add a variable, document it in `README.md`/`docs/INSTALLATION.md`.
 8. **The CSP lives in `proxy.ts`** and includes hard-coded LAN hosts. New external scripts, images,

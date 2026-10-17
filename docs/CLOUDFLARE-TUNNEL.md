@@ -211,6 +211,25 @@ npm start
 
 ---
 
+## Visitor IP Addresses
+
+Rate limits (votes, song requests, Santa letters, trivia) are counted per visitor IP. `npm start`
+runs `server.js`, which takes each visitor's IP from the connection itself and believes Cloudflare's
+`CF-Connecting-IP` header **only when the connection comes from cloudflared on this same machine**.
+Anyone reaching port 3000 directly (home network, port forwarding) can't fake their address by
+sending that header or `X-Forwarded-For`.
+
+- **cloudflared on the same machine as the app** (what `setup-cloudflare-tunnel.sh` sets up): nothing to do.
+- **cloudflared on a different machine:** add its address to `.env.local`, e.g.
+  `TRUSTED_PROXY_IPS=192.168.1.20` (comma-separated for several), then restart. Until you do, every
+  visitor shares that machine's IP and the limits feel much stricter.
+- **Another proxy (e.g. nginx) on the same machine in front of the app:** it is trusted like
+  cloudflared, so it must not pass on a `CF-Connecting-IP` header sent by visitors.
+- Always start the app with `npm start` (not `next start`); otherwise the app logs
+  "visitor IPs come from headers that can be faked".
+
+---
+
 ## Geolocation Permission Header (Required)
 
 FPP Control Center uses geolocation to restrict voting and song requests to users near your light show. Cloudflare needs to set a header to allow the browser to access geolocation APIs.

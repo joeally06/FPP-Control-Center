@@ -52,25 +52,36 @@ export function getSongRequestRateLimit(): number {
   return 3;
 }
 
+// Set by server.js from the real connection; any copy a visitor sends is overwritten there
+export const CLIENT_IP_HEADER = 'x-fpp-client-ip';
+
+let warnedNoClientIpHeader = false;
+
 /**
- * Extract client IP from request headers
- * 
- * Security: When behind Cloudflare, ONLY trust cf-connecting-ip header
- * to prevent IP spoofing via forged x-forwarded-for headers.
- * 
- * For direct connections (development), fallback to standard headers.
+ * The visitor's IP address, for rate limits and per-visitor records.
+ *
+ * Security: in production server.js supplies it (CF-Connecting-IP is only believed when
+ * cloudflared on this machine sent it). Without server.js (`next dev`, or an old
+ * `next start` command) this falls back to forwarding headers, which visitors can fake.
  */
 export function getClientIP(request: Request): string {
   const headers = request.headers;
-  
-  // Security: If behind Cloudflare, ONLY trust cf-connecting-ip
-  // This prevents IP spoofing via forged x-forwarded-for headers
+
+  const trustedIp = headers.get(CLIENT_IP_HEADER);
+  if (trustedIp) {
+    return trustedIp;
+  }
+
+  if (process.env.NODE_ENV === 'production' && !warnedNoClientIpHeader) {
+    warnedNoClientIpHeader = true;
+    console.warn('[RATE LIMIT] ⚠️ Not started with server.js (npm start) - visitor IPs come from headers that can be faked');
+  }
+
   const cfConnectingIp = headers.get('cf-connecting-ip');
   if (cfConnectingIp) {
     return cfConnectingIp;
   }
 
-  // Fallback for non-Cloudflare deployments (development/direct connections)
   const forwarded = headers.get('x-forwarded-for');
   if (forwarded) {
     return forwarded.split(',')[0].trim();

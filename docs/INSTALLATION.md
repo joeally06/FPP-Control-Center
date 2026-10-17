@@ -1409,6 +1409,11 @@ MONITORING_END_TIME=22:00
 # Ollama AI (for Santa letters)
 OLLAMA_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.2
+
+# Only if cloudflared (or another proxy) runs on a DIFFERENT machine than this app:
+# its address(es), comma-separated, so visitor IPs are taken from Cloudflare's header.
+# cloudflared on this same machine needs nothing. See docs/CLOUDFLARE-TUNNEL.md.
+# TRUSTED_PROXY_IPS=192.168.1.20
 ```
 
 ---

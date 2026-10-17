@@ -13,28 +13,8 @@ export function anonymizeIP(ip: string): string {
     .substring(0, 16); // Use first 16 chars for storage efficiency
 }
 
-export function getClientIP(request: Request): string {
-  // Security: When behind Cloudflare, ONLY trust cf-connecting-ip
-  // This prevents IP spoofing via forged x-forwarded-for headers
-  const cfConnectingIP = request.headers.get('cf-connecting-ip');
-  if (cfConnectingIP) {
-    return cfConnectingIP;
-  }
-
-  // Fallback for non-Cloudflare deployments (development/direct connections)
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) {
-    return forwarded.split(',')[0].trim();
-  }
-  
-  const realIP = request.headers.get('x-real-ip');
-  if (realIP) {
-    return realIP;
-  }
-  
-  // Fallback (won't work in production behind proxy)
-  return '127.0.0.1';
-}
+// One shared implementation (see lib/rate-limit.ts and server.js)
+export { getClientIP } from './rate-limit';
 
 // Simple geolocation lookup (you could integrate with a real IP geolocation service)
 export async function getGeolocation(ip: string): Promise<{

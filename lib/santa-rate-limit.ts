@@ -83,30 +83,5 @@ export function checkSantaRateLimit(email: string, ipAddress: string): RateLimit
   }
 }
 
-/**
- * Extract client IP address from request headers
- * Cloudflare-aware with fallback priority chain
- * @param request - Next.js Request object
- * @returns Client IP address string
- */
-export function getClientIP(request: Request): string {
-  // Security: When behind Cloudflare, ONLY trust cf-connecting-ip
-  // This prevents IP spoofing via forged x-forwarded-for headers
-  const cfConnectingIP = request.headers.get('cf-connecting-ip');
-  if (cfConnectingIP) {
-    return cfConnectingIP;
-  }
-
-  // Fallback for non-Cloudflare deployments (development/direct connections)
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) {
-    return forwarded.split(',')[0].trim();
-  }
-
-  const realIP = request.headers.get('x-real-ip');
-  if (realIP) {
-    return realIP;
-  }
-  
-  return 'unknown';
-}
+// One shared implementation (see lib/rate-limit.ts and server.js)
+export { getClientIP } from './rate-limit';

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { insertVote, getVoteCounts, getUserVote } from '../../../lib/database';
 import { getDistanceInMiles } from '@/lib/location-utils';
+import { getClientIP } from '@/lib/rate-limit';
 import db from '@/lib/database';
 
 export async function POST(request: NextRequest) {
@@ -83,11 +84,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get user IP
-    // Security: Prioritize cf-connecting-ip to prevent IP spoofing
-    const ip = request.headers.get('cf-connecting-ip') ||
-               request.headers.get('x-forwarded-for')?.split(',')[0] ||
-               'unknown';
+    // Get user IP (shared helper; see server.js)
+    const ip = getClientIP(request);
 
     // Check location restrictions if user provided GPS location
     let distanceFromShow = null;
@@ -183,10 +181,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const sequenceName = searchParams.get('sequence');
-    // Security: Prioritize cf-connecting-ip to prevent IP spoofing
-    const userIp = request.headers.get('cf-connecting-ip') ||
-                   request.headers.get('x-forwarded-for')?.split(',')[0] ||
-                   'unknown';
+    const userIp = getClientIP(request);
 
     if (sequenceName) {
       // SECURITY: Validate sequence name parameter
