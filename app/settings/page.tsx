@@ -8,7 +8,16 @@ import BannerSettings from '@/components/admin/BannerSettings';
 import TriviaSettings from '@/components/admin/TriviaSettings';
 import DisplaySettings from '@/components/admin/DisplaySettings';
 import { formatDateTime } from '@/lib/time-utils';
-import { DEFAULT_COURTESY_TEXT, VISITOR_SETTING_LIMITS } from '@/lib/jukebox-display';
+import {
+  DEFAULT_COURTESY_TEXT,
+  MAX_CATEGORY_LENGTH,
+  SHOW_SPEC_FIELDS,
+  SUGGESTED_CATEGORIES,
+  VISITOR_SETTING_LIMITS,
+  formatClock,
+  songCategories,
+  type CatalogSong,
+} from '@/lib/jukebox-display';
 import { getModelWarning, getColorClasses, requiresConfirmation, getEstimatedResponseTime } from '@/lib/model-warnings';
 import { 
   AdminH1, 
@@ -1507,6 +1516,10 @@ function JukeboxSettings() {
   const [fmFrequency, setFmFrequency] = useState('');
   const [courtesyEnabled, setCourtesyEnabled] = useState(false);
   const [courtesyText, setCourtesyText] = useState('');
+  const [specsEnabled, setSpecsEnabled] = useState(false);
+  const [specValues, setSpecValues] = useState<Record<string, string>>({});
+  const [audienceEnabled, setAudienceEnabled] = useState(false);
+  const [songDetailsReload, setSongDetailsReload] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
@@ -1532,6 +1545,9 @@ function JukeboxSettings() {
         setFmFrequency(data.settings.jukebox_fm_frequency || '');
         setCourtesyEnabled(data.settings.jukebox_courtesy_enabled === 'true');
         setCourtesyText(data.settings.jukebox_courtesy_text || '');
+        setSpecsEnabled(data.settings.jukebox_specs_enabled === 'true');
+        setSpecValues(Object.fromEntries(SHOW_SPEC_FIELDS.map((field) => [field.key, data.settings[field.key] || ''])));
+        setAudienceEnabled(data.settings.jukebox_audience_enabled === 'true');
       }
     } catch (err) {
       console.error('Error fetching jukebox settings:', err);
@@ -1586,6 +1602,7 @@ function JukeboxSettings() {
       if (data.success) {
         setSuccess(`✅ Cache refreshed! ${data.sequencesCached} sequences loaded.`);
         await fetchCacheInfo();
+        setSongDetailsReload((n) => n + 1);
       } else {
         const errorMsg = data.details || data.error || 'Failed to refresh cache';
         if (data.error === 'FPP is offline') {
@@ -1650,7 +1667,10 @@ function JukeboxSettings() {
             jukebox_insert_mode: insertMode,
             jukebox_fm_frequency: fmFrequency.trim(),
             jukebox_courtesy_enabled: courtesyEnabled ? 'true' : 'false',
-            jukebox_courtesy_text: courtesyText.trim()
+            jukebox_courtesy_text: courtesyText.trim(),
+            jukebox_specs_enabled: specsEnabled ? 'true' : 'false',
+            ...Object.fromEntries(SHOW_SPEC_FIELDS.map((field) => [field.key, (specValues[field.key] || '').trim()])),
+            jukebox_audience_enabled: audienceEnabled ? 'true' : 'false'
           }
         })
       });
@@ -1855,6 +1875,54 @@ function JukeboxSettings() {
               </AdminTextSmall>
             </label>
           )}
+
+          <label className="flex items-start gap-3 p-4 bg-white/5 rounded-lg border border-white/20 cursor-pointer hover:bg-white/10 transition-all">
+            <input
+              type="checkbox"
+              checked={specsEnabled}
+              onChange={(e) => setSpecsEnabled(e.target.checked)}
+              className="mt-1"
+            />
+            <div className="flex-1">
+              <AdminLabel>💡 Show the &ldquo;Behind the pixels&rdquo; card</AdminLabel>
+              <AdminTextSmall className="text-white/60">
+                Facts about your display for curious visitors. Empty fields are hidden.
+              </AdminTextSmall>
+            </div>
+          </label>
+
+          {specsEnabled && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {SHOW_SPEC_FIELDS.map((field) => (
+                <label key={field.key} className="block">
+                  <AdminLabel>{field.label}</AdminLabel>
+                  <input
+                    type="text"
+                    value={specValues[field.key] || ''}
+                    onChange={(e) => setSpecValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                    maxLength={VISITOR_SETTING_LIMITS[field.key]}
+                    placeholder={field.placeholder}
+                    className="mt-2 w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/40"
+                  />
+                </label>
+              ))}
+            </div>
+          )}
+
+          <label className="flex items-start gap-3 p-4 bg-white/5 rounded-lg border border-white/20 cursor-pointer hover:bg-white/10 transition-all">
+            <input
+              type="checkbox"
+              checked={audienceEnabled}
+              onChange={(e) => setAudienceEnabled(e.target.checked)}
+              className="mt-1"
+            />
+            <div className="flex-1">
+              <AdminLabel>👥 Show how many people are online</AdminLabel>
+              <AdminTextSmall className="text-white/60">
+                Shows &ldquo;N online now&rdquo;: devices with the jukebox page open in the last minute. It can&apos;t count radio-only listeners. Nothing is stored.
+              </AdminTextSmall>
+            </div>
+          </label>
         </div>
 
         {/* Save Button */}
@@ -1937,6 +2005,8 @@ function JukeboxSettings() {
           </ul>
         </div>
       </div>
+
+      <SongDetailsSettings reloadKey={songDetailsReload} />
 
       {/* Unified Banner Configuration */}
       <BannerSettings />
@@ -2041,6 +2111,123 @@ function JukeboxSettings() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SongDetailsSettings({ reloadKey }: { reloadKey: number }) {
+  const [songs, setSongs] = useState<CatalogSong[]>([]);
+  const [categories, setCategories] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    async function fetchSongs() {
+      try {
+        const response = await fetch('/api/jukebox/sequences');
+        if (response.ok) {
+          const data = await response.json();
+          const list: CatalogSong[] = Array.isArray(data.songs) ? data.songs : [];
+          setSongs(list);
+          setCategories(Object.fromEntries(list.map((song) => [song.name, song.category || ''])));
+        }
+      } catch (err) {
+        console.error('Error fetching songs:', err);
+        setError('Failed to load songs');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchSongs();
+  }, [reloadKey]);
+
+  async function handleSave() {
+    setSaving(true);
+    setSuccess('');
+    setError('');
+
+    try {
+      const response = await fetch('/api/jukebox/song-categories', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categories })
+      });
+
+      if (response.ok) {
+        setSuccess('✅ Categories saved!');
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Failed to save categories');
+      }
+    } catch (err) {
+      console.error('Error saving categories:', err);
+      setError('Failed to save categories');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Suggestions: the usual ones plus anything already in use
+  const suggestions = [...new Set([...SUGGESTED_CATEGORIES, ...songCategories(songs.map((song) => ({ ...song, category: categories[song.name] || null })))])];
+
+  return (
+    <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
+      <AdminH3>🏷️ Song Details</AdminH3>
+      <AdminTextMuted>
+        Categories become filter buttons on the visitor song list. Titles and artists come from the Media Library; song lengths come from your FPP playlist when you refresh the song cache.
+      </AdminTextMuted>
+
+      {success && <AdminSuccess className="mt-4">{success}</AdminSuccess>}
+      {error && <AdminError className="mt-4">{error}</AdminError>}
+
+      {loading ? (
+        <AdminTextMuted className="mt-4">Loading...</AdminTextMuted>
+      ) : songs.length === 0 ? (
+        <AdminTextMuted className="mt-4">No songs cached yet. Refresh the song cache above first.</AdminTextMuted>
+      ) : (
+        <>
+          <datalist id="song-category-suggestions">
+            {suggestions.map((category) => (
+              <option key={category} value={category} />
+            ))}
+          </datalist>
+          <ul className="mt-4 space-y-2">
+            {songs.map((song) => (
+              <li key={song.name} className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 p-3 bg-white/5 rounded-lg border border-white/10">
+                <div className="flex-1 min-w-0">
+                  <AdminText className="font-semibold truncate">{song.title || song.name}</AdminText>
+                  <AdminTextSmall className="text-white/60 truncate">
+                    {[song.artist || 'Unknown artist', song.durationSeconds != null ? formatClock(song.durationSeconds) : 'length unknown'].join(' · ')}
+                  </AdminTextSmall>
+                </div>
+                <input
+                  type="text"
+                  list="song-category-suggestions"
+                  value={categories[song.name] || ''}
+                  onChange={(e) => setCategories((prev) => ({ ...prev, [song.name]: e.target.value }))}
+                  maxLength={MAX_CATEGORY_LENGTH}
+                  placeholder="Category"
+                  aria-label={`Category for ${song.title || song.name}`}
+                  className="w-full md:w-56 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/40"
+                />
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-6">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? '⏳ Saving...' : '💾 Save Categories'}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

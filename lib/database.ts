@@ -199,6 +199,17 @@ db.exec(`
   );
 `);
 
+// Per-song details for the jukebox catalog (also migration 019; created here too because
+// `next build` imports this file before the updater runs migrations)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS jukebox_song_details (
+    sequence_name TEXT PRIMARY KEY,
+    duration_seconds REAL,
+    category TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
 // Create sequence metadata table
 db.exec(`
   CREATE TABLE IF NOT EXISTS sequence_metadata (
@@ -811,6 +822,31 @@ export const getMediaNameForSequence = db.prepare(`
 
 export const getCacheAge = db.prepare(`
   SELECT MAX(last_updated) as last_updated FROM cached_sequences
+`);
+
+// Cached songs with Media Library title/artist and jukebox song details, in playlist order
+export const getCachedSongDetails = db.prepare(`
+  SELECT cs.sequence_name, sm.track_name, sm.artist_name, d.duration_seconds, d.category
+  FROM cached_sequences cs
+  LEFT JOIN spotify_metadata sm ON sm.sequence_name = cs.sequence_name
+  LEFT JOIN jukebox_song_details d ON d.sequence_name = cs.sequence_name
+  ORDER BY cs.playlist_order ASC, cs.sequence_name ASC
+`);
+
+export const upsertSongDuration = db.prepare(`
+  INSERT INTO jukebox_song_details (sequence_name, duration_seconds, updated_at)
+  VALUES (?, ?, CURRENT_TIMESTAMP)
+  ON CONFLICT(sequence_name) DO UPDATE SET
+    duration_seconds = excluded.duration_seconds,
+    updated_at = CURRENT_TIMESTAMP
+`);
+
+export const upsertSongCategory = db.prepare(`
+  INSERT INTO jukebox_song_details (sequence_name, category, updated_at)
+  VALUES (?, ?, CURRENT_TIMESTAMP)
+  ON CONFLICT(sequence_name) DO UPDATE SET
+    category = excluded.category,
+    updated_at = CURRENT_TIMESTAMP
 `);
 
 // Sequence metadata prepared statements

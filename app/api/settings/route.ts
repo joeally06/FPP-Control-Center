@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminWithRateLimit } from '@/lib/auth-helpers';
 import { toErrorMessage } from '@/lib/api-errors';
 import { getSettings, getSettingsDetailed, updateSettings } from '@/lib/settings';
-import { VISITOR_SETTING_LIMITS } from '@/lib/jukebox-display';
+import { VISITOR_BOOLEAN_SETTINGS, VISITOR_SETTING_LIMITS } from '@/lib/jukebox-display';
 
 /**
  * GET /api/settings
@@ -100,11 +100,13 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    if ('jukebox_courtesy_enabled' in settings && !['true', 'false'].includes(String(settings.jukebox_courtesy_enabled))) {
-      return NextResponse.json(
-        { error: 'jukebox_courtesy_enabled must be true or false' },
-        { status: 400 }
-      );
+    for (const key of VISITOR_BOOLEAN_SETTINGS) {
+      if (key in settings && !['true', 'false'].includes(String(settings[key]))) {
+        return NextResponse.json(
+          { error: `${key} must be true or false` },
+          { status: 400 }
+        );
+      }
     }
 
     // Convert all values to strings

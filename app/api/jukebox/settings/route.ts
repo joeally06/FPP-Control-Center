@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSetting } from '@/lib/settings';
-import { DEFAULT_COURTESY_TEXT, parseCourtesyLines } from '@/lib/jukebox-display';
+import { DEFAULT_COURTESY_TEXT, buildShowSpecs, parseCourtesyLines } from '@/lib/jukebox-display';
 
 /**
  * GET /api/jukebox/settings
@@ -22,6 +22,8 @@ export async function GET() {
         enabled: courtesyEnabled,
         lines: courtesyEnabled ? parseCourtesyLines(getSetting('jukebox_courtesy_text') || DEFAULT_COURTESY_TEXT) : [],
       },
+      specs: buildShowSpecs(getSetting('jukebox_specs_enabled') === 'true', getSetting),
+      audienceEnabled: getSetting('jukebox_audience_enabled') === 'true',
     });
   } catch (error) {
     console.error('Error fetching jukebox settings:', error);
@@ -33,6 +35,8 @@ export async function GET() {
       siteName: '',
       fmFrequency: '',
       courtesy: { enabled: false, lines: [] },
+      specs: [],
+      audienceEnabled: false,
     });
   }
 }

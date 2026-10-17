@@ -7,13 +7,15 @@ import { CARD, type ThemeAccent } from './theme-accent';
 
 interface UpNextListProps {
   items: PublicQueueItem[];
-  /** Seconds left in the current song, when known */
-  currentRemainingSec: number | null;
+  /** Display title for each item (same order as items) */
+  titles: string[];
+  /** Estimated seconds until each item starts (same order as items), null when unknown */
+  waits: (number | null)[];
   accent: ThemeAccent;
   renderAdminActions?: (item: PublicQueueItem) => ReactNode;
 }
 
-export default function UpNextList({ items, currentRemainingSec, accent, renderAdminActions }: UpNextListProps) {
+export default function UpNextList({ items, titles, waits, accent, renderAdminActions }: UpNextListProps) {
   return (
     <section aria-labelledby="up-next-heading" className={`${CARD} p-5`}>
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -30,23 +32,26 @@ export default function UpNextList({ items, currentRemainingSec, accent, renderA
         <p className="py-6 text-center text-sm text-white/70">No requests yet. Pick a song!</p>
       ) : (
         <ol className="space-y-2">
-          {items.map((item, index) => (
-            <li key={item.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
-              <div className="flex items-center gap-3">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 font-mono text-sm font-bold text-white">
-                  {index + 1}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-white">{item.sequence_name}</p>
-                  <p className="truncate text-xs text-white/70">
-                    {item.requester_name ? `Requested by ${item.requester_name}` : 'Requested'}
-                    {index === 0 && currentRemainingSec != null && ` · plays in ~${formatClock(currentRemainingSec)}`}
-                  </p>
+          {items.map((item, index) => {
+            const wait = waits[index] ?? null;
+            return (
+              <li key={item.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 font-mono text-sm font-bold text-white">
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold text-white">{titles[index] || item.sequence_name}</p>
+                    <p className="truncate text-xs text-white/70">
+                      {item.requester_name ? `Requested by ${item.requester_name}` : 'Requested'}
+                      {wait !== null && ` · plays in ~${formatClock(wait)}`}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              {renderAdminActions && <div className="mt-2 flex flex-wrap gap-2">{renderAdminActions(item)}</div>}
-            </li>
-          ))}
+                {renderAdminActions && <div className="mt-2 flex flex-wrap gap-2">{renderAdminActions(item)}</div>}
+              </li>
+            );
+          })}
         </ol>
       )}
     </section>

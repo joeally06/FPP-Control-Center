@@ -1,14 +1,16 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { formatClock } from '@/lib/jukebox-display';
+import { formatClock, songDetailsLine, type CatalogSong } from '@/lib/jukebox-display';
 import type { ThemeAccent } from './theme-accent';
 
 interface RequestConfirmModalProps {
-  song: string;
+  song: CatalogSong;
   /** Position the request will take in the queue (1 = next) */
   position: number;
   currentRemainingSec: number | null;
+  /** Estimated seconds until this request starts, when every song ahead has a known length */
+  waitSec: number | null;
   requesterName: string;
   onRequesterNameChange: (name: string) => void;
   onConfirm: () => void;
@@ -16,7 +18,10 @@ interface RequestConfirmModalProps {
   accent: ThemeAccent;
 }
 
-function waitText(position: number, currentRemainingSec: number | null): string {
+function waitText(position: number, currentRemainingSec: number | null, waitSec: number | null): string {
+  if (waitSec != null) {
+    return `${position === 1 ? "You'll be next" : `You'll be #${position} in line`} — about ${formatClock(waitSec)} from now.`;
+  }
   if (currentRemainingSec == null) return position === 1 ? "You'll be next in line." : `You'll be #${position} in line.`;
   if (position === 1) return `You'll be next — after the current song (about ${formatClock(currentRemainingSec)}).`;
   const ahead = position - 1;
@@ -27,12 +32,14 @@ export default function RequestConfirmModal({
   song,
   position,
   currentRemainingSec,
+  waitSec,
   requesterName,
   onRequesterNameChange,
   onConfirm,
   onCancel,
   accent,
 }: RequestConfirmModalProps) {
+  const details = songDetailsLine(song);
   const nameRef = useRef<HTMLInputElement>(null);
   // Latest onCancel without re-running the focus effect on every parent render
   const onCancelRef = useRef(onCancel);
@@ -64,8 +71,9 @@ export default function RequestConfirmModal({
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="request-dialog-title" className="text-lg font-bold">Request this song?</h2>
-        <p className="mt-2 text-xl font-extrabold themed-font">{song}</p>
-        <p className="mt-2 text-sm text-white/80">{waitText(position, currentRemainingSec)}</p>
+        <p className="mt-2 text-xl font-extrabold themed-font">{song.title || song.name}</p>
+        {details && <p className="text-sm text-white/70">{details}</p>}
+        <p className="mt-2 text-sm text-white/80">{waitText(position, currentRemainingSec, waitSec)}</p>
 
         <form
           className="mt-4 space-y-4"

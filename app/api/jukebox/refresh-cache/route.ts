@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-helpers';
-import { clearCachedSequences, insertCachedSequence } from '@/lib/database';
+import { clearCachedSequences, insertCachedSequence, upsertSongDuration } from '@/lib/database';
 import { getFppUrl } from '@/lib/fpp-config';
+import { toSongDuration } from '@/lib/jukebox-display';
 
 /**
  * POST /api/jukebox/refresh-cache
@@ -98,7 +99,7 @@ export async function POST() {
 
     // Then, get sequence files from each scheduled playlist
     // Use an array to preserve playlist order
-    const sequenceList: { name: string; order: number }[] = [];
+    const sequenceList: { name: string; order: number; duration: number | null }[] = [];
     const seenSequences = new Set<string>();
     let orderIndex = 0;
     
@@ -123,7 +124,8 @@ export async function POST() {
               const sequenceName = item.sequenceName.replace(/\.fseq$/i, '');
               if (!seenSequences.has(sequenceName)) {
                 seenSequences.add(sequenceName);
-                sequenceList.push({ name: sequenceName, order: orderIndex++ });
+                // FPP's playlist editor stores each item's length in seconds
+                sequenceList.push({ name: sequenceName, order: orderIndex++, duration: toSongDuration(item.duration) });
               }
             }
           };
@@ -154,6 +156,10 @@ export async function POST() {
 
     for (const seq of sequenceList) {
       insertCachedSequence.run(seq.name, seq.order);
+      // Keeps the admin's category; only the length is refreshed
+      if (seq.duration !== null) {
+        upsertSongDuration.run(seq.name, seq.duration);
+      }
     }
 
     return NextResponse.json({

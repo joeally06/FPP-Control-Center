@@ -26,10 +26,11 @@ import NowPlayingCard, { type NowPlayingInfo } from '@/components/jukebox/NowPla
 import UpNextList from '@/components/jukebox/UpNextList';
 import SongCatalog from '@/components/jukebox/SongCatalog';
 import RequestConfirmModal from '@/components/jukebox/RequestConfirmModal';
+import ShowSpecsCard from '@/components/jukebox/ShowSpecsCard';
 import { getThemeAccent, CARD } from '@/components/jukebox/theme-accent';
 import { formatDateTime } from '@/lib/time-utils';
 import { getBrowserLocation, getDistanceInMiles, type UserLocation } from '@/lib/location-utils';
-import { stripFseq, type PublicQueueItem } from '@/lib/jukebox-display';
+import { estimateWaits, stripFseq, type CatalogSong, type PublicQueueItem, type ShowSpec } from '@/lib/jukebox-display';
 import { TIMING } from '@/lib/constants';
 
 interface CurrentlyPlaying {
@@ -103,7 +104,7 @@ export default function JukeboxPage() {
   const [queue, setQueue] = useState<PublicQueueItem[]>([]);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<CurrentlyPlaying | null>(null);
   const [currentMetadata, setCurrentMetadata] = useState<SequenceMetadata | null>(null);
-  const [availableSequences, setAvailableSequences] = useState<string[]>([]);
+  const [availableSongs, setAvailableSongs] = useState<CatalogSong[]>([]);
   const [requesterName, setRequesterName] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -120,8 +121,11 @@ export default function JukeboxPage() {
   const [siteName, setSiteName] = useState('');
   const [fmFrequency, setFmFrequency] = useState('');
   const [courtesyLines, setCourtesyLines] = useState<string[]>([]);
+  const [showSpecs, setShowSpecs] = useState<ShowSpec[]>([]);
+  const [audienceEnabled, setAudienceEnabled] = useState(false);
+  const [audienceCount, setAudienceCount] = useState<number | null>(null);
   const [listening, setListening] = useState(false);
-  const [confirmSong, setConfirmSong] = useState<string | null>(null);
+  const [confirmSong, setConfirmSong] = useState<CatalogSong | null>(null);
   const [fppProgress, setFppProgress] = useState<FppProgress | null>(null);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -536,6 +540,29 @@ export default function JukeboxPage() {
     return () => clearInterval(interval);
   }, [fppProgress]);
 
+  // "Online now" counter - only when the admin has switched it on; each poll also counts this visitor
+  useEffect(() => {
+    if (!audienceEnabled) return;
+    let cancelled = false;
+    const poll = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const response = await fetch('/api/jukebox/audience');
+        if (!response.ok || cancelled) return;
+        const data = await response.json();
+        setAudienceCount(data.enabled && typeof data.count === 'number' ? data.count : null);
+      } catch {
+        // Keep the last count; the next poll will correct it
+      }
+    };
+    poll();
+    const interval = setInterval(poll, 20000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [audienceEnabled]);
+
   const fetchData = async () => {
     try {
       const [queueRes, statusRes] = await Promise.all([
@@ -598,6 +625,8 @@ export default function JukeboxPage() {
         setSiteName(data.siteName || '');
         setFmFrequency(data.fmFrequency || '');
         setCourtesyLines(data.courtesy?.enabled && Array.isArray(data.courtesy.lines) ? data.courtesy.lines : []);
+        setShowSpecs(Array.isArray(data.specs) ? data.specs : []);
+        setAudienceEnabled(data.audienceEnabled === true);
 
         // After getting rate limit, fetch current request status
         await fetchRequestStatus(data.rateLimit || 3);
@@ -662,7 +691,7 @@ export default function JukeboxPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setAvailableSequences(Array.isArray(data.sequences) ? data.sequences : []);
+        setAvailableSongs(Array.isArray(data.songs) ? data.songs : []);
 
         if (data.sequences.length === 0) {
           setMessage('⚠️ No songs available. Admin needs to refresh the cache.');
@@ -671,12 +700,12 @@ export default function JukeboxPage() {
         }
       } else {
         console.error('[Jukebox] Failed to fetch sequences');
-        setAvailableSequences([]);
+        setAvailableSongs([]);
         setMessage('❌ Failed to load available songs. Please try again.');
       }
     } catch (error) {
       console.error('[Jukebox] Error fetching available sequences:', error);
-      setAvailableSequences([]);
+      setAvailableSongs([]);
       setMessage('❌ Failed to load available songs. Please check your connection.');
     } finally {
       setLoadingSequences(false);
@@ -780,7 +809,7 @@ export default function JukeboxPage() {
   // Confirm modal → location gate → submit (same flow the old request form used)
   const confirmRequest = async () => {
     if (!confirmSong) return;
-    const capturedSong = confirmSong;
+    const capturedSong = confirmSong.name;
     const capturedName = requesterName.trim();
     setConfirmSong(null);
 
@@ -906,6 +935,15 @@ export default function JukeboxPage() {
   const currentRemainingSec = progress ? Math.max(0, progress.total - progress.elapsed) : null;
   const currentSequenceName = currentlyPlaying?.sequence_name ?? (fppProgress?.sequence ? stripFseq(fppProgress.sequence) : null);
 
+  // Queue titles and wait estimates from the catalog (lengths are known after the admin refreshes the song cache)
+  const songByName = new Map(availableSongs.map((song) => [song.name, song]));
+  const queueSongs = queue.map((item) => songByName.get(stripFseq(item.sequence_name)));
+  const queueTitles = queue.map((item, i) => queueSongs[i]?.title || item.sequence_name);
+  const queueDurations = queueSongs.map((song) => song?.durationSeconds ?? null);
+  const queueWaits = estimateWaits(currentRemainingSec, queueDurations);
+  // A new request joins the end of the queue: its wait is one step past the last queued song
+  const newRequestWait = estimateWaits(currentRemainingSec, [...queueDurations, null])[queue.length];
+
   const nowPlayingInfo: NowPlayingInfo | null = currentlyPlaying
     ? {
         title: currentMetadata?.song_title || currentlyPlaying.media_name || currentlyPlaying.sequence_name,
@@ -940,6 +978,7 @@ export default function JukeboxPage() {
           song={confirmSong}
           position={queue.length + 1}
           currentRemainingSec={currentRemainingSec}
+          waitSec={newRequestWait}
           requesterName={requesterName}
           onRequesterNameChange={setRequesterName}
           onConfirm={confirmRequest}
@@ -1000,6 +1039,7 @@ export default function JukeboxPage() {
           nextShowStartTime={scheduleStatus?.nextShowStartTime ?? null}
           nextShowEndTime={scheduleStatus?.nextShowEndTime ?? null}
           countdown={scheduleStatus?.countdown ?? null}
+          audienceCount={audienceEnabled ? audienceCount : null}
           accent={accent}
         />
 
@@ -1069,7 +1109,7 @@ export default function JukeboxPage() {
         {showInteractiveFeatures && (
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <SongCatalog
-              songs={availableSequences}
+              songs={availableSongs}
               loading={loadingSequences}
               message={checkingLocation ? '📍 Getting your location…' : message}
               currentSequence={currentSequenceName}
@@ -1092,7 +1132,8 @@ export default function JukeboxPage() {
             />
             <UpNextList
               items={queue}
-              currentRemainingSec={currentRemainingSec}
+              titles={queueTitles}
+              waits={queueWaits}
               accent={accent}
               renderAdminActions={
                 isAdmin
@@ -1119,6 +1160,9 @@ export default function JukeboxPage() {
             />
           </div>
         )}
+
+        {/* Behind the Pixels - admin-entered display facts (shown even when the show is off) */}
+        <ShowSpecsCard specs={showSpecs} accent={accent} />
 
         {/* YouTube Videos */}
         {youtubeVideos.length > 0 && (

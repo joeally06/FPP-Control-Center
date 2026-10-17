@@ -1,13 +1,30 @@
 import { NextResponse } from 'next/server';
-import { getCachedSequences, getCacheAge } from '@/lib/database';
+import { getCachedSongDetails, getCacheAge } from '@/lib/database';
+import type { CatalogSong } from '@/lib/jukebox-display';
+
+interface CachedSongRow {
+  sequence_name: string;
+  track_name: string | null;
+  artist_name: string | null;
+  duration_seconds: number | null;
+  category: string | null;
+}
 
 export async function GET() {
   try {
-    const sequences = getCachedSequences.all().map((row: any) => row.sequence_name);
+    const songs: CatalogSong[] = (getCachedSongDetails.all() as CachedSongRow[]).map((row) => ({
+      name: row.sequence_name,
+      title: row.track_name || null,
+      artist: row.artist_name || null,
+      durationSeconds: row.duration_seconds ?? null,
+      category: row.category || null,
+    }));
+    const sequences = songs.map((song) => song.name);
     const cacheInfo = getCacheAge.get() as { last_updated?: string } | undefined;
 
     return NextResponse.json({
       sequences,
+      songs,
       lastUpdated: cacheInfo?.last_updated || null,
       count: sequences.length
     });
