@@ -195,7 +195,7 @@ Note `eslint.config.mjs` ignores `scripts/**`, `migrations/**`, shell/PowerShell
 - `types/` — shared TS types (`trivia.ts`, `display.ts`, `next-auth.d.ts`)
 - `migrations/` — numbered `NNN_name.sql` files
 - `scripts/` — setup, ops, and `test-*.ts` scripts; `tests/security-tests.ts` is fixture data, not a runner
-- `docs/` — feature and ops documentation; `.github/docs/subagent_docs/` — spec/review documents from this workflow (create the directory when first needed)
+- `docs/` — feature and ops documentation; `.github/docs/subagent_docs/` — spec/review documents from this workflow. **Gitignored, local only**: the repo is public and these documents can describe unfixed vulnerabilities. Never list them in a Phase 7 "Modified Files" list or suggest `git add -f` for them
 - `proxy.ts` (Next 16 middleware), `instrumentation.ts` (background services), `ecosystem.config.js` (PM2)
 
 ### Architecture

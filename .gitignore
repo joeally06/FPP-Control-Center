@@ -54,6 +54,9 @@ votes.db.dump
 backups/
 !backups/.gitkeep
 
+# local-only workflow docs (specs/reviews can describe unfixed issues)
+.github/docs/subagent_docs/
+
 # test files
 test.js
 test-sync.ts
