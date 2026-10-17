@@ -37,7 +37,7 @@
 
 ### ⚠️ Needs Review (Mixed Auth)
 - `/api/theme` - GET public, POST admin (getServerSession)
-- `/api/jukebox/status` - GET public, PUT admin (needs split)
+- `/api/jukebox/status` - GET public, PUT admin (requireAdminWithRateLimit)
 - `/api/settings` - GET/POST admin (getServerSession)
 - `/api/spotify/metadata/[name]` - GET/PUT admin (getServerSession)
 - `/api/fpp/sync` - POST admin (getServerSession)
@@ -132,7 +132,7 @@
 ### Phase 5: Standardize Mixed Auth Routes
 **Routes to review:**
 - `/api/theme` - Already has POST admin check (✅ correct)
-- `/api/jukebox/status` - Needs split: GET public, PUT admin
+- `/api/jukebox/status` - GET public, PUT admin (✅ correct)
 - `/api/settings` - Already has admin check (verify POST/GET both protected)
 - `/api/spotify/metadata/[name]` - Already has admin check (verify all methods)
 - `/api/fpp/sync` - Already has admin check (verify POST protected)
@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
 - ✅ `/api/jukebox/popular` (GET) - Popular songs
 - ✅ `/api/jukebox/sequences` (GET) - Available sequences
 - ✅ `/api/jukebox/metadata` (GET) - Song metadata
-- ⚠️ `/api/jukebox/status` (GET only) - Currently playing
+- ✅ `/api/jukebox/status` (GET only) - Currently playing
 - ✅ `/api/votes` (GET, POST) - Vote on sequences
 - ✅ `/api/santa/send-letter` (POST) - Submit letter to Santa
 - ✅ `/api/santa/check-limit` (POST) - Check rate limit

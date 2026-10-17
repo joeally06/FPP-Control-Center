@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdminWithRateLimit } from '@/lib/auth-helpers';
+import { toErrorMessage } from '@/lib/api-errors';
 import { getCurrentlyPlaying, updateQueueStatus, getFPPState } from '@/lib/database';
 import { getFppUrl } from '@/lib/fpp-config';
 import { toPublicQueueItem } from '@/lib/jukebox-display';
@@ -89,7 +91,14 @@ export async function GET() {
   }
 }
 
+// PUT /api/jukebox/status - Change a queue item's status (admin only)
 export async function PUT(request: NextRequest) {
+  try {
+    await requireAdminWithRateLimit(request);
+  } catch (error) {
+    return NextResponse.json({ error: toErrorMessage(error, 'Unauthorized') }, { status: 401 });
+  }
+
   try {
     const { id, status } = await request.json();
 
