@@ -48,7 +48,7 @@ votes.db
 *.db-journal
 votes.db.corrupt-*
 votes.db.dump
-*.db.backup
+*.db.backup*
 
 # backups
 backups/
