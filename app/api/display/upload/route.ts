@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { writeFile, mkdir, unlink } from 'fs/promises';
-import { join } from 'path';
+import { join, resolve, sep } from 'path';
 import sharp from 'sharp';
 import { getSetting, updateSettings } from '@/lib/settings';
 
@@ -101,10 +101,15 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Index out of range' }, { status: 400 });
   }
 
-  // Remove file
-  try {
-    await unlink(join(process.cwd(), 'public', existing[idx].replace(/^\//, '')));
-  } catch { /* file already gone */ }
+  // Remove file - only if the stored path really is inside the upload folder
+  const filePath = resolve(process.cwd(), 'public', existing[idx].replace(/^\//, ''));
+  if (filePath.startsWith(UPLOAD_DIR + sep)) {
+    try {
+      await unlink(filePath);
+    } catch { /* file already gone */ }
+  } else {
+    console.warn('[Display Upload] Refusing to delete path outside upload dir:', existing[idx]);
+  }
 
   // Rebuild remaining list (re-number files)
   const remaining = existing.filter((_, i) => i !== idx);

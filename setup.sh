@@ -1196,6 +1196,7 @@ NEXTAUTH_URL=PLACEHOLDER_NEXTAUTH_URL
 NEXTAUTH_SECRET=PLACEHOLDER_NEXTAUTH_SECRET
 
 # Trusted Domains (comma-separated, for Cloudflare Tunnel or custom domains)
+# Hostnames the browser may send as its Origin on POST/PUT/DELETE requests (CSRF check)
 # Example: yourdomain.com,www.yourdomain.com
 TRUSTED_DOMAINS=PLACEHOLDER_TRUSTED_DOMAINS
 

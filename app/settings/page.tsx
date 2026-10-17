@@ -5,7 +5,7 @@ import { TIMING } from '@/lib/constants';
 import AdminNavigation from '@/components/AdminNavigation';
 import UpdateChecker from '@/components/UpdateChecker';
 import BannerSettings from '@/components/admin/BannerSettings';
-import GameSettings from '@/components/admin/GameSettings';
+import TriviaSettings from '@/components/admin/TriviaSettings';
 import DisplaySettings from '@/components/admin/DisplaySettings';
 import { formatDateTime } from '@/lib/time-utils';
 import { getModelWarning, getColorClasses, requiresConfirmation, getEstimatedResponseTime } from '@/lib/model-warnings';
@@ -25,7 +25,7 @@ import {
 } from '@/components/admin/Typography';
 import Link from 'next/link';
 
-type SettingSection = 'themes' | 'santa' | 'monitoring' | 'database' | 'updates' | 'youtube' | 'jukebox' | 'location' | 'games' | 'display';
+type SettingSection = 'themes' | 'santa' | 'monitoring' | 'database' | 'updates' | 'youtube' | 'jukebox' | 'location' | 'trivia' | 'display';
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<SettingSection>('themes');
@@ -127,14 +127,14 @@ export default function SettingsPage() {
                 📍 Location
               </button>
               <button
-                onClick={() => setActiveSection('games')}
+                onClick={() => setActiveSection('trivia')}
                 className={`w-full text-left px-4 py-3 rounded-lg transition-all font-semibold ${
-                  activeSection === 'games'
+                  activeSection === 'trivia'
                     ? 'bg-white text-black shadow-lg'
                     : 'text-white hover:bg-white/10'
                 }`}
               >
-                🎮 Game Settings
+                🎅 Trivia
               </button>
               <button
                 onClick={() => setActiveSection('display')}
@@ -159,7 +159,7 @@ export default function SettingsPage() {
             {activeSection === 'youtube' && <YouTubeVideoSettings />}
             {activeSection === 'jukebox' && <JukeboxSettings />}
             {activeSection === 'location' && <LocationRestrictions />}
-            {activeSection === 'games' && <GameSettingsSection />}
+            {activeSection === 'trivia' && <TriviaSettingsSection />}
             {activeSection === 'display' && <DisplaySettings />}
           </div>
         </div>
@@ -1492,10 +1492,10 @@ interface JukeboxUser {
   firstRequest: string;
 }
 
-function GameSettingsSection() {
+function TriviaSettingsSection() {
   return (
     <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
-      <GameSettings />
+      <TriviaSettings />
     </div>
   );
 }

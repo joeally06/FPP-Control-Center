@@ -3,6 +3,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { isSameOriginRequest } from './lib/csrf';
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -13,67 +14,18 @@ export async function proxy(request: NextRequest) {
     
     // Only check state-changing methods
     if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
-      const origin = request.headers.get('origin');
-      const referer = request.headers.get('referer');
-      const host = request.headers.get('host');
-      
-      // Build allowed origins list
-      const allowedOrigins = [
-        process.env.NEXTAUTH_URL || '',
-        process.env.NEXT_PUBLIC_APP_URL || '',
-      ].filter(Boolean);
-
-      // For development/local network, allow localhost and local IPs
-      if (process.env.NODE_ENV === 'development' || !process.env.NEXTAUTH_URL?.startsWith('https://')) {
-        // Allow localhost variants
-        allowedOrigins.push('http://localhost:3000', 'http://127.0.0.1:3000');
-        
-        // Allow local network IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
-        if (host) {
-          allowedOrigins.push(`http://${host}`, `https://${host}`);
-          
-          // If host is a local IP, also allow it
-          if (/^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(host)) {
-            allowedOrigins.push(`http://${host}`);
-          }
-        }
-        
-        // If origin is a local IP, allow it
-        if (origin && /^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|localhost|127\.0\.0\.1)/.test(origin)) {
-          allowedOrigins.push(origin);
-        }
-      }
-
-      // Check if origin or referer is valid
-      const isValidOrigin = origin && allowedOrigins.some(allowed => 
-        origin === allowed || origin.startsWith(allowed.split(':').slice(0, -1).join(':'))
-      );
-
-      const isValidReferer = referer && allowedOrigins.some(allowed =>
-        referer.startsWith(allowed.split(':').slice(0, -1).join(':'))
-      );
-
-      // Check if this is a request proxied through Cloudflare Tunnel or other trusted proxy
-      // Use TRUSTED_DOMAINS environment variable (comma-separated) for reusability
-      const trustedDomains = (process.env.TRUSTED_DOMAINS || '')
-        .split(',')
-        .map(d => d.trim())
-        .filter(Boolean);
-      
-      const isTrustedProxy = host && (
-        trustedDomains.includes(host) ||
-        (process.env.NEXTAUTH_URL?.includes(host) && process.env.NEXTAUTH_URL?.startsWith('https://'))
-      );
-
-      // Allow request if: valid origin/referer OR trusted proxy (cloudflared)
-      if (!isValidOrigin && !isValidReferer && !isTrustedProxy) {
+      if (!isSameOriginRequest(request.headers, {
+        nextAuthUrl: process.env.NEXTAUTH_URL,
+        appUrl: process.env.NEXT_PUBLIC_APP_URL,
+        trustedDomains: process.env.TRUSTED_DOMAINS,
+      })) {
         console.warn('[SECURITY] CSRF detected:', {
           path: pathname,
           method,
-          origin: origin || 'none',
-          referer: referer || 'none',
-          host: host || 'none',
-          allowed: allowedOrigins.join(', '),
+          origin: request.headers.get('origin') || 'none',
+          referer: request.headers.get('referer') || 'none',
+          host: request.headers.get('host') || 'none',
+          secFetchSite: request.headers.get('sec-fetch-site') || 'none',
           // Security: Prioritize cf-connecting-ip to prevent IP spoofing
           ip: request.headers.get('cf-connecting-ip') || 
               request.headers.get('x-forwarded-for') || 

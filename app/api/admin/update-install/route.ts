@@ -5,11 +5,11 @@ import { spawn } from 'child_process';
 import { existsSync, mkdirSync, writeFileSync, statSync, unlinkSync, realpathSync } from 'fs';
 import path from 'path';
 
-const LOGS_DIR = path.join(process.cwd(), 'logs');
+const LOGS_DIR = path.join(/*turbopackIgnore: true*/ process.cwd(), 'logs');
 const STATUS_FILE = path.join(LOGS_DIR, 'update_status');
 const LOG_FILE = path.join(LOGS_DIR, 'update.log');
 const LOCK_FILE = path.join(LOGS_DIR, 'update.lock');
-const SCRIPT_PATH = path.join(process.cwd(), 'scripts', 'update-daemon.sh');
+const SCRIPT_PATH = path.join(/*turbopackIgnore: true*/ process.cwd(), 'scripts', 'update-daemon.sh');
 
 // Maximum age of a lock file before considering it stale (30 minutes)
 const STALE_LOCK_AGE_MS = 30 * 60 * 1000;

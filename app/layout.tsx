@@ -29,7 +29,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      {/* suppressHydrationWarning: browser extensions (Grammarly, etc.) inject
+          data-* attributes onto <body> before React hydrates, which otherwise
+          triggers a harmless attribute-mismatch warning. */}
       <body
+        suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}
       >
         <Providers>

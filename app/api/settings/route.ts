@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { requireAdminWithRateLimit } from '@/lib/auth-helpers';
+import { toErrorMessage } from '@/lib/api-errors';
 import { getSettings, getSettingsDetailed, updateSettings } from '@/lib/settings';
 
 /**
@@ -9,12 +9,12 @@ import { getSettings, getSettingsDetailed, updateSettings } from '@/lib/settings
  */
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdminWithRateLimit(request);
+  } catch (error) {
+    return NextResponse.json({ error: toErrorMessage(error, 'Unauthorized') }, { status: 401 });
+  }
 
+  try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     const detailed = searchParams.get('detailed') === 'true';
@@ -41,12 +41,12 @@ export async function GET(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdminWithRateLimit(request);
+  } catch (error) {
+    return NextResponse.json({ error: toErrorMessage(error, 'Unauthorized') }, { status: 401 });
+  }
 
+  try {
     const body = await request.json();
     const { settings } = body;
 
