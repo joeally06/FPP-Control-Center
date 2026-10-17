@@ -164,12 +164,8 @@ under `tmp/` and a mocked mail transport — they never touch `votes.db` or send
 `npm run test:ci` chains them with `&&`, so one failure hides everything after it. **Run each
 script individually** and report per-script results:
 `test-email-retries`, `test-email-retries-auth-fail`, `test-jukebox-queue-transaction`,
-`test-request-status`, `test-time-utils`, `test-migrations`, `test-trivia-logic`.
-
-**Known baseline failure:** `test-jukebox-queue-transaction` fails with
-`table jukebox_queue has no column named latitude` (its fixture schema predates migration 016).
-Report it as pre-existing; do not count it against a change unless the change touches
-`lib/jukebox-queue.ts` or the jukebox schema.
+`test-request-status`, `test-time-utils`, `test-migrations`, `test-trivia-logic`, `test-csrf`,
+`test-jukebox-display`, `test-jukebox-audience`. All of them pass; any failure counts against the change.
 
 New logic gets a new `scripts/test-<name>.ts` (pattern: `scripts/test-trivia-logic.ts`) and is
 appended to the `test:ci` script in `package.json`. `.github/workflows/ci.yml` lists tests
@@ -400,8 +396,7 @@ stopping at the first failure:
 1. `npx tsc --noEmit` — exit code MUST be 0
 2. `npx eslint <every touched .ts/.tsx file>` — no errors beyond the pre-change baseline for those files
 3. Each `scripts/test-*.ts` listed under **Tests**, individually, with `node -r esbuild-register` —
-   all MUST exit 0 except the documented baseline failure `test-jukebox-queue-transaction`
-   (which must fail no worse than it did before the change)
+   all MUST exit 0
 4. `npm run build` — exit code MUST be 0
 5. If a migration was added: read the SQL once more and confirm it is idempotent, numbered after the
    current highest, and not yet applied to anything (you never applied it)

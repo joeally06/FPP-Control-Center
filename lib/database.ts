@@ -210,6 +210,14 @@ db.exec(`
   );
 `);
 
+// When an admin last cleared a visitor's song-request limit (also migration 020)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS jukebox_rate_limit_resets (
+    requester_ip TEXT PRIMARY KEY,
+    reset_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
 // Create sequence metadata table
 db.exec(`
   CREATE TABLE IF NOT EXISTS sequence_metadata (

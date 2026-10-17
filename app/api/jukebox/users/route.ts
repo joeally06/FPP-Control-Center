@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import db from '@/lib/database';
+import { resetRequestLimit } from '@/lib/jukebox-queue';
 import { anonymizeIP } from '@/lib/privacy-utils';
 
 /**
@@ -19,16 +20,17 @@ export async function GET() {
       }, { status: 401 });
     }
 
-    // Get all users with requests in last hour
+    // Get all users with requests in last hour (only requests that still count: not before any clear)
     const users = db.prepare(`
-      SELECT 
+      SELECT
         requester_ip,
         requester_name,
         COUNT(*) as request_count,
         MAX(created_at) as last_request,
         MIN(created_at) as first_request
-      FROM jukebox_queue
+      FROM jukebox_queue q
       WHERE created_at >= datetime('now', '-1 hour')
+        AND created_at >= COALESCE((SELECT reset_at FROM jukebox_rate_limit_resets r WHERE r.requester_ip = q.requester_ip), '')
       GROUP BY requester_ip
       ORDER BY request_count DESC, last_request DESC
     `).all() as Array<{
@@ -85,13 +87,17 @@ export async function DELETE(request: Request) {
     }
 
     // Delete all pending/completed requests for this user in last hour
-    // Keep 'playing' status to avoid interrupting current songs
-    const result = db.prepare(`
-      DELETE FROM jukebox_queue
-      WHERE requester_ip = ?
-      AND status IN ('pending', 'completed', 'skipped')
-      AND created_at >= datetime('now', '-1 hour')
-    `).run(userIp);
+    // Keep 'playing' status to avoid interrupting current songs; the reset stops it counting
+    const result = db.transaction(() => {
+      const deleted = db.prepare(`
+        DELETE FROM jukebox_queue
+        WHERE requester_ip = ?
+        AND status IN ('pending', 'completed', 'skipped')
+        AND created_at >= datetime('now', '-1 hour')
+      `).run(userIp);
+      resetRequestLimit(db, userIp);
+      return deleted;
+    })();
 
     console.log(`[Jukebox Users] Cleared ${result.changes} requests for IP: ${anonymizeIP(userIp)}`);
 

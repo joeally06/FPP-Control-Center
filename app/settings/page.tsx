@@ -2105,7 +2105,7 @@ function JukeboxSettings() {
             <span className="text-yellow-400 text-xl">💡</span>
             <div className="flex-1">
               <AdminTextSmall className="text-yellow-200">
-                <strong>Tip:</strong> Clearing a user's rate limit removes their request history for the last hour, allowing them to make new requests immediately. Songs currently playing are preserved.
+                <strong>Tip:</strong> Clearing a user's rate limit removes their request history for the last hour and gives them their full allowance back immediately. A song of theirs that is playing right now keeps playing but no longer counts.
               </AdminTextSmall>
             </div>
           </div>

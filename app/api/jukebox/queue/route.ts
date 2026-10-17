@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addToQueue, getQueue, incrementSequenceRequests, getMediaNameForSequence } from '@/lib/database';
-import { addToQueueTransactional } from '@/lib/jukebox-queue';
+import { addToQueueTransactional, countRecentRequests } from '@/lib/jukebox-queue';
 import { getClientIP, getSongRequestRateLimit } from '@/lib/rate-limit';
-import { getUtcNow, getUtcOffset, getUtcSqlTimestampOffset } from '@/lib/time-utils';
+import { getUtcNow, getUtcOffset } from '@/lib/time-utils';
 import { debugLog } from '@/lib/logging';
 import db from '@/lib/database';
 import { getFppUrl } from '@/lib/fpp-config';
@@ -243,15 +243,8 @@ export async function POST(request: NextRequest) {
       debugLog(`  ID ${entry.id}: ${entry.sequence_name} | ${entry.created_at} | ${entry.status}`);
     });
     
-    const oneHourAgoForSql = getUtcSqlTimestampOffset(1, 'hours');
-    const usedRequests = db.prepare(`
-      SELECT COUNT(*) as count 
-      FROM jukebox_queue 
-      WHERE requester_ip = ? 
-        AND created_at >= ?
-    `).get(requester_ip, oneHourAgoForSql) as { count: number };
-
-    const requestsUsed = usedRequests.count;
+    // Same rule the rate-limit check uses (last hour, after any admin clear)
+    const requestsUsed = countRecentRequests(db, requester_ip);
     const requestsRemaining = Math.max(0, rateLimit - requestsUsed);
 
     debugLog(`[Queue POST - AFTER INSERT] IP: ${requester_ip} | Rate Limit: ${rateLimit} | Used: ${requestsUsed} | Remaining: ${requestsRemaining}`);
