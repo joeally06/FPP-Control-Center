@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useTheme } from '@/lib/themes/theme-context';
 
 interface VersionInfo {
   version: string;
@@ -12,84 +13,41 @@ interface VersionInfo {
   prerelease?: string;
 }
 
-export default function Footer() {
+/** Visitor-page footer: the season's badge and greeting, privacy link and app version. */
+export default function Footer({ siteName }: { siteName: string }) {
+  const { theme, assets } = useTheme();
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch('/api/version')
       .then(res => res.json())
-      .then(data => {
-        setVersionInfo(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('Failed to load version info:', err);
-        setLoading(false);
-      });
+      .then(data => setVersionInfo(data))
+      .catch(err => console.error('Failed to load version info:', err));
   }, []);
 
-  return (
-    <footer className="mt-auto bg-transparent">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-white/80">
-          {/* Left side - Version info */}
-          <div className="flex items-center gap-2 group">
-            {loading ? (
-              <span className="animate-pulse">Loading version...</span>
-            ) : versionInfo ? (
-              <>
-                <span className="font-semibold text-white transition-all duration-300 group-hover:text-blue-400">
-                  🎄 FPP Control Center
-                </span>
-                <span className="text-blue-400 font-bold animate-pulse">
-                  v{versionInfo.version}
-                </span>
-                {versionInfo.build && (
-                  <code className="px-2 py-1 bg-white/10 rounded text-xs font-mono hover:scale-110 transition-transform duration-200 text-white/70">
-                    {versionInfo.build.substring(0, 7)}
-                  </code>
-                )}
-              </>
-            ) : (
-              <span>🎄 FPP Control Center</span>
-            )}
-          </div>
+  const badgeSrc = assets.badge?.url ?? assets.logo?.url ?? null;
 
-          {/* Right side - Links */}
-          <div className="flex items-center gap-4">
-            <Link
-              href="/privacy"
-              className="hover:text-blue-400 transition-all duration-300 hover:scale-110 hover:font-semibold text-white/80"
-            >
-              🔒 Privacy Policy
-            </Link>
-            <span className="text-white/60 font-mono">
-              © {new Date().getFullYear()} 🎅 Happy Holidays! ✨
+  return (
+    <footer className="mt-10 px-4 pb-8 text-center">
+      <div className="sp-muted mx-auto flex max-w-6xl flex-col items-center gap-2 text-[13px]">
+        {badgeSrc && (
+          // eslint-disable-next-line @next/next/no-img-element -- served from /api/theme/asset
+          <img src={badgeSrc} alt="" className="sp-badge h-14 w-14" />
+        )}
+        <p className="sp-display sp-title text-lg">{siteName}</p>
+        <p>{theme.greeting}</p>
+        <p className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs">
+          <Link href="/privacy" className="underline-offset-4 hover:underline">
+            Privacy policy
+          </Link>
+          {versionInfo && (
+            <span>
+              FPP Control Center v{versionInfo.version}
+              {versionInfo.build && <code className="ml-1.5 font-mono">{versionInfo.build.substring(0, 7)}</code>}
             </span>
-          </div>
-        </div>
+          )}
+        </p>
       </div>
-      
-      {/* Add custom animation */}
-      <style jsx>{`
-        @keyframes spin-slow {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-        
-        .animate-spin-slow {
-          animation: spin-slow 20s linear infinite;
-        }
-        
-        .animate-spin-slow:hover {
-          animation: spin-slow 2s linear infinite;
-        }
-      `}</style>
     </footer>
   );
 }

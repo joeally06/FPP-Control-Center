@@ -48,7 +48,7 @@ FPP Control Center is a **complete web-based control panel** for your Falcon Pla
 - **Analytics** - Visitor engagement, popular sequences, request patterns
 - **Queue Management** - View, reorder, or clear song requests
 - **Database Tools** - Backup, maintenance, and statistics
-- **Theme Customization** - Match your display's branding
+- **Seasonal Themes** - Halloween and Christmas looks for the visitor page, each with your own uploaded logo and round badge (Theme Settings)
 - **Security Settings** - Configure rate limits and access control
 
 ### 🔒 **Enterprise Security**

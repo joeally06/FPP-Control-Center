@@ -37,6 +37,7 @@ export async function GET() {
         nextShowDay: null,
         nextShowStartTime: null,
         nextShowEndTime: null,
+        currentShowEndTime: null,
         countdown: null,
         lastChecked: null
       });
@@ -50,6 +51,7 @@ export async function GET() {
     let nextShowEndTime = null;
     let countdown = null;
     let isActiveBySchedule = false;
+    let currentShowEndTime = null; // end of the scheduled show that is on right now
     
     try {
       const fppUrl = process.env.FPP_URL || process.env.NEXT_PUBLIC_FPP_URL;
@@ -129,6 +131,7 @@ export async function GET() {
                   if (currentTime >= startMinutes && currentTime < endMinutes) {
                     // Currently in show time
                     isActiveBySchedule = true;
+                    currentShowEndTime = entry.endTime;
                     minTimeDiff = 0;
                     nextEntry = null;
                     break;
@@ -214,6 +217,7 @@ export async function GET() {
       nextShowDay,
       nextShowStartTime,
       nextShowEndTime,
+      currentShowEndTime,
       countdown,
       lastChecked: state.last_updated || new Date().toISOString()
     });
@@ -231,6 +235,7 @@ export async function GET() {
       nextShowDay: null,
       nextShowStartTime: null,
       nextShowEndTime: null,
+      currentShowEndTime: null,
       countdown: null,
       lastChecked: new Date().toISOString()
     }, { status: 500 });

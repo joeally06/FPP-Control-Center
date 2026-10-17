@@ -146,189 +146,283 @@ body {
   }
 }
 
-/* ===== Seasonal theme atmosphere (components/ThemeAtmosphere.tsx) =====
-   Layers sit behind the content; only transform/opacity are animated so phones keep up. */
+/* ===== Seasonal visitor page (components/ThemedJukeboxWrapper.tsx, components/jukebox/*) =====
+   One layout for both seasons. Each season only sets the tokens below; the uploaded logo and badge do the rest. */
 
-.atmo-vignette {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at center, transparent 45%, rgba(0, 0, 0, 0.6) 100%);
+[data-season] {
+  --sp-font-body: 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
-.atmo-vignette-soft {
-  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.35) 100%);
+/* Halloween: colours lifted from the neon badge logo */
+[data-season='halloween'] {
+  --sp-night: #080714;      /* the logo's own background, so the artwork melts into the page */
+  --sp-dusk: #1a1030;
+  --sp-panel: rgba(32, 19, 56, 0.78);
+  --sp-line: rgba(185, 92, 255, 0.22);
+  --sp-glow: #b95cff;       /* purple neon tube */
+  --sp-accent: #ff8a1f;     /* jack-o'-lantern orange */
+  --sp-accent-hover: #ff9d42;
+  --sp-accent-ink: #1d0b00;
+  --sp-title: #ffe3bd;      /* ribbon lettering */
+  --sp-soft: #a9dcff;       /* the little ghosts */
+  --sp-ink: #f6efff;
+  --sp-muted: #c6b6dc;
+  --sp-highlight: var(--sp-accent);
+  --sp-on-now: var(--sp-accent);
+  --sp-np-eyebrow: var(--sp-accent);
+  --sp-np-bg: linear-gradient(160deg, rgba(60, 26, 92, 0.92), rgba(28, 14, 48, 0.95));
+  --sp-font-display: 'Rye', Georgia, serif;
+  --sp-font-kicker: var(--sp-font-body);
+  --sp-display-weight: 400;
+  --sp-display-case: none;
+  --sp-display-track: 0.02em;
+  --sp-title-glow: 0 0 10px rgba(255, 138, 31, 0.6), 0 0 30px rgba(255, 138, 31, 0.3);
 }
 
-/* Halloween: a pale moon with faint craters */
-.atmo-moon {
-  position: absolute;
-  top: 5.5rem;
-  right: -1.5rem;
-  width: 9rem;
-  height: 9rem;
-  border-radius: 9999px;
-  background:
-    radial-gradient(circle at 38% 40%, rgba(120, 100, 60, 0.18) 0 9%, transparent 10%),
-    radial-gradient(circle at 62% 62%, rgba(120, 100, 60, 0.15) 0 12%, transparent 13%),
-    radial-gradient(circle at 60% 30%, rgba(120, 100, 60, 0.12) 0 6%, transparent 7%),
-    radial-gradient(circle at 45% 45%, #fff8e1, #f3e3b3 60%, #d9c58f);
-  box-shadow: 0 0 60px 20px rgba(255, 236, 179, 0.22), 0 0 160px 60px rgba(255, 150, 50, 0.12);
-  opacity: 0.85;
+/* Christmas: colours lifted from the snowy-night logo */
+[data-season='christmas'] {
+  --sp-night: #1b2336;      /* the logo's sky at its top edge */
+  --sp-dusk: #0f1522;
+  --sp-panel: rgba(22, 31, 52, 0.8);
+  --sp-line: rgba(251, 239, 217, 0.16);
+  --sp-glow: #ffd36b;       /* warm window light */
+  --sp-accent: #d7263d;     /* ribbon and Santa-hat red */
+  --sp-accent-hover: #e8475b;
+  --sp-accent-ink: #ffffff;
+  --sp-title: #fbefd9;      /* the logo's cream outline */
+  --sp-soft: #8fd6a8;       /* pine green, lightened to read on navy */
+  --sp-ink: #f4f6fb;
+  --sp-muted: #b9c2d6;
+  --sp-highlight: var(--sp-glow);
+  --sp-on-now: #ff8f9c;
+  --sp-np-eyebrow: var(--sp-title);
+  --sp-np-bg: linear-gradient(160deg, rgba(38, 52, 84, 0.95), rgba(18, 40, 36, 0.95));
+  --sp-font-display: 'Oswald', 'Arial Narrow', sans-serif;
+  --sp-font-kicker: 'Great Vibes', 'Brush Script MT', cursive;
+  --sp-display-weight: 600;
+  --sp-display-case: uppercase;
+  --sp-display-track: 0.04em;
+  --sp-title-glow: 0 0 12px rgba(255, 211, 107, 0.45), 0 0 30px rgba(215, 38, 61, 0.25);
 }
 
-@media (min-width: 768px) {
-  .atmo-moon {
-    right: 6%;
-    width: 11rem;
-    height: 11rem;
+/* The base layer paints p/span/div black outside gradients; inside the season page text inherits instead */
+@layer base {
+  .sp-page p, .sp-page span, .sp-page div, .sp-page label, .sp-page input, .sp-page textarea,
+  .sp-page select, .sp-page td, .sp-page th, .sp-page li {
+    color: inherit;
   }
 }
 
-/* Halloween: fog banks. 200% wide with a 1-screen repeating tile, so sliding by -50% loops seamlessly.
-   Every blob stays inside its tile so there is no seam. */
-.atmo-fog {
-  position: absolute;
-  left: 0;
-  bottom: -5%;
-  width: 200%;
-  height: 50%;
-  background-repeat: repeat-x;
-  background-size: 50% 100%;
-  filter: blur(18px);
-  -webkit-mask-image: linear-gradient(to top, black 35%, transparent);
-  mask-image: linear-gradient(to top, black 35%, transparent);
-  will-change: transform;
+@layer components {
+  .sp-page {
+    position: relative;
+    min-height: 100vh;
+    overflow-x: clip;
+    color: var(--sp-ink);
+    font-family: var(--sp-font-body);
+    background:
+      radial-gradient(ellipse 70% 40% at 50% 0%, color-mix(in srgb, var(--sp-glow) 16%, transparent), transparent 70%),
+      radial-gradient(ellipse 60% 30% at 15% 70%, color-mix(in srgb, var(--sp-accent) 7%, transparent), transparent 70%),
+      linear-gradient(180deg, var(--sp-night) 0, var(--sp-night) 480px, var(--sp-dusk) 100%);
+  }
+
+  .sp-sky-stars {
+    opacity: 0.55;
+    background-image:
+      radial-gradient(1px 1px at 12% 18%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 82% 9%, #fff 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 68% 32%, var(--sp-title) 50%, transparent 51%), radial-gradient(1px 1px at 27% 44%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 91% 56%, #fff 50%, transparent 51%), radial-gradient(1.5px 1.5px at 6% 63%, var(--sp-title) 50%, transparent 51%),
+      radial-gradient(1px 1px at 47% 78%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 75% 88%, #fff 50%, transparent 51%);
+  }
+
+  /* Type */
+  .sp-display {
+    font-family: var(--sp-font-display);
+    font-weight: var(--sp-display-weight);
+    text-transform: var(--sp-display-case);
+    letter-spacing: var(--sp-display-track);
+    text-wrap: balance;
+  }
+  .sp-title { color: var(--sp-title); }
+  .sp-glow-text { text-shadow: var(--sp-title-glow); }
+  .sp-muted { color: var(--sp-muted); }
+  .sp-soft { color: var(--sp-soft); }
+  .sp-highlight { color: var(--sp-highlight); }
+  .sp-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--sp-highlight);
+  }
+  .sp-h2 { margin-top: 0.375rem; font-size: 1.5rem; line-height: 1.2; color: var(--sp-title); }
+  .sp-fm { font-size: clamp(28px, 7vw, 44px); line-height: 1.1; }
+  [data-season='christmas'] .sp-fm { font-size: clamp(34px, 8vw, 52px); }
+  .sp-kicker {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-family: var(--sp-font-body);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--sp-muted);
+    text-shadow: none;
+  }
+  /* Christmas: the kicker borrows the logo's "Welcome to the" script */
+  [data-season='christmas'] .sp-kicker {
+    margin-bottom: 0;
+    font-family: var(--sp-font-kicker);
+    font-size: 1.875rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--sp-title);
+  }
+
+  /* Surfaces */
+  .sp-bar {
+    background: color-mix(in srgb, var(--sp-night) 84%, transparent);
+    border-bottom: 1px solid var(--sp-line);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .sp-panel {
+    min-width: 0;
+    border-radius: 1.25rem;
+    border: 1px solid var(--sp-line);
+    background: var(--sp-panel);
+    padding: 1.25rem;
+  }
+  .sp-np-card {
+    min-width: 0;
+    border-radius: 1.375rem;
+    padding: 1.375rem;
+    background: var(--sp-np-bg);
+    border: 1.5px solid color-mix(in srgb, var(--sp-accent) 78%, transparent);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--sp-accent) 15%, transparent),
+      0 0 28px color-mix(in srgb, var(--sp-accent) 30%, transparent),
+      0 0 70px color-mix(in srgb, var(--sp-glow) 18%, transparent);
+  }
+  .sp-np-card .sp-eyebrow { color: var(--sp-np-eyebrow); }
+  .sp-santa {
+    background: radial-gradient(circle at 100% 0%, rgba(215, 38, 61, 0.28), transparent 60%), var(--sp-panel);
+    border-color: rgba(215, 38, 61, 0.45);
+  }
+  .sp-row { background: rgba(255, 255, 255, 0.04); border-radius: 0.875rem; }
+  .sp-modal { background: color-mix(in srgb, var(--sp-night) 92%, #000); border: 1px solid var(--sp-line); color: var(--sp-ink); }
+
+  /* Images */
+  .sp-badge {
+    border-radius: 9999px;
+    object-fit: cover;
+    box-shadow: 0 0 0 2px var(--sp-glow), 0 0 14px color-mix(in srgb, var(--sp-glow) 70%, transparent);
+  }
+  .sp-art { border-radius: 1rem; object-fit: cover; box-shadow: 0 0 0 2px color-mix(in srgb, var(--sp-title) 25%, transparent), 0 10px 30px rgba(0, 0, 0, 0.5); }
+  /* The logo's edges fade into the page, so its own background never shows as a box */
+  .sp-logo {
+    display: block;
+    width: min(100%, 760px);
+    max-width: 100%;
+    height: auto;
+    margin-inline: auto;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 9%, #000 91%, transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, #000 9%, #000 91%, transparent 100%);
+    /* Static on purpose: animating a filter repaints this large image every frame */
+    filter: drop-shadow(0 0 28px color-mix(in srgb, var(--sp-glow) 35%, transparent));
+  }
+  [data-season='christmas'] .sp-logo {
+    width: min(100%, 720px);
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 12%, #000 88%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 6%, #000 86%, transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to right, transparent 0, #000 12%, #000 88%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 6%, #000 86%, transparent 100%);
+    mask-composite: intersect;
+    filter: none;
+  }
+
+  /* Controls */
+  .sp-btn-accent { background: var(--sp-accent); color: var(--sp-accent-ink); box-shadow: 0 0 22px color-mix(in srgb, var(--sp-accent) 45%, transparent); }
+  .sp-btn-accent:hover:not(:disabled) { background: var(--sp-accent-hover); }
+  .sp-btn-outline { border: 1.5px solid var(--sp-glow); color: var(--sp-ink); background: transparent; }
+  .sp-btn-outline:hover { background: color-mix(in srgb, var(--sp-glow) 18%, transparent); }
+  .sp-btn-outline[aria-pressed='true'] { background: var(--sp-title); color: var(--sp-night); border-color: var(--sp-title); }
+  .sp-btn-quiet { border: 1px solid var(--sp-line); background: rgba(255, 255, 255, 0.06); color: var(--sp-ink); }
+  .sp-btn-quiet:hover { background: rgba(255, 255, 255, 0.12); }
+  .sp-input { background: rgba(0, 0, 0, 0.3); border: 1px solid var(--sp-line); color: var(--sp-ink); }
+  .sp-input::placeholder { color: color-mix(in srgb, var(--sp-muted) 75%, transparent); }
+  .sp-chip { border: 1px solid var(--sp-line); color: var(--sp-muted); }
+  .sp-chip[aria-pressed='true'] { background: color-mix(in srgb, var(--sp-glow) 22%, transparent); border-color: var(--sp-glow); color: var(--sp-ink); }
+  .sp-tag-on { color: var(--sp-on-now); border: 1px solid color-mix(in srgb, var(--sp-on-now) 55%, transparent); }
+  .sp-tag-line { color: var(--sp-soft); border: 1px solid color-mix(in srgb, var(--sp-soft) 45%, transparent); }
+  .sp-tag-off { color: var(--sp-muted); border: 1px solid var(--sp-line); }
+  .sp-page :focus-visible { outline: 2px solid var(--sp-title); outline-offset: 2px; }
+
+  /* Live indicators */
+  .sp-live-pill {
+    background: color-mix(in srgb, var(--sp-accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--sp-accent) 55%, transparent);
+    color: var(--sp-title);
+  }
+  .sp-live-pill-off { background: rgba(255, 255, 255, 0.06); border: 1px solid var(--sp-line); color: var(--sp-muted); }
+  .sp-live-dot { background: var(--sp-accent); box-shadow: 0 0 10px var(--sp-accent); animation: sp-pulse 1.6s ease-in-out infinite; }
+  .sp-eq { display: inline-flex; align-items: flex-end; gap: 3px; height: 14px; }
+  .sp-eq i { width: 3px; border-radius: 2px; background: currentColor; transform-origin: bottom; animation: sp-eq 0.9s ease-in-out infinite; }
+  .sp-eq i:nth-child(1) { height: 8px; }
+  .sp-eq i:nth-child(2) { height: 14px; animation-delay: 0.2s; }
+  .sp-eq i:nth-child(3) { height: 6px; animation-delay: 0.4s; }
+  .sp-eq i:nth-child(4) { height: 11px; animation-delay: 0.1s; }
+  .sp-progress-fill { background: linear-gradient(90deg, var(--sp-accent), var(--sp-glow)); box-shadow: 0 0 12px color-mix(in srgb, var(--sp-accent) 70%, transparent); }
+  .sp-queue-n { color: var(--sp-title); border: 1.5px solid color-mix(in srgb, var(--sp-glow) 60%, transparent); }
+
+  /* Bulb shapes: the "requests left" pips and the string lights */
+  .sp-pip { width: 12px; height: 16px; border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%; background: var(--sp-accent); box-shadow: 0 0 8px var(--sp-accent); }
+  .sp-pip-used { background: rgba(255, 255, 255, 0.15); box-shadow: none; }
+  .sp-lights { position: relative; height: 34px; }
+  .sp-lights svg { position: absolute; inset: 0; width: 100%; height: 18px; }
+  .sp-bulb {
+    position: absolute;
+    width: 9px;
+    height: 14px;
+    border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%;
+    background: var(--bulb);
+    box-shadow: 0 0 8px 2px var(--bulb), 0 0 18px 4px color-mix(in srgb, var(--bulb) 45%, transparent);
+    transform: translateX(-50%);
+    animation: sp-twinkle 3.2s ease-in-out infinite;
+  }
+  .sp-bulb::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -4px;
+    width: 5px;
+    height: 5px;
+    transform: translateX(-50%);
+    background: #2b2238;
+    border-radius: 1px;
+  }
+
+  /* Browsers without color-mix() (iOS before 16.2) drop those declarations entirely; keep the page, bar and dialog solid */
+  @supports not (color: color-mix(in srgb, red 50%, transparent)) {
+    .sp-page { background: linear-gradient(180deg, var(--sp-night) 0, var(--sp-night) 480px, var(--sp-dusk) 100%); }
+    .sp-bar, .sp-modal { background: var(--sp-night); }
+    .sp-np-card { border-color: var(--sp-accent); }
+    .sp-live-pill { background: rgba(255, 255, 255, 0.08); border-color: var(--sp-accent); }
+    .sp-chip[aria-pressed='true'] { background: rgba(255, 255, 255, 0.16); }
+    .sp-btn-outline:hover { background: rgba(255, 255, 255, 0.1); }
+    .sp-tag-on { border-color: var(--sp-on-now); }
+    .sp-tag-line { border-color: var(--sp-soft); }
+    .sp-queue-n { border-color: var(--sp-glow); }
+  }
 }
 
-.atmo-fog-back {
-  background-image:
-    radial-gradient(ellipse 20% 45% at 22% 70%, rgba(150, 120, 200, 0.32), transparent 70%),
-    radial-gradient(ellipse 22% 40% at 58% 80%, rgba(120, 100, 170, 0.3), transparent 70%),
-    radial-gradient(ellipse 14% 35% at 85% 65%, rgba(160, 130, 210, 0.24), transparent 70%);
-  animation: atmo-drift 90s linear infinite;
-}
-
-.atmo-fog-front {
-  height: 35%;
-  background-image:
-    radial-gradient(ellipse 18% 50% at 20% 85%, rgba(220, 215, 235, 0.24), transparent 70%),
-    radial-gradient(ellipse 22% 45% at 55% 90%, rgba(200, 195, 225, 0.22), transparent 70%),
-    radial-gradient(ellipse 14% 40% at 85% 80%, rgba(230, 225, 240, 0.2), transparent 70%);
-  animation: atmo-drift 55s linear infinite reverse;
-}
-
-@keyframes atmo-drift {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-
-/* Halloween: distant lightning. One soft flash per cycle per layer (13 s / 19 s), never more than 2 a second */
-.atmo-lightning {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  mix-blend-mode: screen;
-}
-
-.atmo-lightning-a {
-  background: radial-gradient(ellipse at 70% 0%, rgba(200, 210, 255, 0.9), rgba(160, 170, 255, 0.3) 45%, transparent 75%);
-  animation: atmo-flash 13s infinite;
-}
-
-.atmo-lightning-b {
-  background: radial-gradient(ellipse at 20% 0%, rgba(220, 200, 255, 0.8), rgba(170, 150, 255, 0.25) 40%, transparent 70%);
-  animation: atmo-flash 19s 6s infinite;
-}
-
-@keyframes atmo-flash {
-  0%, 92% { opacity: 0; }
-  92.6% { opacity: 0.55; }
-  93.5% { opacity: 0.12; }
-  94.5%, 100% { opacity: 0; }
-}
-
-/* Halloween: the show name flickers like a failing neon sign */
-[data-atmosphere="haunted"] .themed-title {
-  color: #ffd9b0;
-  text-shadow: 0 0 6px rgba(255, 140, 0, 0.8), 0 0 18px rgba(255, 90, 0, 0.5);
-  animation: atmo-flicker 7s infinite;
-}
-
-@keyframes atmo-flicker {
-  0%, 18%, 22%, 25%, 53%, 57%, 100% { opacity: 1; }
-  20%, 24%, 55% { opacity: 0.35; }
-}
-
-[data-atmosphere="haunted"] .themed-font {
-  text-shadow: 0 0 10px rgba(255, 120, 0, 0.55);
-}
-
-/* Christmas: warm light from below, as if from lit-up houses */
-.atmo-warm-glow {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 40%;
-  background: radial-gradient(ellipse 80% 100% at 50% 100%, rgba(255, 170, 70, 0.22), transparent 70%);
-}
-
-[data-atmosphere="winter"] .themed-font {
-  text-shadow: 0 0 10px rgba(255, 215, 130, 0.5);
-}
-
-/* Christmas: string lights hanging under the radio bar */
-.atmo-lights {
-  position: relative;
-  display: flex;
-  justify-content: space-around;
-  height: 1.1rem;
-}
-
-.atmo-lights::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 2px;
-  height: 1px;
-  background: rgba(30, 80, 40, 0.9);
-}
-
-.atmo-bulb {
-  position: relative;
-  top: 3px;
-  width: 0.45rem;
-  height: 0.7rem;
-  border-radius: 50% 50% 45% 45%;
-  color: #ff3b3b;
-  background: currentColor;
-  box-shadow: 0 0 6px 2px currentColor;
-  animation: atmo-twinkle 2.4s ease-in-out infinite;
-}
-
-.atmo-bulb:nth-child(4n + 2) { color: #3dff6e; animation-delay: -0.6s; }
-.atmo-bulb:nth-child(4n + 3) { color: #ffd23d; animation-delay: -1.2s; }
-.atmo-bulb:nth-child(4n + 4) { color: #4db8ff; animation-delay: -1.8s; }
-.atmo-bulb:nth-child(3n) { animation-duration: 3.1s; }
-
-@keyframes atmo-twinkle {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
-}
-
-@media (max-width: 639px) {
-  .atmo-bulb:nth-child(n + 15) { display: none; }
-}
+@keyframes sp-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@keyframes sp-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.7); opacity: 0.6; } }
+@keyframes sp-eq { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(0.35); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .atmo-fog,
-  .atmo-bulb,
-  [data-atmosphere="haunted"] .themed-title {
-    animation: none;
-  }
-
-  .atmo-lightning {
-    display: none;
-  }
+  .sp-bulb, .sp-live-dot, .sp-eq i { animation: none; }
 }

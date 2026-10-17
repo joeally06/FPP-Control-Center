@@ -1,29 +1,25 @@
 'use client';
 
-import { Cpu } from 'lucide-react';
 import type { ShowSpec } from '@/lib/jukebox-display';
-import { CARD, type ThemeAccent } from './theme-accent';
 
 interface ShowSpecsCardProps {
   specs: ShowSpec[];
-  accent: ThemeAccent;
 }
 
 /** "Behind the Pixels": admin-entered facts about the display. Renders nothing when there are none. */
-export default function ShowSpecsCard({ specs, accent }: ShowSpecsCardProps) {
+export default function ShowSpecsCard({ specs }: ShowSpecsCardProps) {
   if (specs.length === 0) return null;
 
   return (
-    <section aria-labelledby="specs-heading" className={`${CARD} p-5`}>
-      <h2 id="specs-heading" className="flex items-center gap-2 text-lg font-bold text-white themed-font">
-        <Cpu className="h-5 w-5 text-white/80" aria-hidden="true" />
-        Behind the pixels
-      </h2>
-      <dl className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+    <section aria-labelledby="specs-heading" className="sp-panel">
+      <span className="sp-eyebrow">Behind the pixels</span>
+      <h2 id="specs-heading" className="sp-display sp-h2">What you&apos;re looking at</h2>
+      <dl className="mt-3.5 grid grid-cols-2 gap-2.5">
         {specs.map((spec) => (
-          <div key={spec.label} className="rounded-xl border border-white/10 bg-white/5 p-3">
-            <dt className="text-xs font-medium text-white/70">{spec.label}</dt>
-            <dd className={`mt-1 break-words text-lg font-bold ${accent.text}`}>{spec.value}</dd>
+          // Value above its label, as in a spec sheet; dt stays first for screen readers
+          <div key={spec.label} className="flex min-w-0 flex-col-reverse rounded-[0.875rem] border border-white/10 bg-black/20 p-3">
+            <dt className="sp-muted text-xs">{spec.label}</dt>
+            <dd className="sp-display sp-title break-words text-xl leading-tight">{spec.value}</dd>
           </div>
         ))}
       </dl>

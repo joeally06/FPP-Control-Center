@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-10-17
+
+### Visitor Jukebox Redesign - Seasonal Halloween & Christmas 🎃🎄
+
+#### ⚠️ Breaking changes
+
+- **Only two themes remain: Halloween and Christmas.** Default, Valentine's, Summer, Spring, 4th of July and Autumn are removed, along with the particle-effect picker. A site still set to a removed theme shows Christmas.
+- **The three jukebox banners are now one optional off-season message.** The Countdown and Offline banners and the banner colour presets are removed; the page shows show times, the countdown and live/offline status itself. Saved off-season text carries over.
+
+#### 🎉 Added
+
+- **Redesigned visitor page** shared by both seasons: top bar with a round badge and FM frequency, string lights, a hero with the show logo and a live-status pill ("Live now · until 10 PM"), a glowing Now Playing card, and Up Next with wait estimates
+- **Logo and badge uploads** per theme on Theme Settings, stored in the database (resized to WebP) and served with long-lived caching
+- **Show name** setting (Settings → Visitor Page) for the name in the top bar and footer
+- **Song details**: titles, artist, length and admin-set categories in the song list, with search and category filters
+- **Behind the Pixels** display facts and an **"N watching now"** counter, both optional
+- **Request confirmation** with your place in line and an estimated wait
+- Christmas only: **Write to Santa** card and a **Christmas trivia** card; falling snow. Halloween: starry night sky
+
+#### 🔧 Changed
+
+- Each season uses lettering that matches its logo (Rye for Halloween, Oswald with a script accent for Christmas)
+- Theme Settings is now two cards (make active, logo, badge) instead of a grid of eight themes
+- The schedule status API also returns the end time of the show that is on now
+
+#### 🐛 Fixed
+
+- Clearing a visitor's request limit now gives back the full allowance, even while one of their songs is playing
+- Top bar buttons no longer overlap on phones, and the "requests left" message is no longer hidden under the bar
+- Long song titles no longer push the Request buttons off narrow screens
+- The jukebox queue transaction test passes again
+
+#### 🔒 Security
+
+- Public queue endpoints no longer expose requester IP addresses and other visitor data
+- The settings API, slideshow deletes, theme switching and banner saving now verify the admin email list instead of trusting the session's role claim
+- Banner saving only accepts its own fields, with length limits; logo uploads accept JPEG, PNG and WebP only and are always re-encoded
+- Dependency updates for nodemailer and sharp
+
+#### 🗄️ Upgrade notes
+
+- Migrations `019_jukebox_song_details`, `020_jukebox_rate_limit_resets` and `021_theme_assets` run automatically during the update; all are additive
+- After updating: upload each season's logo (and optional badge) in Theme Settings, and set the Show name under Settings → Visitor Page
+- Versions 1.6.1–1.8.0 (digital signage display, slideshow, countdown timer and display profiles) shipped without changelog entries; see the git history for details
+
 ## [1.6.0] - 2025-12-10
 
 ### Santa Letters - Ollama Model Management 🎅🤖

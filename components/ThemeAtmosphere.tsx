@@ -3,47 +3,51 @@
 import { useEffect, useRef } from 'react';
 import type { ThemeConfig } from '@/lib/themes/theme-config';
 
-// Seasonal background layers drawn behind the jukebox content, alongside the theme's particle effect.
-// The look lives in app/globals.css (.atmo-*); everything here is decorative and ignores the pointer.
+// Seasonal sky behind the visitor page, and the string lights under the top bar.
+// The look lives in app/globals.css (.sp-*); everything here is decorative and ignores the pointer.
 
-interface ThemeAtmosphereProps {
-  atmosphere: ThemeConfig['atmosphere'];
-  /** Fill the nearest positioned parent (theme preview) instead of the whole viewport */
-  contained?: boolean;
-}
-
-export default function ThemeAtmosphere({ atmosphere, contained = false }: ThemeAtmosphereProps) {
-  if (!atmosphere) return null;
-
+export default function ThemeAtmosphere({ sky }: { sky: ThemeConfig['sky'] }) {
   return (
-    <div aria-hidden="true" className={`pointer-events-none ${contained ? 'absolute' : 'fixed'} inset-0 z-0 overflow-hidden`}>
-      {atmosphere === 'haunted' ? (
-        <>
-          <div className="atmo-vignette" />
-          <div className="atmo-moon" />
-          <div className="atmo-fog atmo-fog-back" />
-          <div className="atmo-fog atmo-fog-front" />
-          <div className="atmo-lightning atmo-lightning-a" />
-          <div className="atmo-lightning atmo-lightning-b" />
-        </>
-      ) : (
-        <>
-          <div className="atmo-vignette atmo-vignette-soft" />
-          <div className="atmo-warm-glow" />
-          <DepthSnow />
-        </>
-      )}
+    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      {sky === 'snow' ? <DepthSnow /> : <div className="sp-sky-stars absolute inset-0" />}
     </div>
   );
 }
 
-/** A row of twinkling Christmas bulbs, hung under the radio bar. */
-export function StringLights() {
+const BULB_COUNT = 18;
+const HOOKS = 3; // the wire is pinned up at the ends and between these spans
+const SAG_PX = 8;
+
+const sagAt = (x: number) => Math.sin(((x * HOOKS) % 1) * Math.PI) * SAG_PX;
+
+// Built once: the wire's path in a 100x18 box stretched to the full width
+const WIRE_PATH = Array.from({ length: 61 }, (_, i) => {
+  const x = i / 60;
+  return `${i === 0 ? 'M' : 'L'}${(x * 100).toFixed(2)} ${(2 + sagAt(x)).toFixed(2)}`;
+}).join(' ');
+
+/** C9 bulbs hung on a sagging wire, in the season's logo colours. */
+export function StringLights({ colors }: { colors: string[] }) {
   return (
-    <div aria-hidden="true" className="atmo-lights">
-      {Array.from({ length: 28 }, (_, i) => (
-        <span key={i} className="atmo-bulb" />
-      ))}
+    <div aria-hidden="true" className="sp-lights">
+      <svg viewBox="0 0 100 18" preserveAspectRatio="none">
+        <path d={WIRE_PATH} fill="none" stroke="#2b2238" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+      </svg>
+      {Array.from({ length: BULB_COUNT }, (_, i) => {
+        const x = (i + 0.5) / BULB_COUNT;
+        return (
+          <span
+            key={i}
+            className="sp-bulb"
+            style={{
+              ['--bulb' as string]: colors[i % colors.length],
+              left: `${x * 100}%`,
+              top: `${sagAt(x) + 4}px`,
+              animationDelay: `${(i * 0.37) % 3.2}s`,
+            }}
+          />
+        );
+      })}
     </div>
   );
 }

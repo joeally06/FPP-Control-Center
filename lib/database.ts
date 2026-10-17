@@ -218,6 +218,20 @@ db.exec(`
   );
 `);
 
+// Seasonal logo and badge uploaded on Theme Settings (also migration 021)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS theme_assets (
+    theme_id TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('logo', 'badge')),
+    mime_type TEXT NOT NULL,
+    width INTEGER NOT NULL,
+    height INTEGER NOT NULL,
+    data BLOB NOT NULL,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (theme_id, kind)
+  );
+`);
+
 // Create sequence metadata table
 db.exec(`
   CREATE TABLE IF NOT EXISTS sequence_metadata (
@@ -1073,7 +1087,7 @@ export const getActiveTheme = db.prepare(`
 `);
 
 export const setActiveTheme = db.prepare(`
-  UPDATE theme_settings SET active_theme_id = ?, custom_particles = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1
+  UPDATE theme_settings SET active_theme_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1
 `);
 
 // Santa letters prepared statements

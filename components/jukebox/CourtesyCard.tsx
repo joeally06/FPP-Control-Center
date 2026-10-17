@@ -48,28 +48,22 @@ export default function CourtesyCard({ lines }: CourtesyCardProps) {
   };
 
   return (
-    <section
-      aria-label="Viewing reminders"
-      className="relative rounded-2xl border border-amber-400/40 bg-amber-950/60 p-4 text-white shadow-xl backdrop-blur-md"
-    >
-      <div className="flex items-start gap-3 pr-10">
-        <div className="shrink-0 rounded-xl bg-amber-400/15 p-2 text-amber-300" aria-hidden="true">
-          <Car className="h-5 w-5" />
-        </div>
-        <div>
-          <h2 className="text-sm font-bold text-amber-200">Watching from your car?</h2>
-          <ul className="mt-1.5 space-y-1 text-sm text-white/90">
-            {lines.map((line) => (
-              <li key={line}>• {line}</li>
-            ))}
-          </ul>
-        </div>
-      </div>
+    <section aria-labelledby="courtesy-heading" className="sp-panel relative">
+      <span className="sp-eyebrow pr-10">While you watch</span>
+      <h2 id="courtesy-heading" className="sp-display sp-h2 pr-10">Be a good neighbor</h2>
+      <ul className="mt-3.5 space-y-3">
+        {lines.map((line) => (
+          <li key={line} className="flex items-start gap-3">
+            <Car className="sp-soft mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+            <span>{line}</span>
+          </li>
+        ))}
+      </ul>
       <button
         type="button"
         onClick={dismiss}
         aria-label="Dismiss reminders"
-        className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-lg text-white/70 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+        className="sp-muted absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-lg transition hover:bg-white/10 hover:text-white"
       >
         <X className="h-4 w-4" aria-hidden="true" />
       </button>

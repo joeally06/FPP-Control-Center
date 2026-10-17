@@ -1513,6 +1513,7 @@ function TriviaSettingsSection() {
 function JukeboxSettings() {
   const [rateLimit, setRateLimit] = useState<number>(3);
   const [insertMode, setInsertMode] = useState<string>('after_current');
+  const [siteName, setSiteName] = useState('');
   const [fmFrequency, setFmFrequency] = useState('');
   const [courtesyEnabled, setCourtesyEnabled] = useState(false);
   const [courtesyText, setCourtesyText] = useState('');
@@ -1542,6 +1543,7 @@ function JukeboxSettings() {
         const data = await response.json();
         setRateLimit(parseInt(data.settings.jukebox_rate_limit || '3', 10));
         setInsertMode(data.settings.jukebox_insert_mode || 'after_current');
+        setSiteName(data.settings.site_name || '');
         setFmFrequency(data.settings.jukebox_fm_frequency || '');
         setCourtesyEnabled(data.settings.jukebox_courtesy_enabled === 'true');
         setCourtesyText(data.settings.jukebox_courtesy_text || '');
@@ -1665,6 +1667,7 @@ function JukeboxSettings() {
           settings: {
             jukebox_rate_limit: rateLimit.toString(),
             jukebox_insert_mode: insertMode,
+            site_name: siteName.trim(),
             jukebox_fm_frequency: fmFrequency.trim(),
             jukebox_courtesy_enabled: courtesyEnabled ? 'true' : 'false',
             jukebox_courtesy_text: courtesyText.trim(),
@@ -1828,6 +1831,21 @@ function JukeboxSettings() {
               What visitors see at the top of the jukebox page
             </AdminTextMuted>
           </div>
+
+          <label className="block">
+            <AdminLabel>Show name</AdminLabel>
+            <input
+              type="text"
+              value={siteName}
+              onChange={(e) => setSiteName(e.target.value)}
+              maxLength={VISITOR_SETTING_LIMITS.site_name}
+              placeholder="e.g. Lewis Family Light Show"
+              className="mt-2 w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/40"
+            />
+            <AdminTextSmall className="text-white/60 mt-1">
+              Shown in the top bar and footer, in the active theme&apos;s lettering, and in place of the logo if none is uploaded.
+            </AdminTextSmall>
+          </label>
 
           <label className="block">
             <AdminLabel>FM frequency</AdminLabel>
@@ -2008,7 +2026,7 @@ function JukeboxSettings() {
 
       <SongDetailsSettings reloadKey={songDetailsReload} />
 
-      {/* Unified Banner Configuration */}
+      {/* Off-season message under the logo on the visitor page */}
       <BannerSettings />
 
       {/* User Rate Limit Management */}

@@ -1,44 +1,45 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '@/components/AdminLayout';
-import { getAllThemes, ThemeConfig } from '@/lib/themes/theme-config';
-import ParticleEffects from '@/lib/themes/particle-effects';
-import ThemeAtmosphere from '@/components/ThemeAtmosphere';
+import {
+  getAllThemes,
+  NO_ASSETS,
+  type SeasonAssets,
+  type ThemeAssetKind,
+  type ThemeConfig,
+  type ThemeId,
+} from '@/lib/themes/theme-config';
+
+const ASSET_SLOTS: { kind: ThemeAssetKind; label: string; help: string }[] = [
+  {
+    kind: 'logo',
+    label: 'Logo',
+    help: 'The wide artwork across the top of the visitor page. Without one, the show name is shown in large lettering.',
+  },
+  {
+    kind: 'badge',
+    label: 'Round badge',
+    help: 'A square picture (your mascot, a face) shown in a circle in the top bar and footer. Without one, the middle of the logo is used.',
+  },
+];
+
+const ACCEPT = 'image/jpeg,image/png,image/webp';
+
+type Feedback = { type: 'success' | 'error'; text: string };
 
 export default function ThemeSettings() {
   const { data: session, status: sessionStatus } = useSession();
   const isAdmin = session?.user?.role === 'admin';
   const router = useRouter();
-  const [themes, setThemes] = useState<ThemeConfig[]>(getAllThemes());
-  const [activeThemeId, setActiveThemeId] = useState<string>('default');
-  const [previewTheme, setPreviewTheme] = useState<ThemeConfig | null>(null);
+  const themes = getAllThemes();
+  const [activeThemeId, setActiveThemeId] = useState<ThemeId | null>(null);
+  const [assets, setAssets] = useState<Record<string, SeasonAssets>>({});
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [customParticles, setCustomParticles] = useState<Record<string, string>>({});
-
-  const particleOptions = [
-    { value: 'none', label: 'None' },
-    { value: 'sparkles', label: '✨ Sparkles' },
-    { value: 'snowfall', label: '❄️ Snowfall' },
-    { value: 'stars', label: '⭐ Twinkling Stars' },
-    { value: 'bats', label: '🦇 Flying Bats' },
-    { value: 'ghosts', label: '👻 Floating Ghosts' },
-    { value: 'spider-webs', label: '🕸️ Spider Webs' },
-    { value: 'lightning', label: '⚡ Lightning Flashes' },
-    { value: 'fog', label: '🌫️ Fog' },
-    { value: 'hearts', label: '💕 Hearts' },
-    { value: 'fireworks', label: '🎆 Fireworks' },
-    { value: 'leaves', label: '🍃 Falling Leaves' },
-    { value: 'cherry-blossoms', label: '🌸 Cherry Blossoms' },
-    { value: 'balloons', label: '🎈 Balloons' },
-    { value: 'wind-swirls', label: '🍂 Wind Swirls' },
-    { value: 'candy-canes', label: '🍬 Candy Canes' },
-    { value: 'ornaments', label: '🎄 Ornaments' },
-    { value: 'reindeer', label: '🦌 Reindeer' },
-  ];
+  const [busy, setBusy] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<Record<string, Feedback>>({});
 
   // Redirect non-admins
   useEffect(() => {
@@ -47,102 +48,83 @@ export default function ThemeSettings() {
     }
   }, [isAdmin, sessionStatus, router]);
 
-  // Fetch active theme
-  useEffect(() => {
-    const fetchActiveTheme = async () => {
-      try {
-        const response = await fetch('/api/theme');
-        if (response.ok) {
-          const data = await response.json();
-          setActiveThemeId(data.themeId);
-          
-          // Load custom particle settings if they exist
-          if (data.customParticles) {
-            setCustomParticles(data.customParticles);
-            // Update themes with custom particles
-            setThemes(prevThemes => 
-              prevThemes.map(theme => ({
-                ...theme,
-                particles: (data.customParticles[theme.id] || theme.particles) as any
-              }))
-            );
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch active theme:', error);
-      } finally {
-        setIsLoading(false);
+  const loadThemes = useCallback(async () => {
+    try {
+      const response = await fetch('/api/theme');
+      if (response.ok) {
+        const data = await response.json();
+        setActiveThemeId(data.themeId);
+        setAssets(data.assets ?? {});
       }
-    };
-
-    if (isAdmin) {
-      fetchActiveTheme();
+    } catch (error) {
+      console.error('Failed to fetch themes:', error);
+    } finally {
+      setIsLoading(false);
     }
-  }, [isAdmin]);
+  }, []);
 
-  const handleSetTheme = async (themeId: string) => {
-    setIsSaving(true);
+  useEffect(() => {
+    if (isAdmin) loadThemes();
+  }, [isAdmin, loadThemes]);
+
+  const say = (themeId: ThemeId, type: Feedback['type'], text: string) =>
+    setFeedback((prev) => ({ ...prev, [themeId]: { type, text } }));
+
+  const activate = async (theme: ThemeConfig) => {
+    setBusy(`${theme.id}:activate`);
     try {
       const response = await fetch('/api/theme', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ themeId, customParticles }),
+        body: JSON.stringify({ themeId: theme.id }),
       });
-
-      if (response.ok) {
-        setActiveThemeId(themeId);
-        // Give visual feedback
-        setTimeout(() => {
-          setIsSaving(false);
-        }, 500);
-      }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Could not switch themes');
+      setActiveThemeId(theme.id);
+      say(theme.id, 'success', `${theme.name} is now showing on the visitor page.`);
     } catch (error) {
-      console.error('Failed to set theme:', error);
-      setIsSaving(false);
+      say(theme.id, 'error', error instanceof Error ? error.message : 'Could not switch themes');
+    } finally {
+      setBusy(null);
     }
   };
 
-  const handleParticleChange = (themeId: string, particleType: string) => {
-    setCustomParticles(prev => ({
-      ...prev,
-      [themeId]: particleType
-    }));
-    
-    // Update the theme in the list
-    setThemes(prevThemes => 
-      prevThemes.map(theme => 
-        theme.id === themeId 
-          ? { ...theme, particles: particleType as any }
-          : theme
-      )
-    );
-    
-    // Save to API
-    saveParticleSettings(themeId, particleType);
+  const upload = async (theme: ThemeConfig, kind: ThemeAssetKind, file: File) => {
+    setBusy(`${theme.id}:${kind}`);
+    try {
+      const form = new FormData();
+      form.append('theme', theme.id);
+      form.append('kind', kind);
+      form.append('file', file);
+      const response = await fetch('/api/theme/asset', { method: 'POST', body: form });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Upload failed');
+      await loadThemes();
+      say(theme.id, 'success', `${theme.name} ${kind === 'logo' ? 'logo' : 'badge'} saved.`);
+    } catch (error) {
+      say(theme.id, 'error', error instanceof Error ? error.message : 'Upload failed');
+    } finally {
+      setBusy(null);
+    }
   };
 
-  const saveParticleSettings = async (themeId: string, particleType: string) => {
+  const remove = async (theme: ThemeConfig, kind: ThemeAssetKind) => {
+    setBusy(`${theme.id}:${kind}`);
     try {
-      const updatedCustomParticles = {
-        ...customParticles,
-        [themeId]: particleType
-      };
-      
-      await fetch('/api/theme', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          themeId: activeThemeId, 
-          customParticles: updatedCustomParticles 
-        }),
-      });
+      const response = await fetch(`/api/theme/asset?theme=${theme.id}&kind=${kind}`, { method: 'DELETE' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Could not remove the image');
+      await loadThemes();
+      say(theme.id, 'success', `${theme.name} ${kind === 'logo' ? 'logo' : 'badge'} removed.`);
     } catch (error) {
-      console.error('Failed to save particle settings:', error);
+      say(theme.id, 'error', error instanceof Error ? error.message : 'Could not remove the image');
+    } finally {
+      setBusy(null);
     }
   };
 
   // Show loading while checking authentication
-  if (sessionStatus === 'loading' || isLoading) {
+  if (sessionStatus === 'loading' || (isAdmin && isLoading)) {
     return (
       <div className="min-h-screen bg-linear-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
         <div className="text-center">
@@ -158,217 +140,137 @@ export default function ThemeSettings() {
   }
 
   return (
-    <AdminLayout 
-      title="🎨 Theme Settings" 
-      subtitle="Customize the jukebox appearance for seasonal shows"
-    >
-      {/* Preview Modal */}
-      {previewTheme && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setPreviewTheme(null)}>
-          <div className="max-w-4xl w-full" onClick={(e) => e.stopPropagation()}>
-            <div className={`bg-linear-to-br ${previewTheme.gradient} rounded-2xl p-8 shadow-2xl relative overflow-hidden`}>
-              <ThemeAtmosphere atmosphere={previewTheme.atmosphere} contained />
-              {previewTheme.particles && previewTheme.particles !== 'none' && (
-                <ParticleEffects type={previewTheme.particles} />
-              )}
-              
-              <div className="relative z-10">
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <h2 className="text-3xl font-bold text-white mb-2">{previewTheme.name} Theme Preview</h2>
-                    <p className="text-white/70">{previewTheme.description}</p>
-                  </div>
-                  <button
-                    onClick={() => setPreviewTheme(null)}
-                    className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-all"
-                  >
-                    ✕ Close
-                  </button>
-                </div>
+    <AdminLayout title="🎨 Theme Settings" subtitle="Pick the season and upload its logo for the visitor jukebox page">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {themes.map((theme) => {
+          const isActive = activeThemeId === theme.id;
+          const themeAssets = assets[theme.id] ?? NO_ASSETS;
+          const note = feedback[theme.id];
 
-                {/* Sample Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div className={`backdrop-blur-md ${previewTheme.cardBg} rounded-xl p-6 shadow-xl border ${previewTheme.cardBorder}`}>
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className={`w-12 h-12 bg-${previewTheme.primaryColor}/30 rounded-full flex items-center justify-center`}>
-                        <span className="text-2xl">{previewTheme.icons.nowPlaying}</span>
-                      </div>
-                      <div>
-                        <p className="text-sm text-white/70">Now Playing</p>
-                        <p className="text-xl font-bold text-white">Sample Song Title</p>
-                      </div>
-                    </div>
-                    <button className={`w-full bg-linear-to-r from-${previewTheme.primaryColor} to-${previewTheme.secondaryColor} text-white py-3 rounded-lg font-semibold hover:opacity-90 transition-all shadow-lg`}>
-                      Vote {previewTheme.icons.vote}
-                    </button>
-                  </div>
-
-                  <div className={`backdrop-blur-md ${previewTheme.cardBg} rounded-xl p-6 shadow-xl border ${previewTheme.cardBorder}`}>
-                    <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-                      <span>{previewTheme.icons.queue}</span>
-                      Queue Preview
-                    </h3>
-                    <div className="space-y-2">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="bg-white/5 p-3 rounded-lg text-white/80 text-sm">
-                          Sample Song {i}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => {
-                      handleSetTheme(previewTheme.id);
-                      setPreviewTheme(null);
-                    }}
-                    disabled={isSaving || activeThemeId === previewTheme.id}
-                    className={`flex-1 ${
-                      activeThemeId === previewTheme.id
-                        ? 'bg-green-500/80'
-                        : 'bg-blue-500/80 hover:bg-blue-600'
-                    } disabled:bg-gray-500/50 text-white px-6 py-3 rounded-lg font-semibold transition-all shadow-lg hover:shadow-xl disabled:cursor-not-allowed`}
-                  >
-                    {activeThemeId === previewTheme.id ? '✓ Active Theme' : 'Set as Active Theme'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Theme Grid */}
-      <div className="backdrop-blur-md bg-white/10 rounded-xl p-6 shadow-2xl border border-white/20">
-        <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-          <span>🎭</span>
-          Available Themes
-        </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-          {themes.map((theme) => {
-            const isActive = activeThemeId === theme.id;
-            
-            return (
+          return (
+            <section
+              key={theme.id}
+              aria-labelledby={`theme-${theme.id}`}
+              className={`overflow-hidden rounded-xl border-2 bg-white/5 ${isActive ? 'border-green-400 shadow-lg shadow-green-500/30' : 'border-white/20'}`}
+            >
+              {/* Preview in the season's own colours (tokens from app/globals.css) */}
               <div
-                key={theme.id}
-                className={`
-                  backdrop-blur-sm rounded-lg overflow-hidden border-2 transition-all cursor-pointer
-                  ${isActive 
-                    ? 'border-green-400 shadow-lg shadow-green-500/50' 
-                    : 'border-white/20 hover:border-white/40 hover:shadow-lg'
-                  }
-                `}
-                onClick={() => setPreviewTheme(theme)}
+                data-season={theme.id}
+                className="relative flex h-44 items-center justify-center overflow-hidden"
+                style={{ background: 'var(--sp-night)' }}
               >
-                {/* Theme Preview */}
-                <div className={`bg-linear-to-br ${theme.gradient} h-32 relative overflow-hidden`}>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-6xl opacity-50">{theme.icons.nowPlaying}</span>
-                  </div>
-                  {isActive && (
-                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-3 py-1 rounded-full font-semibold">
-                      ✓ Active
-                    </div>
-                  )}
-                </div>
-
-                {/* Theme Info */}
-                <div className="bg-white/5 p-4">
-                  <h3 className="text-white font-bold text-lg mb-1">{theme.name}</h3>
-                  <p className="text-white/60 text-sm mb-3">{theme.description}</p>
-                  
-                  {/* Icons Preview */}
-                  <div className="flex gap-2 text-xl mb-3">
-                    {Object.values(theme.icons).map((icon, i) => (
-                      <span key={i}>{icon}</span>
-                    ))}
-                  </div>
-
-                  {/* Particle Effect Selector */}
-                  <div className="mb-3">
-                    <label className="block text-white/70 text-xs mb-1">Particle Effect:</label>
-                    <select
-                      value={theme.particles || 'none'}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        handleParticleChange(theme.id, e.target.value);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-full bg-white/10 text-white border border-white/20 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                    >
-                      {particleOptions.map(option => (
-                        <option key={option.value} value={option.value} className="bg-gray-800 text-white">
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPreviewTheme(theme);
-                      }}
-                      className="flex-1 bg-blue-500/80 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all"
-                    >
-                      Preview
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSetTheme(theme.id);
-                      }}
-                      disabled={isSaving || isActive}
-                      className={`flex-1 ${
-                        isActive
-                          ? 'bg-gray-500/50 cursor-not-allowed'
-                          : 'bg-green-500/80 hover:bg-green-600'
-                      } disabled:bg-gray-500/50 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all disabled:cursor-not-allowed`}
-                    >
-                      {isActive ? 'Active' : 'Activate'}
-                    </button>
-                  </div>
-                </div>
+                {themeAssets.logo ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- served from /api/theme/asset
+                  <img src={themeAssets.logo.url} alt={`${theme.name} logo`} className="h-full w-auto max-w-full object-contain" />
+                ) : (
+                  <p className="sp-display sp-title sp-glow-text px-4 text-center text-3xl">{theme.name}</p>
+                )}
+                {isActive && (
+                  <span className="absolute right-3 top-3 rounded-full bg-green-500 px-3 py-1 text-xs font-semibold text-white">✓ Showing now</span>
+                )}
               </div>
-            );
-          })}
-        </div>
+
+              <div className="space-y-5 p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 id={`theme-${theme.id}`} className="text-xl font-bold text-white">{theme.icon} {theme.name}</h2>
+                    <p className="text-sm text-white/70">{theme.description}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => activate(theme)}
+                    disabled={isActive || busy !== null}
+                    className="min-h-11 rounded-lg bg-green-600 px-4 text-sm font-semibold text-white transition hover:bg-green-500 disabled:cursor-not-allowed disabled:bg-white/15 disabled:text-white/60"
+                  >
+                    {isActive ? 'Active' : busy === `${theme.id}:activate` ? 'Switching…' : 'Make active'}
+                  </button>
+                </div>
+
+                {ASSET_SLOTS.map((slot) => {
+                  const current = themeAssets[slot.kind];
+                  const slotBusy = busy === `${theme.id}:${slot.kind}`;
+                  const inputId = `upload-${theme.id}-${slot.kind}`;
+                  return (
+                    <div key={slot.kind} className="flex items-start gap-4 rounded-lg border border-white/10 bg-black/20 p-3">
+                      <div
+                        data-season={theme.id}
+                        className={`flex h-16 shrink-0 items-center justify-center overflow-hidden ${slot.kind === 'badge' ? 'w-16 rounded-full' : 'w-28 rounded-lg'}`}
+                        style={{ background: 'var(--sp-night)' }}
+                      >
+                        {current ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- served from /api/theme/asset
+                          <img src={current.url} alt="" className={`h-full w-full ${slot.kind === 'badge' ? 'object-cover' : 'object-contain'}`} />
+                        ) : (
+                          <span className="text-xs text-white/50">None</span>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-white">{slot.label}</p>
+                        <p className="mt-0.5 text-xs text-white/60">{slot.help} JPEG, PNG or WebP, up to 5 MB.</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {/* Hidden file input before its label, so the label shows the input's keyboard focus */}
+                          <input
+                            id={inputId}
+                            type="file"
+                            accept={ACCEPT}
+                            className="peer sr-only"
+                            disabled={busy !== null}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              e.target.value = '';
+                              if (file) upload(theme, slot.kind, file);
+                            }}
+                          />
+                          <label
+                            htmlFor={inputId}
+                            className={`inline-flex min-h-10 cursor-pointer items-center rounded-lg bg-blue-600 px-3 text-sm font-semibold text-white transition hover:bg-blue-500 peer-focus-visible:ring-2 peer-focus-visible:ring-white ${busy !== null ? 'pointer-events-none opacity-60' : ''}`}
+                          >
+                            {slotBusy ? 'Saving…' : current ? `Replace ${slot.label.toLowerCase()}` : `Upload ${slot.label.toLowerCase()}`}
+                          </label>
+                          {current && (
+                            <button
+                              type="button"
+                              onClick={() => remove(theme, slot.kind)}
+                              disabled={busy !== null}
+                              className="min-h-10 rounded-lg bg-white/10 px-3 text-sm font-semibold text-white transition hover:bg-white/20 disabled:opacity-60"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {note && (
+                  <p
+                    role={note.type === 'error' ? 'alert' : 'status'}
+                    className={`rounded-lg px-3 py-2 text-sm ${note.type === 'error' ? 'bg-red-500/20 text-red-100' : 'bg-green-500/20 text-green-100'}`}
+                  >
+                    {note.text}
+                  </p>
+                )}
+              </div>
+            </section>
+          );
+        })}
       </div>
 
-      {/* Instructions */}
-      <div className="backdrop-blur-md bg-blue-500/10 rounded-xl p-6 shadow-2xl border border-blue-500/30 mt-6">
-        <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
-          <span>💡</span>
-          Theme Instructions
-        </h3>
-        <ul className="text-white/80 space-y-2 text-sm">
-          <li>• Click any theme card to preview it with sample content</li>
-          <li>• Use the dropdown menu on each card to select a custom particle effect</li>
-          <li>• Particle effects are saved automatically when you select them</li>
-          <li>• Click "Activate" to set a theme as the active jukebox theme</li>
-          <li>• The active theme will be applied to the public jukebox page immediately</li>
-          <li>• Choose themes that match your seasonal light shows (Halloween, Christmas, etc.)</li>
+      <div className="mt-6 rounded-xl border border-blue-500/30 bg-blue-500/10 p-6">
+        <h3 className="mb-3 font-semibold text-white">💡 How themes work</h3>
+        <ul className="space-y-2 text-sm text-white/80">
+          <li>• The active theme sets the colours, lettering, string lights and background (stars or snow) of the visitor jukebox page.</li>
+          <li>• Each theme keeps its own logo and badge, so you can upload Christmas artwork during Halloween and switch over when you&apos;re ready.</li>
+          <li>• Images are stored in the database (and its backups), resized for the web, and shown to visitors right away.</li>
+          <li>• The Letter to Santa card and the trivia button only appear in the Christmas theme.</li>
         </ul>
       </div>
 
-      {/* Available Particle Effects */}
-      <div className="backdrop-blur-md bg-purple-500/10 rounded-xl p-6 shadow-2xl border border-purple-500/30 mt-6">
-        <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
-          <span>✨</span>
-          Available Particle Effects
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 text-sm">
-          {particleOptions.map(option => (
-            <div key={option.value} className="bg-white/5 rounded-lg px-3 py-2 text-white/80">
-              {option.label}
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Both seasons' faces, for the previews above */}
+      <style jsx global>{`
+        ${themes.map((t) => `@import url('https://fonts.googleapis.com/css2?${t.fontQuery}&display=swap');`).join('\n')}
+      `}</style>
     </AdminLayout>
   );
 }

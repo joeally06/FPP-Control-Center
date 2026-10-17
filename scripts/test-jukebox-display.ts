@@ -13,6 +13,11 @@ import {
   filterSongs,
   estimateWaits,
   buildShowSpecs,
+  showStatus,
+  formatFmFrequency,
+  readOffSeasonBanner,
+  parseOffSeasonBanner,
+  OFF_SEASON_BANNER_DEFAULTS,
   type CatalogSong,
 } from '../lib/jukebox-display';
 
@@ -190,6 +195,82 @@ const SONGS: CatalogSong[] = [
   assert.deepStrictEqual(buildShowSpecs(false, get), [], 'switched off → none');
   assert.deepStrictEqual(buildShowSpecs(true, () => null), []);
   print('Test 12 OK');
+})();
+
+// Test 13: showStatus (the live pill under the logo)
+(() => {
+  print('Test 13: showStatus');
+  const none = { currentShowEndTime: null, nextShowDay: null, nextShowStartTime: null, countdown: null };
+  assert.deepStrictEqual(showStatus({ ...none, isActive: true, currentShowEndTime: '22:00' }), { live: true, label: 'Live now · until 10:00 PM' });
+  assert.deepStrictEqual(showStatus({ ...none, isActive: true }), { live: true, label: 'Live now' }, 'live from FPP without a schedule entry');
+  assert.deepStrictEqual(
+    showStatus({ ...none, isActive: false, nextShowDay: 'Friday', nextShowStartTime: '16:00', countdown: '2h 5m' }),
+    { live: false, label: 'Next show Friday 4:00 PM · in 2h 5m' }
+  );
+  assert.deepStrictEqual(
+    showStatus({ ...none, isActive: false, nextShowDay: 'Friday', nextShowStartTime: '16:00' }),
+    { live: false, label: 'Next show Friday 4:00 PM' }
+  );
+  assert.deepStrictEqual(showStatus({ ...none, isActive: false, nextShowDay: 'Friday', nextShowStartTime: 'soon' }), {
+    live: false,
+    label: 'No show running right now',
+  }, 'unparseable start time → nothing scheduled');
+  assert.deepStrictEqual(showStatus({ ...none, isActive: false }), { live: false, label: 'No show running right now' });
+  print('Test 13 OK');
+})();
+
+// Test 14: formatFmFrequency
+(() => {
+  print('Test 14: formatFmFrequency');
+  assert.strictEqual(formatFmFrequency('88.1'), '88.1 FM');
+  assert.strictEqual(formatFmFrequency(' 107.9 '), '107.9 FM');
+  assert.strictEqual(formatFmFrequency('88.1 FM'), '88.1 FM');
+  assert.strictEqual(formatFmFrequency('88.1FM'), '88.1FM', 'typed with the band → kept as typed');
+  assert.strictEqual(formatFmFrequency('88.1 MHz'), '88.1 MHz');
+  print('Test 14 OK');
+})();
+
+// Test 15: readOffSeasonBanner (existing settings keys from the old three-banner setup)
+(() => {
+  print('Test 15: readOffSeasonBanner');
+  assert.deepStrictEqual(readOffSeasonBanner(() => null), OFF_SEASON_BANNER_DEFAULTS, 'nothing saved → defaults, switched off');
+  const saved: Record<string, string> = {
+    jukebox_banner_offSeasonEnabled: '1',
+    jukebox_banner_offSeasonHeading: 'Thanks for a great season!',
+    jukebox_banner_offSeasonSubtitle: '',
+    jukebox_banner_countdownEnabled: '1',
+  };
+  assert.deepStrictEqual(readOffSeasonBanner((k) => saved[k]), {
+    enabled: true,
+    heading: 'Thanks for a great season!',
+    subtitle: '',
+  }, "'1' means on; an empty saved message stays empty; countdown keys are ignored");
+  assert.strictEqual(readOffSeasonBanner((k) => (k === 'jukebox_banner_offSeasonEnabled' ? 'true' : null)).enabled, true);
+  assert.strictEqual(readOffSeasonBanner((k) => (k === 'jukebox_banner_offSeasonEnabled' ? '0' : null)).enabled, false);
+  print('Test 15 OK');
+})();
+
+// Test 16: parseOffSeasonBanner (admin save)
+(() => {
+  print('Test 16: parseOffSeasonBanner');
+  assert.deepStrictEqual(parseOffSeasonBanner({ enabled: true, heading: '  See you soon ', subtitle: ' Back in October ' }), {
+    enabled: true,
+    heading: 'See you soon',
+    subtitle: 'Back in October',
+  }, 'trimmed');
+  assert.deepStrictEqual(parseOffSeasonBanner({ enabled: false, heading: '', subtitle: '', countdownBgColor: 'x' }), {
+    enabled: false,
+    heading: '',
+    subtitle: '',
+  }, 'empty is fine while off; unknown fields dropped');
+  assert.throws(() => parseOffSeasonBanner({ enabled: true, heading: '   ', subtitle: '' }), /Add a heading/);
+  assert.throws(() => parseOffSeasonBanner({ enabled: true, heading: 'x'.repeat(81), subtitle: '' }), /at most 80/);
+  assert.doesNotThrow(() => parseOffSeasonBanner({ enabled: true, heading: 'x'.repeat(80), subtitle: 'y'.repeat(200) }));
+  assert.throws(() => parseOffSeasonBanner({ enabled: true, heading: 'Hi', subtitle: 'y'.repeat(201) }), /at most 200/);
+  assert.throws(() => parseOffSeasonBanner({ enabled: 'yes', heading: 'Hi', subtitle: '' }), /true or false/);
+  assert.throws(() => parseOffSeasonBanner({ enabled: true, heading: 5, subtitle: '' }), /must be text/);
+  assert.throws(() => parseOffSeasonBanner(null), /true or false/);
+  print('Test 16 OK');
 })();
 
 print('All tests passed.');

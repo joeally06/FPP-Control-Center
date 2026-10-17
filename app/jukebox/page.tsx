@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { LayoutDashboard, LogIn, LogOut } from 'lucide-react';
+import { LayoutDashboard, LogIn, LogOut, Mail } from 'lucide-react';
 import { useVisitorTracking } from '@/hooks/useVisitorTracking';
 import { useTheme } from '@/lib/themes/theme-context';
 import ThemedJukeboxWrapper from '@/components/ThemedJukeboxWrapper';
@@ -21,17 +21,16 @@ import JukeboxBanner from '@/components/JukeboxBanner';
 import AudioSyncPlayer from '@/components/AudioSyncPlayer';
 import Footer from '@/components/Footer';
 import RadioBar from '@/components/jukebox/RadioBar';
-import ShowStatusStrip from '@/components/jukebox/ShowStatusStrip';
+import ShowHero from '@/components/jukebox/ShowHero';
 import CourtesyCard from '@/components/jukebox/CourtesyCard';
 import NowPlayingCard, { type NowPlayingInfo } from '@/components/jukebox/NowPlayingCard';
 import UpNextList from '@/components/jukebox/UpNextList';
 import SongCatalog from '@/components/jukebox/SongCatalog';
 import RequestConfirmModal from '@/components/jukebox/RequestConfirmModal';
 import ShowSpecsCard from '@/components/jukebox/ShowSpecsCard';
-import { getThemeAccent, CARD } from '@/components/jukebox/theme-accent';
 import { formatDateTime } from '@/lib/time-utils';
 import { getBrowserLocation, getDistanceInMiles, type UserLocation } from '@/lib/location-utils';
-import { estimateWaits, stripFseq, type CatalogSong, type PublicQueueItem, type ShowSpec } from '@/lib/jukebox-display';
+import { estimateWaits, showStatus, stripFseq, type CatalogSong, type PublicQueueItem, type ShowSpec } from '@/lib/jukebox-display';
 import { TIMING } from '@/lib/constants';
 
 interface CurrentlyPlaying {
@@ -79,6 +78,7 @@ interface ScheduleStatus {
   nextShowDay: string | null;
   nextShowStartTime: string | null;
   nextShowEndTime: string | null;
+  currentShowEndTime?: string | null;
   countdown: string | null;
   lastChecked: string;
 }
@@ -101,7 +101,6 @@ export default function JukeboxPage() {
 
   const { data: session } = useSession();
   const { theme } = useTheme();
-  const accent = getThemeAccent(theme.id);
   const isAdmin = session?.user?.role === 'admin';
   const router = useRouter();
   const [queue, setQueue] = useState<PublicQueueItem[]>([]);
@@ -986,7 +985,6 @@ export default function JukeboxPage() {
           onRequesterNameChange={setRequesterName}
           onConfirm={confirmRequest}
           onCancel={() => setConfirmSong(null)}
-          accent={accent}
         />
       )}
 
@@ -1006,7 +1004,6 @@ export default function JukeboxPage() {
         showListenButton={Boolean(showInteractiveFeatures)}
         listening={listening}
         onToggleListen={() => setListening((v) => !v)}
-        accent={accent}
         adminSlot={
           // Icon-only on phones so the bar fits on one line; words from the sm breakpoint up
           !session ? (
@@ -1037,206 +1034,235 @@ export default function JukeboxPage() {
         }
       />
 
-      {/* Clears the fixed radio bar, plus the string lights hanging under it in the Christmas theme */}
-      <div
-        className="mx-auto max-w-6xl space-y-5 pb-4"
-        style={{ paddingTop: `calc(${theme.atmosphere === 'winter' ? '5.25rem' : '4.25rem'} + env(safe-area-inset-top))` }}
-      >
-        {/* In-browser audio, opened from the radio bar */}
-        {listening && showInteractiveFeatures && <AudioSyncPlayer />}
-
-        <ShowStatusStrip
-          isActive={Boolean(scheduleStatus?.isActive)}
-          nextShowDay={scheduleStatus?.nextShowDay ?? null}
-          nextShowStartTime={scheduleStatus?.nextShowStartTime ?? null}
-          nextShowEndTime={scheduleStatus?.nextShowEndTime ?? null}
-          countdown={scheduleStatus?.countdown ?? null}
-          audienceCount={audienceEnabled ? audienceCount : null}
-          accent={accent}
-        />
-
-        {/* Unified Banner System */}
-        <JukeboxBanner
-          fppStatus={currentlyPlaying ? 'playing' : 'idle'}
-          isMonitoringActive={scheduleStatus?.isActive || false}
-          timeUntilNextShow={scheduleStatus?.countdown || undefined}
-        />
-
-        {/* Admin Override Notice */}
-        {isAdmin && !scheduleStatus?.isActive && (
-          <p className="rounded-xl border border-blue-400/40 bg-blue-600/25 px-4 py-3 text-center text-sm text-white backdrop-blur-md">
-            🔧 <span className="font-semibold">Admin mode:</span> the show is inactive, but you can still test requests.
-          </p>
-        )}
-
-        <CourtesyCard lines={courtesyLines} />
-
-        {/* Write to Santa (Christmas theme only) */}
-        {isChristmasTheme && (
-          <section className={`${CARD} flex flex-col items-start justify-between gap-4 p-5 sm:flex-row sm:items-center`}>
-            <div>
-              <h2 className="text-xl font-bold text-white themed-font">🎅 Write a letter to Santa!</h2>
-              <p className="mt-1 text-sm text-white/80">
-                Send your Christmas wishes to the North Pole and get a magical reply from Santa himself.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowSantaModal(true)}
-              className="min-h-11 shrink-0 rounded-full bg-linear-to-r from-red-600 to-green-600 px-6 font-bold text-white shadow-lg transition hover:shadow-2xl motion-safe:hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-            >
-              ✉️ Write to Santa
-            </button>
-          </section>
-        )}
-
-        <NowPlayingCard
-          info={nowPlayingInfo}
-          progress={progress}
-          themeIcon={theme.icons.nowPlaying}
-          accent={accent}
-          adminActions={
-            isAdmin && currentlyPlaying?.id ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => updateStatus(currentlyPlaying.id as number, 'completed')}
-                  className={`${ADMIN_BUTTON} bg-green-600/90 hover:bg-green-600`}
-                >
-                  ✓ Mark complete
-                </button>
-                <button
-                  type="button"
-                  onClick={() => updateStatus(currentlyPlaying.id as number, 'skipped')}
-                  className={`${ADMIN_BUTTON} bg-red-600/90 hover:bg-red-600`}
-                >
-                  ⏭️ Skip
-                </button>
-              </>
-            ) : undefined
-          }
-        />
-
-        {/* Requests - only while the show is active (or for admins) */}
-        {showInteractiveFeatures && (
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <SongCatalog
-              songs={availableSongs}
-              loading={loadingSequences}
-              message={checkingLocation ? '📍 Getting your location…' : message}
-              currentSequence={currentSequenceName}
-              queuedNames={queue.map((item) => item.sequence_name)}
-              requestsRemaining={requestsRemaining}
-              rateLimit={jukeboxRateLimit}
-              busy={loading || checkingLocation}
-              onRequest={setConfirmSong}
-              accent={accent}
-              headerSlot={
-                locationBadgeStatus !== null ? (
-                  <LocationStatusBadge
-                    status={locationBadgeStatus}
-                    distanceFromShow={distanceFromShow}
-                    maxDistance={showLocation?.maxDistance}
-                    onRequestPermission={() => setShowLocationModal(true)}
-                  />
-                ) : undefined
-              }
-            />
-            <UpNextList
-              items={queue}
-              titles={queueTitles}
-              waits={queueWaits}
-              accent={accent}
-              renderAdminActions={
-                isAdmin
-                  ? (item) => (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => updateStatus(item.id, 'playing')}
-                          className={`${ADMIN_BUTTON} bg-blue-600/90 hover:bg-blue-600`}
-                        >
-                          ▶️ Play now
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => updateStatus(item.id, 'skipped')}
-                          className={`${ADMIN_BUTTON} bg-red-600/90 hover:bg-red-600`}
-                        >
-                          ✕ Remove
-                        </button>
-                      </>
-                    )
-                  : undefined
-              }
-            />
+      {/* Clears the fixed radio bar and the string lights hanging under it */}
+      <div className="mx-auto max-w-6xl px-4 pb-4" style={{ paddingTop: 'calc(5.75rem + env(safe-area-inset-top))' }}>
+        {/* In-browser audio, opened from the radio bar or the hero */}
+        {listening && showInteractiveFeatures && (
+          <div className="mb-5">
+            <AudioSyncPlayer />
           </div>
         )}
 
-        {/* Behind the Pixels - admin-entered display facts (shown even when the show is off) */}
-        <ShowSpecsCard specs={showSpecs} accent={accent} />
+        <ShowHero
+          siteName={siteName || 'Light Show Jukebox'}
+          fmFrequency={fmFrequency}
+          status={showStatus({
+            isActive: Boolean(scheduleStatus?.isActive),
+            currentShowEndTime: scheduleStatus?.currentShowEndTime ?? null,
+            nextShowDay: scheduleStatus?.nextShowDay ?? null,
+            nextShowStartTime: scheduleStatus?.nextShowStartTime ?? null,
+            countdown: scheduleStatus?.countdown ?? null,
+          })}
+          showActions={Boolean(showInteractiveFeatures)}
+          listening={listening}
+          onToggleListen={() => setListening((v) => !v)}
+          audienceCount={audienceEnabled ? audienceCount : null}
+        />
 
-        {/* YouTube Videos */}
-        {youtubeVideos.length > 0 && (
-          <section aria-labelledby="videos-heading" className={`${CARD} p-5`}>
-            <h2 id="videos-heading" className="text-xl font-bold text-white themed-font">
-              🎬 Watch past light shows
-            </h2>
-            <p className="mt-1 text-sm text-white/80">Enjoy videos of previous light shows and holiday displays!</p>
+        {/* minmax(0, …) columns keep long song titles from stretching a column past the screen */}
+        <div className="mt-7 grid grid-cols-[minmax(0,1fr)] gap-5">
+          {/* Off-season message, when the admin has switched it on */}
+          <JukeboxBanner />
 
-            {/* YouTube Player */}
-            {selectedYouTubeVideo && (
-              <div className="mt-4 space-y-3">
-                <div className="aspect-video overflow-hidden rounded-xl bg-black/60">
-                  <YouTubePlayer
-                    videoId={selectedYouTubeVideo.videoId}
-                    width="100%"
-                    height="100%"
-                  />
-                </div>
-                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                  <h3 className="font-semibold text-white">{selectedYouTubeVideo.title}</h3>
-                  {selectedYouTubeVideo.description && (
-                    <p className="mt-1 text-sm text-white/80">{selectedYouTubeVideo.description}</p>
-                  )}
-                  <p className="mt-1 text-xs text-white/60">
-                    Published {formatDateTime(selectedYouTubeVideo.publishedAt, 'medium')}
-                  </p>
-                </div>
-              </div>
+          {/* Admin Override Notice */}
+          {isAdmin && !scheduleStatus?.isActive && (
+            <p className="rounded-xl border border-blue-400/40 bg-blue-600/25 px-4 py-3 text-center text-sm text-white">
+              🔧 <span className="font-semibold">Admin mode:</span> the show is inactive, but you can still test requests.
+            </p>
+          )}
+
+          <div className={`grid grid-cols-[minmax(0,1fr)] gap-5 ${showInteractiveFeatures ? 'lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]' : ''}`}>
+            <NowPlayingCard
+              info={nowPlayingInfo}
+              progress={progress}
+              adminActions={
+                isAdmin && currentlyPlaying?.id ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => updateStatus(currentlyPlaying.id as number, 'completed')}
+                      className={`${ADMIN_BUTTON} bg-green-600/90 hover:bg-green-600`}
+                    >
+                      ✓ Mark complete
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateStatus(currentlyPlaying.id as number, 'skipped')}
+                      className={`${ADMIN_BUTTON} bg-red-600/90 hover:bg-red-600`}
+                    >
+                      ⏭️ Skip
+                    </button>
+                  </>
+                ) : undefined
+              }
+            />
+
+            {/* Requests - only while the show is active (or for admins) */}
+            {showInteractiveFeatures && (
+              <UpNextList
+                items={queue}
+                titles={queueTitles}
+                waits={queueWaits}
+                renderAdminActions={
+                  isAdmin
+                    ? (item) => (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => updateStatus(item.id, 'playing')}
+                            className={`${ADMIN_BUTTON} bg-blue-600/90 hover:bg-blue-600`}
+                          >
+                            ▶️ Play now
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateStatus(item.id, 'skipped')}
+                            className={`${ADMIN_BUTTON} bg-red-600/90 hover:bg-red-600`}
+                          >
+                            ✕ Remove
+                          </button>
+                        </>
+                      )
+                    : undefined
+                }
+              />
+            )}
+          </div>
+
+          <div className={`grid grid-cols-[minmax(0,1fr)] gap-5 ${showInteractiveFeatures ? 'lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]' : ''}`}>
+            {showInteractiveFeatures && (
+              <SongCatalog
+                songs={availableSongs}
+                loading={loadingSequences}
+                message={checkingLocation ? '📍 Getting your location…' : message}
+                currentSequence={currentSequenceName}
+                queuedNames={queue.map((item) => item.sequence_name)}
+                requestsRemaining={requestsRemaining}
+                rateLimit={jukeboxRateLimit}
+                busy={loading || checkingLocation}
+                onRequest={setConfirmSong}
+                headerSlot={
+                  locationBadgeStatus !== null ? (
+                    <LocationStatusBadge
+                      status={locationBadgeStatus}
+                      distanceFromShow={distanceFromShow}
+                      maxDistance={showLocation?.maxDistance}
+                      onRequestPermission={() => setShowLocationModal(true)}
+                    />
+                  ) : undefined
+                }
+              />
             )}
 
-            {/* Video Thumbnails Grid */}
-            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-              {youtubeVideos.map((video) => (
-                <button
-                  type="button"
-                  key={video.id}
-                  onClick={() => setSelectedYouTubeVideo(video)}
-                  aria-pressed={selectedYouTubeVideo?.id === video.id}
-                  className={`overflow-hidden rounded-xl border-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
-                    selectedYouTubeVideo?.id === video.id ? 'border-white shadow-lg' : 'border-white/15 hover:border-white/40'
-                  }`}
-                >
-                  {video.thumbnailUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- remote YouTube thumbnail
-                    <img src={video.thumbnailUrl} alt="" className="h-24 w-full object-cover" />
-                  ) : (
-                    <div className="flex h-24 w-full items-center justify-center bg-white/10 text-2xl" aria-hidden="true">🎬</div>
-                  )}
-                  <span className="block truncate bg-black/40 p-2 text-xs font-medium text-white">{video.title}</span>
-                </button>
-              ))}
+            {/* Side column; a row of cards when requests are closed */}
+            <div className={`grid content-start gap-5 ${showInteractiveFeatures ? '' : 'md:grid-cols-2 lg:grid-cols-3'}`}>
+              {/* Write to Santa (Christmas theme only) */}
+              {isChristmasTheme && (
+                <section aria-labelledby="santa-heading" className="sp-panel sp-santa grid gap-3.5">
+                  <div className="flex items-start gap-3.5">
+                    <Mail className="sp-title mt-1 h-10 w-10 shrink-0" aria-hidden="true" />
+                    <div>
+                      <span className="sp-eyebrow">North Pole mail</span>
+                      <h2 id="santa-heading" className="sp-display sp-h2">Write a letter to Santa</h2>
+                      <p className="sp-muted mt-1 text-sm">
+                        Send your Christmas wishes to the North Pole and get a reply from Santa himself.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowSantaModal(true)}
+                    className="sp-btn-accent min-h-12 rounded-full px-6 font-extrabold transition"
+                  >
+                    Write to Santa
+                  </button>
+                </section>
+              )}
+
+              {/* The trivia game is Christmas trivia */}
+              {isChristmasTheme && (
+                <section aria-labelledby="trivia-heading" className="sp-panel grid gap-3.5">
+                  <div>
+                    <span className="sp-eyebrow">Play along</span>
+                    <h2 id="trivia-heading" className="sp-display sp-h2">Christmas trivia</h2>
+                    <p className="sp-muted mt-1 text-sm">Test your holiday know-how while the lights play.</p>
+                  </div>
+                  <a
+                    href="/trivia"
+                    className="sp-btn-outline inline-flex min-h-12 items-center justify-center rounded-full px-6 font-extrabold transition"
+                  >
+                    Play Christmas trivia
+                  </a>
+                </section>
+              )}
+
+              <CourtesyCard lines={courtesyLines} />
+
+              {/* Behind the Pixels - admin-entered display facts (shown even when the show is off) */}
+              <ShowSpecsCard specs={showSpecs} />
             </div>
-          </section>
-        )}
+          </div>
+
+          {/* YouTube Videos */}
+          {youtubeVideos.length > 0 && (
+            <section aria-labelledby="videos-heading" className="sp-panel">
+              <span className="sp-eyebrow">From past seasons</span>
+              <h2 id="videos-heading" className="sp-display sp-h2">Watch past light shows</h2>
+
+              {/* YouTube Player */}
+              {selectedYouTubeVideo && (
+                <div className="mt-4 space-y-3">
+                  <div className="aspect-video overflow-hidden rounded-xl bg-black/60">
+                    <YouTubePlayer
+                      videoId={selectedYouTubeVideo.videoId}
+                      width="100%"
+                      height="100%"
+                    />
+                  </div>
+                  <div className="sp-row p-4">
+                    <h3 className="font-semibold">{selectedYouTubeVideo.title}</h3>
+                    {selectedYouTubeVideo.description && (
+                      <p className="sp-muted mt-1 text-sm">{selectedYouTubeVideo.description}</p>
+                    )}
+                    <p className="sp-muted mt-1 text-xs">
+                      Published {formatDateTime(selectedYouTubeVideo.publishedAt, 'medium')}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Video Thumbnails Grid */}
+              <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+                {youtubeVideos.map((video) => (
+                  <button
+                    type="button"
+                    key={video.id}
+                    onClick={() => setSelectedYouTubeVideo(video)}
+                    aria-pressed={selectedYouTubeVideo?.id === video.id}
+                    className={`overflow-hidden rounded-xl border-2 text-left transition ${
+                      selectedYouTubeVideo?.id === video.id ? 'border-white shadow-lg' : 'border-white/15 hover:border-white/40'
+                    }`}
+                  >
+                    {video.thumbnailUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- remote YouTube thumbnail
+                      <img src={video.thumbnailUrl} alt="" className="h-24 w-full object-cover" />
+                    ) : (
+                      <div className="flex h-24 w-full items-center justify-center bg-white/10 text-2xl" aria-hidden="true">🎬</div>
+                    )}
+                    <span className="block truncate bg-black/40 p-2 text-xs font-medium text-white">{video.title}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
       </div>
 
       {/* Letter to Santa Modal */}
       <LetterToSantaModal isOpen={showSantaModal} onClose={() => setShowSantaModal(false)} />
 
       {/* Footer - inside themed wrapper for seamless background */}
-      <Footer />
+      <Footer siteName={siteName || 'Light Show Jukebox'} />
     </ThemedJukeboxWrapper>
   );
 }

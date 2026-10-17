@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAllYouTubeVideos, getYouTubeVideosByTheme, getActiveTheme } from '@/lib/database';
+import { normalizeThemeId } from '@/lib/themes/theme-config';
 
 /**
  * GET /api/youtube-videos
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
     } else {
       // Otherwise, fetch active theme from theme_settings table
       const themeData = getActiveTheme.get() as { active_theme_id: string } | undefined;
-      const activeTheme = themeData?.active_theme_id || 'christmas';
+      const activeTheme = normalizeThemeId(themeData?.active_theme_id);
       videos = getYouTubeVideosByTheme.all(activeTheme);
     }
 

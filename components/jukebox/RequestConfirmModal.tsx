@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react';
 import { formatClock, songDetailsLine, type CatalogSong } from '@/lib/jukebox-display';
-import type { ThemeAccent } from './theme-accent';
 
 interface RequestConfirmModalProps {
   song: CatalogSong;
@@ -15,7 +14,6 @@ interface RequestConfirmModalProps {
   onRequesterNameChange: (name: string) => void;
   onConfirm: () => void;
   onCancel: () => void;
-  accent: ThemeAccent;
 }
 
 function waitText(position: number, currentRemainingSec: number | null, waitSec: number | null): string {
@@ -37,7 +35,6 @@ export default function RequestConfirmModal({
   onRequesterNameChange,
   onConfirm,
   onCancel,
-  accent,
 }: RequestConfirmModalProps) {
   const details = songDetailsLine(song);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -67,13 +64,13 @@ export default function RequestConfirmModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="request-dialog-title"
-        className="w-full max-w-md rounded-2xl border border-white/15 bg-slate-950 p-5 text-white shadow-2xl"
+        className="sp-modal w-full max-w-md rounded-[1.25rem] p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="request-dialog-title" className="text-lg font-bold">Request this song?</h2>
-        <p className="mt-2 text-xl font-extrabold themed-font">{song.title || song.name}</p>
-        {details && <p className="text-sm text-white/70">{details}</p>}
-        <p className="mt-2 text-sm text-white/80">{waitText(position, currentRemainingSec, waitSec)}</p>
+        <h2 id="request-dialog-title" className="sp-eyebrow">Request this song?</h2>
+        <p className="sp-display sp-title mt-2 text-2xl leading-tight">{song.title || song.name}</p>
+        {details && <p className="sp-muted text-sm">{details}</p>}
+        <p className="mt-2 text-sm">{waitText(position, currentRemainingSec, waitSec)}</p>
 
         <form
           className="mt-4 space-y-4"
@@ -83,7 +80,7 @@ export default function RequestConfirmModal({
           }}
         >
           <label className="block">
-            <span className="text-sm font-medium text-white/90">Your name (optional)</span>
+            <span className="text-sm font-medium">Your name (optional)</span>
             <input
               ref={nameRef}
               type="text"
@@ -91,21 +88,14 @@ export default function RequestConfirmModal({
               onChange={(e) => onRequesterNameChange(e.target.value)}
               maxLength={50}
               placeholder="Shown in the queue"
-              className={`mt-1.5 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-2.5 text-white placeholder-white/50 focus:outline-none focus-visible:ring-2 ${accent.focus}`}
+              className="sp-input mt-1.5 w-full rounded-xl px-3 py-2.5"
             />
           </label>
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="min-h-11 flex-1 rounded-xl border border-white/20 bg-white/10 font-semibold transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-            >
+            <button type="button" onClick={onCancel} className="sp-btn-quiet min-h-11 flex-1 rounded-full font-semibold transition">
               Cancel
             </button>
-            <button
-              type="submit"
-              className={`min-h-11 flex-1 rounded-xl font-bold transition focus:outline-none focus-visible:ring-2 ${accent.focus} ${accent.button}`}
-            >
+            <button type="submit" className="sp-btn-accent min-h-11 flex-1 rounded-full font-extrabold transition">
               Add to queue
             </button>
           </div>
