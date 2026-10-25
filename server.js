@@ -8,7 +8,6 @@
 // Plain CommonJS: Next.js doesn't compile this file. Based on
 // https://nextjs.org/docs/app/guides/custom-server
 
-/* eslint-disable @typescript-eslint/no-require-imports -- plain CommonJS run directly by Node */
 const http = require('http');
 const net = require('net');
 

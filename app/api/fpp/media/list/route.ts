@@ -60,7 +60,7 @@ export async function GET() {
     const allowedExtensions = ['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac'];
     
     // FPP returns an array of file objects or strings
-    let fileList = Array.isArray(data) ? data : [];
+    const fileList = Array.isArray(data) ? data : [];
     
     const audioFiles = fileList
       .filter((file: any) => {

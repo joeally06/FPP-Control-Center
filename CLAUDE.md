@@ -92,7 +92,7 @@ Test: "Would a senior engineer call this overcomplicated?" If yes, simplify.
 - Do NOT refactor things that are not broken. Match the existing style.
 - Unrelated dead code: mention it in your summary — do NOT delete it.
 - Remove imports/variables/functions that YOUR changes made unused; nothing else.
-- Do NOT "fix" pre-existing lint errors in files you touch unless asked (see lint baseline below).
+- Do NOT "fix" pre-existing lint warnings in files you touch unless asked (see lint baseline below).
 
 Test: every changed line must trace directly to the user's request.
 
@@ -150,7 +150,7 @@ Language: **TypeScript** (a few legacy `.js` utility scripts in `scripts/` and r
 |---|---|---|
 | Typecheck | `npx tsc --noEmit` | ~12 s. Clean at baseline |
 | Lint (changed files) | `npx eslint <file> [<file>…]` | see **Lint baseline** |
-| Lint (everything) | `npm run lint` | ~40 s. **Fails at baseline** (349 errors / 110 files) |
+| Lint (everything) | `npm run lint` | ~40 s. Exits 0 (warnings only); CI gate |
 | Unit-style tests | `node -r esbuild-register scripts/test-<name>.ts` | run individually, see **Tests** |
 | Build | `npm run build` | ~22 s. Writes `.next/` (gitignored). Skips background services |
 | Security env check | `node -r esbuild-register scripts/check-security.js` | what CI runs; reads env, no side effects |
@@ -168,15 +168,17 @@ script individually** and report per-script results:
 `test-jukebox-display`, `test-jukebox-audience`, `test-theme-assets`, `test-poll-timing`, `test-santa-confirmation`, `test-client-ip`, `test-show-schedule`. All of them pass; any failure counts against the change.
 
 New logic gets a new `scripts/test-<name>.ts` (pattern: `scripts/test-trivia-logic.ts`) and is
-appended to the `test:ci` script in `package.json`. `.github/workflows/ci.yml` lists tests
-explicitly; update it only if the user asks.
+appended to the `test:ci` script in `package.json` — CI runs `npm run test:ci`, so that is the
+only list to update.
 
 ### Lint baseline
 
-`npm run lint` currently reports 349 errors across 110 files (mostly `no-explicit-any`,
-`no-unused-vars`, `react/no-unescaped-entities`). The gate is therefore **"no new lint errors
-in the files you touched"**: run `npx eslint` on those files before and after, and compare.
-Never mass-fix unrelated lint errors as part of a task; mention the opportunity instead.
+`npm run lint` exits 0. Existing debt (`no-explicit-any`, `react/no-unescaped-entities`,
+`react-hooks/set-state-in-effect`, `react-hooks/immutability`, plus `no-unused-vars`) is
+downgraded to **warnings** in `eslint.config.mjs`; every other rule is an error and fails CI.
+The gate is **"`npm run lint` exits 0, and no new warnings in the files you touched"**: run
+`npx eslint` on those files before and after, and compare.
+Never mass-fix unrelated lint warnings as part of a task; mention the opportunity instead.
 Note `eslint.config.mjs` ignores `scripts/**`, `migrations/**`, shell/PowerShell files.
 
 ### Repository Layout
@@ -395,7 +397,7 @@ is not defined). Phase 6 is therefore these commands, run from the repo root in 
 stopping at the first failure:
 
 1. `npx tsc --noEmit` — exit code MUST be 0
-2. `npx eslint <every touched .ts/.tsx file>` — no errors beyond the pre-change baseline for those files
+2. `npx eslint <every touched .ts/.tsx file>` — no errors, and no warnings beyond the pre-change baseline for those files
 3. Each `scripts/test-*.ts` listed under **Tests**, individually, with `node -r esbuild-register` —
    all MUST exit 0
 4. `npm run build` — exit code MUST be 0

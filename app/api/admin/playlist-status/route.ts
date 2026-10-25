@@ -168,7 +168,7 @@ export async function GET(request: NextRequest) {
       const sequenceName = entry.sequenceName;
       
       // Priority: 1) Manual mapping, 2) FPP mediaName
-      let audioFile = mappings[sequenceName] || entry.mediaName || '';
+      const audioFile = mappings[sequenceName] || entry.mediaName || '';
 
       // Determine status
       let status: 'ready' | 'missing_local' | 'needs_mapping' = 'ready';

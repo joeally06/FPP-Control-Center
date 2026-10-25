@@ -33,10 +33,16 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # The build loads route modules that need the schema; this creates a throwaway
+      # votes.db on the runner, as `npm run setup` does on a fresh install
+      - name: Initialize database
+        run: node scripts/init-database.js
+
       - name: Build
         env:
           NODE_ENV: production
-          NEXTAUTH_SECRET: testsecret
+          # Placeholder for the build only; must pass the app's secret-strength check
+          NEXTAUTH_SECRET: ci-build-placeholder-NOT-A-REAL-SECRET-0123456789
           NEXTAUTH_URL: http://localhost:3000
           GOOGLE_CLIENT_ID: test
           GOOGLE_CLIENT_SECRET: test
@@ -46,20 +52,5 @@ jobs:
           SMTP_AUTH_PASS: test
         run: npm run build
 
-      - name: Run email retry tests
-        run: node -r esbuild-register scripts/test-email-retries.ts
-
-      - name: Run email auth fail test
-        run: node -r esbuild-register scripts/test-email-retries-auth-fail.ts
-
-      - name: Run jukebox queue transaction test
-        run: node -r esbuild-register scripts/test-jukebox-queue-transaction.ts
-
-      - name: Run request-status test
-        run: node -r esbuild-register scripts/test-request-status.ts
-
-      - name: Run time-utils test
-        run: node -r esbuild-register scripts/test-time-utils.ts
-
-      - name: Run migration runner test
-        run: node -r esbuild-register scripts/test-migrations.ts
+      - name: Run tests
+        run: npm run test:ci

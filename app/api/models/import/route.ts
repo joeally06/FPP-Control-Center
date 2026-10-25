@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     `);
 
     let imported = 0;
-    let errors: string[] = [];
+    const errors: string[] = [];
 
     for (const row of data as any[]) {
       try {
