@@ -1,7 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import AdminLayout from '@/components/AdminLayout';
+import RequestVoteAnalytics from '@/components/analytics/RequestVoteAnalytics';
 import {
   AdminH1,
   AdminH2,
@@ -54,7 +57,48 @@ interface AnalyticsData {
   };
 }
 
+// useSearchParams needs a Suspense boundary on this prerendered page
 export default function AnalyticsPage() {
+  return (
+    <AdminLayout>
+      <Suspense fallback={null}>
+        <AnalyticsViews />
+      </Suspense>
+    </AdminLayout>
+  );
+}
+
+const VIEWS = [
+  { key: 'overview', label: 'Overview', href: '/analytics' },
+  { key: 'requests', label: 'Requests & votes', href: '/analytics?view=requests' },
+] as const;
+
+// Two views in one page: site analytics, and the requests & votes analytics that used to live at /admin
+function AnalyticsViews() {
+  const view = useSearchParams().get('view') === 'requests' ? 'requests' : 'overview';
+
+  return (
+    <>
+      <nav aria-label="Analytics views" className="mb-6 flex gap-1 overflow-x-auto border-b border-adm-line">
+        {VIEWS.map((v) => (
+          <Link
+            key={v.key}
+            href={v.href}
+            aria-current={view === v.key ? 'page' : undefined}
+            className={`inline-flex min-h-11 items-center whitespace-nowrap border-b-2 px-3.5 text-sm font-medium transition-colors ${
+              view === v.key ? 'border-adm-accent text-adm-text' : 'border-transparent text-adm-muted hover:text-adm-text'
+            }`}
+          >
+            {v.label}
+          </Link>
+        ))}
+      </nav>
+      {view === 'requests' ? <RequestVoteAnalytics /> : <SiteAnalytics />}
+    </>
+  );
+}
+
+function SiteAnalytics() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'7d' | '30d'>('7d');
@@ -271,19 +315,16 @@ export default function AnalyticsPage() {
 
   if (loading || !data) {
     return (
-      <AdminLayout>
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent mx-auto mb-4"></div>
             <AdminText>Loading analytics...</AdminText>
           </div>
         </div>
-      </AdminLayout>
     );
   }
 
   return (
-    <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
@@ -780,6 +821,5 @@ export default function AnalyticsPage() {
           </div>
         </div>
       </div>
-    </AdminLayout>
   );
 }

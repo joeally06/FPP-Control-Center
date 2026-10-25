@@ -1,12 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { Suspense, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ChartColumn, CircleHelp, Clapperboard, Database, Ellipsis, ExternalLink, LogOut, Mail, MapPin, Menu,
-  Monitor, Music, Palette, Play, Radio, RefreshCw, Server, Settings, Sparkles, TreePine, X,
+  Monitor, Music, Palette, Play, Radio, RefreshCw, Server, Sparkles, TreePine, X,
   type LucideIcon,
 } from 'lucide-react';
 import TimezoneIndicator from './TimezoneIndicator';
@@ -16,67 +16,53 @@ interface NavItem {
   name: string;
   href: string;
   icon: LucideIcon;
-  /** Settings page section this item opens (`/settings?section=…`) */
-  section?: string;
-  /** Extra paths that also mark this item active */
-  alsoActiveOn?: string[];
   /** Label in the phone bottom bar; items without one only appear in the sidebar */
   short?: string;
 }
 
-// Settings sections still live on /settings until they get their own pages; the links open them directly
 const NAV_GROUPS: { label: string | null; items: NavItem[] }[] = [
   { label: null, items: [{ name: 'Show', href: '/', icon: Play, short: 'Show' }] },
   {
     label: 'Content',
     items: [
       { name: 'Media library', href: '/media', icon: Music },
-      { name: 'Videos', href: '/settings?section=youtube', icon: Clapperboard, section: 'youtube' },
+      { name: 'Videos', href: '/settings/videos', icon: Clapperboard },
       { name: 'Models', href: '/models', icon: TreePine },
       { name: 'Themes', href: '/theme-settings', icon: Palette },
-      { name: 'Digital sign', href: '/settings?section=display', icon: Monitor, section: 'display' },
+      { name: 'Digital sign', href: '/settings/display', icon: Monitor },
     ],
   },
   {
     label: 'Visitors',
     items: [
-      { name: 'Jukebox', href: '/settings?section=jukebox', icon: Radio, section: 'jukebox', short: 'Jukebox' },
+      { name: 'Jukebox', href: '/settings/jukebox', icon: Radio, short: 'Jukebox' },
       { name: 'Santa letters', href: '/santa-letters', icon: Mail, short: 'Letters' },
-      { name: 'Trivia', href: '/settings?section=trivia', icon: CircleHelp, section: 'trivia' },
-      { name: 'Location limits', href: '/settings?section=location', icon: MapPin, section: 'location' },
+      { name: 'Trivia', href: '/settings/trivia', icon: CircleHelp },
+      { name: 'Location limits', href: '/settings/location', icon: MapPin },
     ],
   },
   {
     label: 'Insights',
-    items: [{ name: 'Analytics', href: '/analytics', icon: ChartColumn, alsoActiveOn: ['/admin'] }],
+    items: [{ name: 'Analytics', href: '/analytics', icon: ChartColumn }],
   },
   {
     label: 'System',
     items: [
       { name: 'Devices', href: '/device-status', icon: Server, short: 'Devices' },
-      { name: 'Database', href: '/settings?section=database', icon: Database, section: 'database' },
-      { name: 'Updates', href: '/settings?section=updates', icon: RefreshCw, section: 'updates' },
-      { name: 'All settings', href: '/settings', icon: Settings },
+      { name: 'Database', href: '/settings/database', icon: Database },
+      { name: 'Updates', href: '/settings/updates', icon: RefreshCw },
     ],
   },
 ];
 
 const ALL_ITEMS = NAV_GROUPS.flatMap((group) => group.items);
-const SECTIONS_IN_NAV = ALL_ITEMS.flatMap((item) => (item.section ? [item.section] : []));
-
-function isActive(item: NavItem, pathname: string, section: string | null) {
-  if (item.section) return pathname === '/settings' && section === item.section;
-  // "All settings" covers the settings sections that have no item of their own
-  if (item.href === '/settings') return pathname === '/settings' && !SECTIONS_IN_NAV.includes(section ?? '');
-  return pathname === item.href || (item.alsoActiveOn ?? []).includes(pathname);
-}
 
 function initials(name: string | null | undefined) {
   const letters = (name ?? '').split(/\s+/).filter(Boolean).map((word) => word[0]).slice(0, 2).join('');
   return letters.toUpperCase() || '?';
 }
 
-function Nav({ section }: { section: string | null }) {
+export default function AdminNavigation() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -90,7 +76,7 @@ function Nav({ section }: { section: string | null }) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [drawerOpen]);
 
-  const current = ALL_ITEMS.find((item) => isActive(item, pathname, section));
+  const current = ALL_ITEMS.find((item) => item.href === pathname);
   const currentGroup = NAV_GROUPS.find((group) => current && group.items.includes(current))?.label;
   const closeDrawer = () => setDrawerOpen(false);
 
@@ -257,20 +243,5 @@ function Nav({ section }: { section: string | null }) {
         </button>
       </nav>
     </>
-  );
-}
-
-function NavWithSection() {
-  const searchParams = useSearchParams();
-  return <Nav section={searchParams.get('section')} />;
-}
-
-// useSearchParams needs a Suspense boundary on prerendered pages; the fallback is the same
-// nav without the settings-section highlight, so most pages render identically before hydration
-export default function AdminNavigation() {
-  return (
-    <Suspense fallback={<Nav section={null} />}>
-      <NavWithSection />
-    </Suspense>
   );
 }

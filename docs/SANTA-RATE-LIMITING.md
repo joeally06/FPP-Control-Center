@@ -100,7 +100,7 @@ someone else's address, so two more checks apply (`lib/santa-confirmation.ts`):
    after 72 hours and work once; only a SHA-256 of the token is stored
    (`santa_letter_confirmations`, migration 022). If the confirmation email can't be sent, the
    letter is removed so it doesn't use up the parent's daily allowance.
-2. **Daily cap for all visitors.** Settings → Santa Letter Configuration → *Daily Letter Cap*
+2. **Daily cap for all visitors.** Santa letters → Settings tab → Santa Letter Configuration → *Daily Letter Cap*
    (`santa_daily_cap`, default 50, 1–1000). Once that many letters arrive in a UTC day, new ones
    get "Santa's mailbag is full for today" (429, `reason: 'daily_cap'`).
 

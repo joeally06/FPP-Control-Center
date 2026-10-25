@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/components/AdminLayout';
+import MonitoringSettings from '@/components/admin/MonitoringSettings';
 import { formatDateTime } from '@/lib/time-utils';
 import { TIMING } from '@/lib/constants';
 import { 
@@ -473,6 +474,11 @@ export default function DeviceStatusPage() {
             </button>
           </div>
         )}
+
+        {/* Monitoring schedule (moved here from Settings) */}
+        <div className="mt-8">
+          <MonitoringSettings onSaved={loadSchedule} />
+        </div>
 
         {/* Add Device Modal */}
         {showAddModal && (

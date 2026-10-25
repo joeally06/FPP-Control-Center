@@ -35,7 +35,7 @@ FPP Control Center is a **complete web-based control panel** for your Falcon Pla
 - **Email Delivery** - Parents confirm their email address with a link first; Santa's reply is sent only after they do
 - **Admin Review** - Reject a letter before it's answered, edit replies and resend them
 - **Queue Processing** - Handles multiple submissions gracefully
-- **Rate Limiting** - Daily limit per email address and per visitor, plus a daily cap for all visitors together (Settings page)
+- **Rate Limiting** - Daily limit per email address and per visitor, plus a daily cap for all visitors together (Santa letters page → Settings tab)
 
 ### 📊 **Real-Time Monitoring**
 - **Device Status** - Live FPP connection status

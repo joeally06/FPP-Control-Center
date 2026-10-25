@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '@/components/AdminLayout';
+import SantaLetterSettings from '@/components/admin/SantaLetterSettings';
 import { formatDateTime, parseDbTimestamp } from '@/lib/time-utils';
 import { 
   AdminH1, 
@@ -57,6 +58,7 @@ export default function SantaLettersPage() {
   const [editReply, setEditReply] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
   const [updating, setUpdating] = useState(false);
+  const [tab, setTab] = useState<'letters' | 'settings'>('letters');
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -245,6 +247,26 @@ export default function SantaLettersPage() {
           <AdminText>Manage letters from children to Santa Claus</AdminText>
         </div>
 
+        {/* Letters | Settings (the settings moved here from the Settings page) */}
+        <div role="tablist" aria-label="Santa letters sections" className="mb-6 flex gap-1 overflow-x-auto border-b border-adm-line">
+          {(['letters', 'settings'] as const).map((key) => (
+            <button
+              key={key}
+              role="tab"
+              aria-selected={tab === key}
+              onClick={() => setTab(key)}
+              className={`min-h-11 whitespace-nowrap border-b-2 px-3.5 text-sm font-medium capitalize transition-colors ${
+                tab === key ? 'border-adm-accent text-adm-text' : 'border-transparent text-adm-muted hover:text-adm-text'
+              }`}
+            >
+              {key}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'settings' && <SantaLetterSettings />}
+
+        {tab === 'letters' && (<>
         {/* Simplified Stats - Two Rows */}
         <div className="space-y-4 mb-6">
           {/* Letter Overview */}
@@ -532,6 +554,7 @@ export default function SantaLettersPage() {
             </div>
           </div>
         )}
+        </>)}
       </div>
     </AdminLayout>
   );

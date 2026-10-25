@@ -654,7 +654,7 @@ export default function Home() {
         <section aria-labelledby="up-next-heading" className={card}>
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 id="up-next-heading" className={cardTitle}>Up next</h2>
-            <Link href="/settings?section=jukebox" className={textLink}>Jukebox</Link>
+            <Link href="/settings/jukebox" className={textLink}>Jukebox</Link>
           </div>
           {queue.length === 0 ? (
             <p className="text-sm text-adm-muted">No requests waiting</p>
@@ -678,7 +678,7 @@ export default function Home() {
         <section aria-labelledby="today-heading" className="lg:col-span-3">
           <div className="mb-2.5 flex items-center justify-between gap-3">
             <h2 id="today-heading" className={eyebrow}>Today</h2>
-            <Link href="/admin" className={textLink}>Request &amp; vote analytics</Link>
+            <Link href="/analytics?view=requests" className={textLink}>Request &amp; vote analytics</Link>
           </div>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
             {[
