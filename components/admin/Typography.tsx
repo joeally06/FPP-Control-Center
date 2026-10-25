@@ -20,7 +20,7 @@ interface LabelProps extends TypographyProps {
 /**
  * Page Title (H1)
  * Usage: Main page headings
- * Color: White, Size: 4xl, Weight: Bold
+ * Color: adm-text, Size: 2xl-3xl, Weight: Semibold
  */
 export const AdminH1 = ({ children, className = '' }: TypographyProps) => (
   <h1 className={`admin-h1 ${className}`}>
@@ -31,7 +31,7 @@ export const AdminH1 = ({ children, className = '' }: TypographyProps) => (
 /**
  * Section Title (H2)
  * Usage: Major section headings
- * Color: White, Size: 2xl, Weight: Bold
+ * Color: adm-text, Size: lg, Weight: Semibold
  */
 export const AdminH2 = ({ children, className = '' }: TypographyProps) => (
   <h2 className={`admin-h2 ${className}`}>
@@ -42,7 +42,7 @@ export const AdminH2 = ({ children, className = '' }: TypographyProps) => (
 /**
  * Subsection Title (H3)
  * Usage: Subsection headings
- * Color: White, Size: xl, Weight: Semibold
+ * Color: adm-text, Size: 15px, Weight: Semibold
  */
 export const AdminH3 = ({ children, className = '' }: TypographyProps) => (
   <h3 className={`admin-h3 ${className}`}>
@@ -53,10 +53,10 @@ export const AdminH3 = ({ children, className = '' }: TypographyProps) => (
 /**
  * Card/Small Section Title (H4)
  * Usage: Card headers, small sections
- * Color: White, Size: lg, Weight: Semibold
+ * Color: adm-text, Size: 15px, Weight: Semibold
  */
 export const AdminH4 = ({ children, className = '' }: TypographyProps) => (
-  <h4 className={`text-lg font-semibold mb-2 text-white ${className}`}>
+  <h4 className={`text-[15px] font-semibold mb-2 text-adm-text ${className}`}>
     {children}
   </h4>
 );
@@ -66,7 +66,7 @@ export const AdminH4 = ({ children, className = '' }: TypographyProps) => (
 /**
  * Body Text
  * Usage: Default paragraph text
- * Color: White 80%, Size: base
+ * Color: soft grey (--admin-text-secondary), Size: 15px
  */
 export const AdminText = ({ children, className = '' }: TypographyProps) => (
   <p className={`admin-text ${className}`}>
@@ -77,7 +77,7 @@ export const AdminText = ({ children, className = '' }: TypographyProps) => (
 /**
  * Muted Text
  * Usage: Helper text, descriptions, captions
- * Color: White 60%, Size: sm
+ * Color: muted grey (--admin-text-muted), Size: sm
  */
 export const AdminTextMuted = ({ children, className = '' }: TypographyProps) => (
   <p className={`admin-text-muted ${className}`}>
@@ -88,7 +88,7 @@ export const AdminTextMuted = ({ children, className = '' }: TypographyProps) =>
 /**
  * Small Text
  * Usage: Very small helper text
- * Color: White 60%, Size: sm
+ * Color: muted grey (--admin-text-muted), Size: sm
  * Alias for AdminTextMuted for semantic clarity
  */
 export const AdminTextSmall = AdminTextMuted;
@@ -96,10 +96,10 @@ export const AdminTextSmall = AdminTextMuted;
 /**
  * Tiny Text
  * Usage: Extremely small labels, timestamps
- * Color: White 50%, Size: xs
+ * Color: adm-faint, Size: xs
  */
 export const AdminTextTiny = ({ children, className = '' }: TypographyProps) => (
-  <p className={`text-xs text-white/50 ${className}`}>
+  <p className={`text-xs text-adm-faint ${className}`}>
     {children}
   </p>
 );
@@ -109,7 +109,7 @@ export const AdminTextTiny = ({ children, className = '' }: TypographyProps) => 
 /**
  * Form Label
  * Usage: Labels for form inputs
- * Color: White, Size: sm, Weight: Medium
+ * Color: soft grey (--admin-text-secondary), Size: 13px, Weight: Medium
  */
 export const AdminLabel = ({ children, className = '', htmlFor }: LabelProps) => (
   <label htmlFor={htmlFor} className={`admin-label ${className}`}>
@@ -122,10 +122,10 @@ export const AdminLabel = ({ children, className = '', htmlFor }: LabelProps) =>
 /**
  * Large Value Display
  * Usage: Statistics, metrics, big numbers
- * Color: White, Size: 3xl, Weight: Bold
+ * Color: adm-text, Size: 3xl, Weight: Semibold
  */
 export const AdminValue = ({ children, className = '' }: TypographyProps) => (
-  <div className={`text-3xl font-bold text-white ${className}`}>
+  <div className={`text-3xl font-semibold text-adm-text ${className}`}>
     {children}
   </div>
 );
@@ -133,10 +133,10 @@ export const AdminValue = ({ children, className = '' }: TypographyProps) => (
 /**
  * Medium Value Display
  * Usage: Smaller stats
- * Color: White, Size: 2xl, Weight: Bold
+ * Color: adm-text, Size: 2xl, Weight: Semibold
  */
 export const AdminValueMedium = ({ children, className = '' }: TypographyProps) => (
-  <div className={`text-2xl font-bold text-white ${className}`}>
+  <div className={`text-2xl font-semibold text-adm-text ${className}`}>
     {children}
   </div>
 );
@@ -146,10 +146,10 @@ export const AdminValueMedium = ({ children, className = '' }: TypographyProps) 
 /**
  * Success Message
  * Usage: Success notifications
- * Color: Green 200, Size: sm
+ * Color: adm-ok, Size: sm
  */
 export const AdminSuccess = ({ children, className = '' }: TypographyProps) => (
-  <p className={`text-green-200 text-sm ${className}`}>
+  <p className={`text-adm-ok text-sm ${className}`}>
     {children}
   </p>
 );
@@ -157,10 +157,10 @@ export const AdminSuccess = ({ children, className = '' }: TypographyProps) => (
 /**
  * Error Message
  * Usage: Error notifications
- * Color: Red 200, Size: sm
+ * Color: adm-danger, Size: sm
  */
 export const AdminError = ({ children, className = '' }: TypographyProps) => (
-  <p className={`text-red-200 text-sm ${className}`}>
+  <p className={`text-adm-danger text-sm ${className}`}>
     {children}
   </p>
 );
@@ -168,10 +168,10 @@ export const AdminError = ({ children, className = '' }: TypographyProps) => (
 /**
  * Warning Message
  * Usage: Warning notifications
- * Color: Amber 200, Size: sm
+ * Color: adm-warn, Size: sm
  */
 export const AdminWarning = ({ children, className = '' }: TypographyProps) => (
-  <p className={`text-amber-200 text-sm ${className}`}>
+  <p className={`text-adm-warn text-sm ${className}`}>
     {children}
   </p>
 );
@@ -179,10 +179,10 @@ export const AdminWarning = ({ children, className = '' }: TypographyProps) => (
 /**
  * Info Message
  * Usage: Informational notifications
- * Color: Blue 200, Size: sm
+ * Color: adm-info, Size: sm
  */
 export const AdminInfo = ({ children, className = '' }: TypographyProps) => (
-  <p className={`text-blue-200 text-sm ${className}`}>
+  <p className={`text-adm-info text-sm ${className}`}>
     {children}
   </p>
 );
@@ -191,7 +191,7 @@ export const AdminInfo = ({ children, className = '' }: TypographyProps) => (
 
 /**
  * Card Container
- * Usage: Card wrapper with glassmorphism
+ * Usage: Card wrapper (dark surface)
  */
 export const AdminCard = ({ children, className = '' }: TypographyProps) => (
   <div className={`admin-card ${className}`}>

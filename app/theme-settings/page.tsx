@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '@/components/AdminLayout';
+import AdminLoadingScreen from '@/components/admin/AdminLoadingScreen';
 import {
   getAllThemes,
   NO_ASSETS,
@@ -125,14 +126,7 @@ export default function ThemeSettings() {
 
   // Show loading while checking authentication
   if (sessionStatus === 'loading' || (isAdmin && isLoading)) {
-    return (
-      <div className="min-h-screen bg-linear-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-xl text-white">Loading...</p>
-        </div>
-      </div>
-    );
+    return <AdminLoadingScreen />;
   }
 
   if (!isAdmin) {

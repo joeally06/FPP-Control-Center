@@ -2,25 +2,26 @@
 
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '@/components/AdminLayout';
 import SantaLetterSettings from '@/components/admin/SantaLetterSettings';
 import { formatDateTime, parseDbTimestamp } from '@/lib/time-utils';
 import { 
   AdminH1, 
-  AdminH2, 
   AdminH3,
   AdminText, 
-  AdminTextSmall,
   AdminTextTiny,
   AdminLabel,
   AdminValue,
-  AdminValueMedium,
   AdminSuccess,
   AdminError,
   AdminWarning,
   AdminInfo
 } from '@/components/admin/Typography';
+import {
+  badge, button, card, cardTitle, dangerButton, eyebrow, field, insetBox, smallButton, tabClass,
+} from '@/components/admin/ui-classes';
 
 interface SantaLetter {
   id: number;
@@ -206,30 +207,53 @@ export default function SantaLettersPage() {
 
   const getStatusBadge = (status: string) => {
     const badges = {
-      pending: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      approved: 'bg-blue-100 text-blue-800 border-blue-300',
-      sent: 'bg-green-100 text-green-800 border-green-300',
-      rejected: 'bg-red-100 text-red-800 border-red-300',
+      pending: badge.warn,
+      approved: badge.info,
+      sent: badge.ok,
+      rejected: badge.danger,
     };
-    return badges[status as keyof typeof badges] || 'bg-gray-100 text-gray-800 border-gray-300';
+    return badges[status as keyof typeof badges] || badge.neutral;
   };
 
   const getQueueBadge = (queueStatus: string) => {
     const badges = {
-      queued: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      processing: 'bg-blue-100 text-blue-800 border-blue-300 animate-pulse',
-      completed: 'bg-green-100 text-green-800 border-green-300',
-      failed: 'bg-red-100 text-red-800 border-red-300',
+      queued: badge.warn,
+      processing: `${badge.info} animate-pulse`,
+      completed: badge.ok,
+      failed: badge.danger,
     };
-    return badges[queueStatus as keyof typeof badges] || 'bg-gray-100 text-gray-800 border-gray-300';
+    return badges[queueStatus as keyof typeof badges] || badge.neutral;
   };
+
+  const openLetter = (letter: SantaLetter) => {
+    setSelectedLetter(letter);
+    setEditReply(letter.santa_reply || '');
+    setAdminNotes(letter.admin_notes || '');
+  };
+
+  // Queue column: parents who haven't confirmed yet, otherwise the reply queue state
+  const queueBadge = (letter: SantaLetter) =>
+    isAwaitingParent(letter) ? (
+      <span className={isLinkExpired(letter) ? badge.neutral : badge.warn}>
+        {isLinkExpired(letter) ? 'link expired' : 'awaiting parent'}
+      </span>
+    ) : (
+      <span className={getQueueBadge(letter.queue_status)}>{letter.queue_status}</span>
+    );
+
+  const stat = (label: string, value: number, tone: string) => (
+    <div className={insetBox}>
+      <p className={eyebrow}>{label}</p>
+      <p className={`mt-1 font-mono text-2xl font-semibold ${tone}`}>{value}</p>
+    </div>
+  );
 
   if (status === 'loading' || loading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-red-600 mx-auto mb-4"></div>
+        <div className="flex h-96 items-center justify-center">
+          <div role="status" className="flex flex-col items-center gap-4">
+            <div className="h-10 w-10 animate-spin rounded-full border-2 border-adm-line border-t-adm-accent" aria-hidden="true"></div>
             <AdminText>Loading Santa letters...</AdminText>
           </div>
         </div>
@@ -241,9 +265,7 @@ export default function SantaLettersPage() {
     <AdminLayout>
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
-          <AdminH1 className="flex items-center gap-2">
-            🎅 Santa Letters Dashboard 🎄
-          </AdminH1>
+          <AdminH1>Santa letters</AdminH1>
           <AdminText>Manage letters from children to Santa Claus</AdminText>
         </div>
 
@@ -255,9 +277,7 @@ export default function SantaLettersPage() {
               role="tab"
               aria-selected={tab === key}
               onClick={() => setTab(key)}
-              className={`min-h-11 whitespace-nowrap border-b-2 px-3.5 text-sm font-medium capitalize transition-colors ${
-                tab === key ? 'border-adm-accent text-adm-text' : 'border-transparent text-adm-muted hover:text-adm-text'
-              }`}
+              className={`${tabClass(tab === key)} capitalize`}
             >
               {key}
             </button>
@@ -267,175 +287,130 @@ export default function SantaLettersPage() {
         {tab === 'settings' && <SantaLetterSettings />}
 
         {tab === 'letters' && (<>
-        {/* Simplified Stats - Two Rows */}
-        <div className="space-y-4 mb-6">
-          {/* Letter Overview */}
-          <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
-            <AdminH3 className="mb-4">📊 Letter Overview</AdminH3>
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-              <div className="text-center p-4 bg-white/5 rounded-lg border border-white/10">
-                <AdminTextSmall className="mb-2">Total Letters</AdminTextSmall>
-                <AdminValueMedium>{letters.length}</AdminValueMedium>
-              </div>
-              <div className="text-center p-4 bg-yellow-500/20 rounded-lg border border-yellow-500/30">
-                <AdminTextSmall className="mb-2 text-yellow-200">Not Yet Answered</AdminTextSmall>
-                <AdminValueMedium className="text-yellow-100">
-                  {letters.filter(l => l.status === 'pending').length}
-                </AdminValueMedium>
-              </div>
-              <div className="text-center p-4 bg-green-500/20 rounded-lg border border-green-500/30">
-                <AdminTextSmall className="mb-2 text-green-200">Sent Successfully</AdminTextSmall>
-                <AdminValueMedium className="text-green-100">
-                  {letters.filter(l => l.status === 'sent').length}
-                </AdminValueMedium>
-              </div>
-              <div className="text-center p-4 bg-red-500/20 rounded-lg border border-red-500/30">
-                <AdminTextSmall className="mb-2 text-red-200">Failed/Rejected</AdminTextSmall>
-                <AdminValueMedium className="text-red-100">
-                  {letters.filter(l => l.status === 'rejected' || l.queue_status === 'failed').length}
-                </AdminValueMedium>
-              </div>
+        {/* Stats */}
+        <div className="mb-4 grid gap-4 lg:grid-cols-2">
+          <section aria-labelledby="letter-overview" className={card}>
+            <h2 id="letter-overview" className={`${cardTitle} mb-3`}>Letter overview</h2>
+            <div className="grid grid-cols-2 gap-3">
+              {stat('Total letters', letters.length, 'text-adm-text')}
+              {stat('Not yet answered', letters.filter(l => l.status === 'pending').length, 'text-adm-warn')}
+              {stat('Sent successfully', letters.filter(l => l.status === 'sent').length, 'text-adm-ok')}
+              {stat('Failed / rejected', letters.filter(l => l.status === 'rejected' || l.queue_status === 'failed').length, 'text-adm-danger')}
             </div>
-          </div>
+          </section>
 
-          {/* Queue Status */}
-          <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
-            <AdminH3 className="mb-4">⚡ Queue Status</AdminH3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center p-4 bg-yellow-500/20 rounded-lg border border-yellow-500/30">
-                <AdminTextSmall className="mb-2 text-yellow-200">Awaiting Parent</AdminTextSmall>
-                <AdminValueMedium className="text-yellow-100">
-                  {letters.filter(l => isAwaitingParent(l) && !isLinkExpired(l)).length}
-                </AdminValueMedium>
-              </div>
-              <div className="text-center p-4 bg-blue-500/20 rounded-lg border border-blue-500/30">
-                <AdminTextSmall className="mb-2 text-blue-200">In Queue</AdminTextSmall>
-                <AdminValueMedium className="text-blue-100">
-                  {letters.filter(l => l.queue_status === 'queued' && !isAwaitingParent(l) && l.status !== 'rejected').length}
-                </AdminValueMedium>
-              </div>
-              <div className="text-center p-4 bg-purple-500/20 rounded-lg border border-purple-500/30">
-                <AdminTextSmall className="mb-2 text-purple-200">Processing</AdminTextSmall>
-                <AdminValueMedium className="text-purple-100">
-                  {letters.filter(l => l.queue_status === 'processing').length}
-                </AdminValueMedium>
-              </div>
-              <div className="text-center p-4 bg-emerald-500/20 rounded-lg border border-emerald-500/30">
-                <AdminTextSmall className="mb-2 text-emerald-200">Completed</AdminTextSmall>
-                <AdminValueMedium className="text-emerald-100">
-                  {letters.filter(l => l.queue_status === 'completed').length}
-                </AdminValueMedium>
-              </div>
+          <section aria-labelledby="queue-status" className={card}>
+            <h2 id="queue-status" className={`${cardTitle} mb-3`}>Queue status</h2>
+            <div className="grid grid-cols-2 gap-3">
+              {stat('Awaiting parent', letters.filter(l => isAwaitingParent(l) && !isLinkExpired(l)).length, 'text-adm-warn')}
+              {stat('In queue', letters.filter(l => l.queue_status === 'queued' && !isAwaitingParent(l) && l.status !== 'rejected').length, 'text-adm-info')}
+              {stat('Processing', letters.filter(l => l.queue_status === 'processing').length, 'text-adm-info')}
+              {stat('Completed', letters.filter(l => l.queue_status === 'completed').length, 'text-adm-ok')}
             </div>
-          </div>
+          </section>
         </div>
 
         {/* Filters and Actions */}
-        <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 mb-6 border border-white/20">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <AdminLabel className="mb-0">Filter:</AdminLabel>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-4 py-2 border border-white/20 rounded-lg bg-white/10 text-white focus:outline-none focus:ring-2 focus:ring-red-500"
-              >
-                <option value="all" className="bg-gray-800 text-white">All Letters</option>
-                <option value="pending" className="bg-gray-800 text-white">Pending</option>
-                <option value="approved" className="bg-gray-800 text-white">Approved</option>
-                <option value="sent" className="bg-gray-800 text-white">Sent</option>
-                <option value="rejected" className="bg-gray-800 text-white">Rejected</option>
-              </select>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={triggerQueueProcessing}
-                disabled={updating}
-                className="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 transition disabled:opacity-50"
-              >
-                ⚡ Process Queue Now
-              </button>
-              <button
-                onClick={fetchLetters}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
-              >
-                🔄 Refresh
-              </button>
-              <button
-                onClick={exportToCSV}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition"
-              >
-                📥 Export CSV
-              </button>
-            </div>
+        <div className={`${card} mb-4 flex flex-wrap items-end justify-between gap-3 p-4`}>
+          <div className="w-full sm:w-56">
+            <AdminLabel htmlFor="letter-filter">Filter</AdminLabel>
+            <select
+              id="letter-filter"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className={field}
+            >
+              <option value="all">All Letters</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="sent">Sent</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={triggerQueueProcessing} disabled={updating} className={button}>
+              Process queue now
+            </button>
+            <button onClick={fetchLetters} className={button}>
+              Refresh
+            </button>
+            <button onClick={exportToCSV} className={button}>
+              Export CSV
+            </button>
           </div>
         </div>
 
-        {/* Letters Table */}
-        <div className="bg-white/10 backdrop-blur-md rounded-xl shadow-lg border border-white/20 overflow-hidden">
+        {/* Letters */}
+        <div className={`${card} overflow-hidden p-0`}>
           {filteredLetters.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px]">
-                <thead className="bg-linear-to-r from-red-600 to-green-600 text-white">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">ID</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Child</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Age</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Email</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Queue</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Created</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/10">
-                  {filteredLetters.map((letter) => (
-                    <tr key={letter.id} className="hover:bg-white/5 transition-colors">
-                      <td className="px-4 py-3"><AdminTextSmall>{letter.id}</AdminTextSmall></td>
-                      <td className="px-4 py-3"><AdminTextSmall className="font-semibold text-white">{letter.child_name}</AdminTextSmall></td>
-                      <td className="px-4 py-3"><AdminTextSmall>{letter.child_age || 'N/A'}</AdminTextSmall></td>
-                      <td className="px-4 py-3"><AdminTextSmall>{letter.parent_email}</AdminTextSmall></td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(letter.status)}`}>
-                          {letter.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-col gap-1">
-                          {isAwaitingParent(letter) ? (
-                            <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${isLinkExpired(letter) ? 'bg-gray-100 text-gray-800 border-gray-300' : 'bg-yellow-100 text-yellow-800 border-yellow-300'}`}>
-                              {isLinkExpired(letter) ? '⌛ link expired' : '✉️ awaiting parent'}
-                            </span>
-                          ) : (
-                            <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${getQueueBadge(letter.queue_status)}`}>
-                              {letter.queue_status === 'processing' ? '⚙️ ' : ''}{letter.queue_status}
-                            </span>
-                          )}
-                          {letter.retry_count > 0 && (
-                            <AdminTextTiny className="text-red-300">
-                              Retries: {letter.retry_count}
-                            </AdminTextTiny>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3"><AdminTextSmall>{formatDateTime(letter.created_at, 'medium')}</AdminTextSmall></td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => {
-                            setSelectedLetter(letter);
-                            setEditReply(letter.santa_reply || '');
-                            setAdminNotes(letter.admin_notes || '');
-                          }}
-                          className="bg-blue-600 text-white px-3 py-1 rounded text-xs font-semibold hover:bg-blue-700 transition"
-                        >
-                          View
-                        </button>
-                      </td>
+            <>
+              {/* Phones: one card per letter */}
+              <ul className="divide-y divide-adm-line md:hidden">
+                {filteredLetters.map((letter) => (
+                  <li key={letter.id} className="flex items-start gap-3 p-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-adm-text">
+                        {letter.child_name}{letter.child_age ? `, ${letter.child_age}` : ''}
+                      </p>
+                      <p className="truncate text-xs text-adm-muted">{letter.parent_email}</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        <span className={getStatusBadge(letter.status)}>{letter.status}</span>
+                        {queueBadge(letter)}
+                        {letter.retry_count > 0 && <span className={badge.danger}>Retries: {letter.retry_count}</span>}
+                      </div>
+                      <p className="mt-1.5 text-xs text-adm-faint">#{letter.id} · {formatDateTime(letter.created_at, 'medium')}</p>
+                    </div>
+                    <button onClick={() => openLetter(letter)} className={smallButton}>
+                      View
+                    </button>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Wider screens: table */}
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full">
+                  <thead className="border-b border-adm-line bg-adm-side">
+                    <tr>
+                      {['ID', 'Child', 'Age', 'Email', 'Status', 'Queue', 'Created', 'Actions'].map((heading) => (
+                        <th key={heading} scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.06em] text-adm-muted">
+                          {heading}
+                        </th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-adm-line">
+                    {filteredLetters.map((letter) => (
+                      <tr key={letter.id} className="transition-colors hover:bg-adm-hover">
+                        <td className="px-4 py-3 font-mono text-[13px] text-adm-muted">{letter.id}</td>
+                        <td className="px-4 py-3 text-sm font-semibold text-adm-text">{letter.child_name}</td>
+                        <td className="px-4 py-3 text-sm text-adm-soft">{letter.child_age || 'N/A'}</td>
+                        <td className="px-4 py-3 text-sm text-adm-soft">{letter.parent_email}</td>
+                        <td className="px-4 py-3">
+                          <span className={getStatusBadge(letter.status)}>{letter.status}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col items-start gap-1">
+                            {queueBadge(letter)}
+                            {letter.retry_count > 0 && (
+                              <AdminTextTiny className="text-adm-danger">
+                                Retries: {letter.retry_count}
+                              </AdminTextTiny>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-adm-soft">{formatDateTime(letter.created_at, 'medium')}</td>
+                        <td className="px-4 py-3">
+                          <button onClick={() => openLetter(letter)} className={smallButton}>
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           ) : (
             <div className="p-8 text-center">
               <AdminText>No letters found for the selected filter.</AdminText>
@@ -445,108 +420,115 @@ export default function SantaLettersPage() {
 
         {/* Letter Detail Modal */}
         {selectedLetter && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-linear-to-br from-gray-900 to-gray-800 rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-white/20">
-              <div className="bg-linear-to-r from-red-600 to-green-600 text-white p-6 rounded-t-xl">
-                <div className="flex items-center justify-between">
-                  <AdminH2 className="mb-0">Letter from {selectedLetter.child_name}</AdminH2>
-                  <button
-                    onClick={() => setSelectedLetter(null)}
-                    className="text-white hover:text-gray-200 text-3xl font-bold"
-                  >
-                    ×
-                  </button>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="letter-dialog-title"
+              className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-adm-control-line bg-adm-surface"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-adm-line p-5">
+                <div>
+                  <h2 id="letter-dialog-title" className="text-lg font-semibold text-adm-text">
+                    Letter from {selectedLetter.child_name}
+                  </h2>
+                  <p className="mt-0.5 text-[13px] text-adm-muted">
+                    Received: {formatDateTime(selectedLetter.created_at, 'long')}
+                  </p>
                 </div>
-                <AdminTextSmall className="mt-1">
-                  Received: {formatDateTime(selectedLetter.created_at, 'long')}
-                </AdminTextSmall>
+                <button
+                  onClick={() => setSelectedLetter(null)}
+                  aria-label="Close"
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-adm-control-line text-adm-text hover:bg-adm-hover"
+                >
+                  <X className="h-4.5 w-4.5" aria-hidden="true" />
+                </button>
               </div>
 
-              <div className="p-6 space-y-6">
+              <div className="space-y-6 p-5">
                 {/* Letter Details */}
                 <div>
-                  <AdminH3>Letter Details</AdminH3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div><AdminTextSmall><strong className="text-white">Child Name:</strong> {selectedLetter.child_name}</AdminTextSmall></div>
-                    <div><AdminTextSmall><strong className="text-white">Age:</strong> {selectedLetter.child_age || 'Not provided'}</AdminTextSmall></div>
-                    <div><AdminTextSmall><strong className="text-white">Parent Email:</strong> {selectedLetter.parent_email}</AdminTextSmall></div>
-                    <div><AdminTextSmall><strong className="text-white">IP Address:</strong> {selectedLetter.ip_address || 'Unknown'}</AdminTextSmall></div>
-                  </div>
+                  <AdminH3>Letter details</AdminH3>
+                  <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+                    <div><dt className="inline font-medium text-adm-text">Child name: </dt><dd className="inline text-adm-soft">{selectedLetter.child_name}</dd></div>
+                    <div><dt className="inline font-medium text-adm-text">Age: </dt><dd className="inline text-adm-soft">{selectedLetter.child_age || 'Not provided'}</dd></div>
+                    <div><dt className="inline font-medium text-adm-text">Parent email: </dt><dd className="inline break-all text-adm-soft">{selectedLetter.parent_email}</dd></div>
+                    <div><dt className="inline font-medium text-adm-text">IP address: </dt><dd className="inline text-adm-soft">{selectedLetter.ip_address || 'Unknown'}</dd></div>
+                  </dl>
                 </div>
 
                 {/* Letter Content */}
                 <div>
-                  <AdminH3>Letter Content</AdminH3>
-                  <div className="bg-white/5 p-4 rounded-lg border border-white/10 whitespace-pre-wrap">
+                  <AdminH3>Letter content</AdminH3>
+                  <div className={`${insetBox} whitespace-pre-wrap`}>
                     <AdminText>{selectedLetter.letter_content}</AdminText>
                   </div>
                 </div>
 
                 {/* Santa's Reply */}
                 <div>
-                  <AdminH3>Santa's Reply</AdminH3>
+                  <AdminH3>Santa&apos;s reply</AdminH3>
                   <textarea
                     value={editReply}
                     onChange={(e) => setEditReply(e.target.value)}
                     rows={10}
-                    className="w-full px-4 py-3 border border-white/20 bg-white/5 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 placeholder:text-white/40"
+                    aria-label="Santa's reply"
+                    className={field}
                     placeholder="Edit Santa's reply..."
                   />
                   <button
                     onClick={() => updateReply(selectedLetter.id, editReply)}
                     disabled={updating}
-                    className="mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+                    className={`${button} mt-2`}
                   >
-                    {updating ? 'Updating...' : 'Update Reply'}
+                    {updating ? 'Updating...' : 'Update reply'}
                   </button>
                 </div>
 
                 {/* Admin Notes */}
                 <div>
-                  <AdminH3>Admin Notes</AdminH3>
+                  <AdminH3>Admin notes</AdminH3>
                   <textarea
                     value={adminNotes}
                     onChange={(e) => setAdminNotes(e.target.value)}
                     rows={3}
-                    className="w-full px-4 py-3 border border-white/20 bg-white/5 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 placeholder:text-white/40"
+                    aria-label="Admin notes"
+                    className={field}
                     placeholder="Internal notes..."
                   />
                 </div>
 
                 {/* Actions */}
-                <div className="flex flex-wrap gap-2 pt-4 border-t border-white/10">
+                <div className="flex flex-wrap gap-2 border-t border-adm-line pt-4">
                   {/* Reject = this letter is never answered; only possible before the reply goes out */}
                   {selectedLetter.status !== 'sent' && selectedLetter.status !== 'rejected' && selectedLetter.queue_status !== 'processing' && (
                     <button
                       onClick={() => updateLetterStatus(selectedLetter.id, 'rejected', adminNotes)}
                       disabled={updating}
-                      className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50"
+                      className={dangerButton}
                     >
-                      ✕ Reject (don&apos;t answer)
+                      Reject (don&apos;t answer)
                     </button>
                   )}
                   {selectedLetter.status === 'rejected' && (
                     <button
                       onClick={() => updateLetterStatus(selectedLetter.id, 'pending', adminNotes)}
                       disabled={updating}
-                      className="bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600 transition disabled:opacity-50"
+                      className={button}
                     >
-                      ↩ Restore
+                      Restore
                     </button>
                   )}
                   {(selectedLetter.status === 'approved' || selectedLetter.status === 'sent') && (
                     <button
                       onClick={() => resendEmail(selectedLetter.id)}
                       disabled={updating}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+                      className={button}
                     >
-                      📧 Resend Email
+                      Resend email
                     </button>
                   )}
-                  <button
-                    onClick={() => setSelectedLetter(null)}
-                    className="bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-700 transition"
-                  >
+                  <button onClick={() => setSelectedLetter(null)} className={`${button} sm:ml-auto`}>
                     Close
                   </button>
                 </div>

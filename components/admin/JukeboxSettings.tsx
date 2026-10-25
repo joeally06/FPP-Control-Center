@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { RefreshCw } from 'lucide-react';
 import BannerSettings from '@/components/admin/BannerSettings';
 import { formatDateTime } from '@/lib/time-utils';
 import {
@@ -16,16 +17,12 @@ import {
 import {
   AdminH2,
   AdminH3,
-  AdminH4,
-  AdminText,
   AdminTextMuted,
-  AdminTextSmall,
   AdminLabel,
-  AdminValue,
-  AdminSuccess,
-  AdminError,
-  AdminInfo,
 } from '@/components/admin/Typography';
+import {
+  accentButton, badge, button, card, checkInput, choiceCard, eyebrow, field, insetBox, notice, smallButton, smallDangerButton,
+} from '@/components/admin/ui-classes';
 
 interface JukeboxUser {
   ip: string;
@@ -220,331 +217,277 @@ export default function JukeboxSettings() {
 
   if (loading) {
     return (
-      <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
-        <AdminH2>🎵 Jukebox Settings</AdminH2>
+      <div className={card}>
+        <AdminH2>Jukebox Settings</AdminH2>
         <AdminTextMuted>Loading...</AdminTextMuted>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
-        <AdminH2>🎵 Jukebox Settings</AdminH2>
+    <div className="flex max-w-3xl flex-col gap-4">
+      <div className={card}>
+        <AdminH2 className="mb-1">Jukebox Settings</AdminH2>
         <AdminTextMuted>
-          Configure song request behavior and rate limiting
+          How song requests work. Saved changes apply to new requests straight away, and visitors see the limit and queue behaviour on the request page.
         </AdminTextMuted>
 
-        {success && <AdminSuccess className="mt-4">{success}</AdminSuccess>}
-        {error && <AdminError className="mt-4">{error}</AdminError>}
+        {success && <p className={`${notice.ok} mt-4`}>{success}</p>}
+        {error && <p className={`${notice.danger} mt-4`}>{error}</p>}
 
         {/* Rate Limit Section */}
-        <div className="mt-6 space-y-4">
-          <div>
-            <AdminH3>⏱️ Rate Limit</AdminH3>
-            <AdminTextMuted>
-              Maximum number of song requests per hour per visitor
-            </AdminTextMuted>
+        <section className="mt-6 border-t border-adm-line pt-5">
+          <AdminH3 className="mb-0.5">Rate limit</AdminH3>
+          <AdminTextMuted>Maximum number of song requests per hour per visitor (tracked by IP)</AdminTextMuted>
+          <div className="mt-4 flex items-center gap-4">
+            <input
+              type="range"
+              min="1"
+              max="10"
+              value={rateLimit}
+              onChange={(e) => setRateLimit(parseInt(e.target.value, 10))}
+              aria-label="Requests per visitor per hour"
+              className="h-7 flex-1 cursor-pointer accent-adm-accent"
+            />
+            <span className="w-16 text-center font-mono text-2xl font-semibold text-adm-text">{rateLimit}</span>
           </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <input
-                type="range"
-                min="1"
-                max="10"
-                value={rateLimit}
-                onChange={(e) => setRateLimit(parseInt(e.target.value, 10))}
-                className="flex-1 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider"
-                style={{
-                  background: `linear-gradient(to right, #10b981 0%, #10b981 ${((rateLimit - 1) / 9) * 100}%, rgba(255,255,255,0.2) ${((rateLimit - 1) / 9) * 100}%, rgba(255,255,255,0.2) 100%)`
-                }}
-              />
-              <div className="text-white font-bold text-2xl w-16 text-center">
-                {rateLimit}
-              </div>
-            </div>
-
-            <div className="flex justify-between text-sm text-white/60">
-              <span>1 (Strict)</span>
-              <span>5 (Moderate)</span>
-              <span>10 (Generous)</span>
-            </div>
-
-            <AdminInfo>
-              Current setting: <strong>{rateLimit} requests per hour</strong>
-            </AdminInfo>
+          <div className="mt-1 flex justify-between text-xs">
+            <span className="text-adm-muted">1 (strict)</span>
+            <span className="text-adm-muted">5 (moderate)</span>
+            <span className="text-adm-muted">10 (generous)</span>
           </div>
-        </div>
+        </section>
 
         {/* Insert Mode Section */}
-        <div className="mt-8 space-y-4">
-          <div>
-            <AdminH3>🎶 Queue Insertion Behavior</AdminH3>
-            <AdminTextMuted>
-              How requested songs are inserted into the playlist
-            </AdminTextMuted>
-          </div>
-
-          <div className="space-y-3">
-            <label className="flex items-start gap-3 p-4 bg-white/5 rounded-lg border border-white/20 cursor-pointer hover:bg-white/10 transition-all">
+        <section className="mt-6 border-t border-adm-line pt-5">
+          <AdminH3 className="mb-0.5">Queue insertion behavior</AdminH3>
+          <AdminTextMuted>How requested songs are inserted into the playlist</AdminTextMuted>
+          <div className="mt-4 flex flex-col gap-2.5">
+            <label className={choiceCard}>
               <input
                 type="radio"
                 name="insertMode"
                 value="after_current"
                 checked={insertMode === 'after_current'}
                 onChange={(e) => setInsertMode(e.target.value)}
-                className="mt-1"
+                className={checkInput}
               />
               <div className="flex-1">
-                <AdminLabel>🎵 After Current (Recommended)</AdminLabel>
-                <AdminTextSmall className="text-white/60">
+                <p className="text-sm font-medium text-adm-text">
+                  After Current <span className="ml-1.5 text-[11px] font-semibold text-adm-warn">Recommended</span>
+                </p>
+                <p className="mt-0.5 text-[13px] text-adm-muted">
                   Request plays after the current song finishes. Provides smooth transitions without interruption.
-                </AdminTextSmall>
+                </p>
               </div>
             </label>
 
-            <label className="flex items-start gap-3 p-4 bg-white/5 rounded-lg border border-white/20 cursor-pointer hover:bg-white/10 transition-all">
+            <label className={choiceCard}>
               <input
                 type="radio"
                 name="insertMode"
                 value="interrupt"
                 checked={insertMode === 'interrupt'}
                 onChange={(e) => setInsertMode(e.target.value)}
-                className="mt-1"
+                className={checkInput}
               />
               <div className="flex-1">
-                <AdminLabel>⚡ Interrupt</AdminLabel>
-                <AdminTextSmall className="text-white/60">
+                <p className="text-sm font-medium text-adm-text">Interrupt</p>
+                <p className="mt-0.5 text-[13px] text-adm-muted">
                   Pauses current song, plays request, then resumes. Immediate but disruptive.
-                </AdminTextSmall>
+                </p>
               </div>
             </label>
 
-            <label className="flex items-start gap-3 p-4 bg-white/5 rounded-lg border border-white/20 cursor-pointer hover:bg-white/10 transition-all">
+            <label className={choiceCard}>
               <input
                 type="radio"
                 name="insertMode"
                 value="end_of_playlist"
                 checked={insertMode === 'end_of_playlist'}
                 onChange={(e) => setInsertMode(e.target.value)}
-                className="mt-1"
+                className={checkInput}
               />
               <div className="flex-1">
-                <AdminLabel>📋 End of Playlist</AdminLabel>
-                <AdminTextSmall className="text-white/60">
+                <p className="text-sm font-medium text-adm-text">End of Playlist</p>
+                <p className="mt-0.5 text-[13px] text-adm-muted">
                   Adds request to the end of the queue. Longer wait time but no interruption.
-                </AdminTextSmall>
+                </p>
               </div>
             </label>
           </div>
-
-          <AdminInfo>
-            Current mode: <strong>
-              {insertMode === 'after_current' && '🎵 After Current'}
-              {insertMode === 'interrupt' && '⚡ Interrupt'}
-              {insertMode === 'end_of_playlist' && '📋 End of Playlist'}
-            </strong>
-          </AdminInfo>
-        </div>
+        </section>
 
         {/* Visitor Page Section */}
-        <div className="mt-8 space-y-4">
+        <section className="mt-6 flex flex-col gap-4 border-t border-adm-line pt-5">
           <div>
-            <AdminH3>📻 Visitor Page</AdminH3>
-            <AdminTextMuted>
-              What visitors see at the top of the jukebox page
-            </AdminTextMuted>
+            <AdminH3 className="mb-0.5">Visitor page</AdminH3>
+            <AdminTextMuted>What visitors see at the top of the jukebox page</AdminTextMuted>
           </div>
 
-          <label className="block">
-            <AdminLabel>Show name</AdminLabel>
-            <input
-              type="text"
-              value={siteName}
-              onChange={(e) => setSiteName(e.target.value)}
-              maxLength={VISITOR_SETTING_LIMITS.site_name}
-              placeholder="e.g. Lewis Family Light Show"
-              className="mt-2 w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/40"
-            />
-            <AdminTextSmall className="text-white/60 mt-1">
-              Shown in the top bar and footer, in the active theme&apos;s lettering, and in place of the logo if none is uploaded.
-            </AdminTextSmall>
-          </label>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <AdminLabel htmlFor="jukebox-site-name">Show name</AdminLabel>
+              <input
+                id="jukebox-site-name"
+                type="text"
+                value={siteName}
+                onChange={(e) => setSiteName(e.target.value)}
+                maxLength={VISITOR_SETTING_LIMITS.site_name}
+                placeholder="e.g. Lewis Family Light Show"
+                className={field}
+              />
+              <p className="mt-1 text-xs text-adm-muted">
+                Shown in the top bar and footer, in the active theme&apos;s lettering, and in place of the logo if none is uploaded.
+              </p>
+            </div>
 
-          <label className="block">
-            <AdminLabel>FM frequency</AdminLabel>
-            <input
-              type="text"
-              value={fmFrequency}
-              onChange={(e) => setFmFrequency(e.target.value)}
-              maxLength={VISITOR_SETTING_LIMITS.jukebox_fm_frequency}
-              placeholder="e.g. 91.5 FM"
-              className="mt-2 w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/40"
-            />
-            <AdminTextSmall className="text-white/60 mt-1">
-              Leave empty to hide the radio frequency (the Listen Online button still shows).
-            </AdminTextSmall>
-          </label>
+            <div>
+              <AdminLabel htmlFor="jukebox-fm-frequency">FM frequency</AdminLabel>
+              <input
+                id="jukebox-fm-frequency"
+                type="text"
+                value={fmFrequency}
+                onChange={(e) => setFmFrequency(e.target.value)}
+                maxLength={VISITOR_SETTING_LIMITS.jukebox_fm_frequency}
+                placeholder="e.g. 91.5 FM"
+                className={field}
+              />
+              <p className="mt-1 text-xs text-adm-muted">
+                Leave empty to hide the radio frequency (the Listen Online button still shows).
+              </p>
+            </div>
+          </div>
 
-          <label className="flex items-start gap-3 p-4 bg-white/5 rounded-lg border border-white/20 cursor-pointer hover:bg-white/10 transition-all">
+          <label className={choiceCard}>
             <input
               type="checkbox"
               checked={courtesyEnabled}
               onChange={(e) => setCourtesyEnabled(e.target.checked)}
-              className="mt-1"
+              className={checkInput}
             />
             <div className="flex-1">
-              <AdminLabel>🚗 Show the courtesy reminders card</AdminLabel>
-              <AdminTextSmall className="text-white/60">
+              <p className="text-sm font-medium text-adm-text">Show the courtesy reminders card</p>
+              <p className="mt-0.5 text-[13px] text-adm-muted">
                 A dismissible card with viewing reminders for visitors in cars.
-              </AdminTextSmall>
+              </p>
             </div>
           </label>
 
           {courtesyEnabled && (
-            <label className="block">
-              <AdminLabel>Courtesy reminders (one per line, up to 5)</AdminLabel>
+            <div>
+              <AdminLabel htmlFor="jukebox-courtesy-text">Courtesy reminders (one per line, up to 5)</AdminLabel>
               <textarea
+                id="jukebox-courtesy-text"
                 value={courtesyText}
                 onChange={(e) => setCourtesyText(e.target.value)}
                 maxLength={VISITOR_SETTING_LIMITS.jukebox_courtesy_text}
                 rows={4}
                 placeholder={DEFAULT_COURTESY_TEXT}
-                className="mt-2 w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/40"
+                className={field}
               />
-              <AdminTextSmall className="text-white/60 mt-1">
+              <p className="mt-1 text-xs text-adm-muted">
                 Leave empty to use the default reminders shown above.
-              </AdminTextSmall>
-            </label>
+              </p>
+            </div>
           )}
 
-          <label className="flex items-start gap-3 p-4 bg-white/5 rounded-lg border border-white/20 cursor-pointer hover:bg-white/10 transition-all">
+          <label className={choiceCard}>
             <input
               type="checkbox"
               checked={specsEnabled}
               onChange={(e) => setSpecsEnabled(e.target.checked)}
-              className="mt-1"
+              className={checkInput}
             />
             <div className="flex-1">
-              <AdminLabel>💡 Show the &ldquo;Behind the pixels&rdquo; card</AdminLabel>
-              <AdminTextSmall className="text-white/60">
+              <p className="text-sm font-medium text-adm-text">Show the &ldquo;Behind the pixels&rdquo; card</p>
+              <p className="mt-0.5 text-[13px] text-adm-muted">
                 Facts about your display for curious visitors. Empty fields are hidden.
-              </AdminTextSmall>
+              </p>
             </div>
           </label>
 
           {specsEnabled && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {SHOW_SPEC_FIELDS.map((field) => (
-                <label key={field.key} className="block">
-                  <AdminLabel>{field.label}</AdminLabel>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {SHOW_SPEC_FIELDS.map((specField) => (
+                <div key={specField.key}>
+                  <AdminLabel htmlFor={`jukebox-spec-${specField.key}`}>{specField.label}</AdminLabel>
                   <input
+                    id={`jukebox-spec-${specField.key}`}
                     type="text"
-                    value={specValues[field.key] || ''}
-                    onChange={(e) => setSpecValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                    maxLength={VISITOR_SETTING_LIMITS[field.key]}
-                    placeholder={field.placeholder}
-                    className="mt-2 w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/40"
+                    value={specValues[specField.key] || ''}
+                    onChange={(e) => setSpecValues((prev) => ({ ...prev, [specField.key]: e.target.value }))}
+                    maxLength={VISITOR_SETTING_LIMITS[specField.key]}
+                    placeholder={specField.placeholder}
+                    className={field}
                   />
-                </label>
+                </div>
               ))}
             </div>
           )}
 
-          <label className="flex items-start gap-3 p-4 bg-white/5 rounded-lg border border-white/20 cursor-pointer hover:bg-white/10 transition-all">
+          <label className={choiceCard}>
             <input
               type="checkbox"
               checked={audienceEnabled}
               onChange={(e) => setAudienceEnabled(e.target.checked)}
-              className="mt-1"
+              className={checkInput}
             />
             <div className="flex-1">
-              <AdminLabel>👥 Show how many people are online</AdminLabel>
-              <AdminTextSmall className="text-white/60">
+              <p className="text-sm font-medium text-adm-text">Show how many people are online</p>
+              <p className="mt-0.5 text-[13px] text-adm-muted">
                 Shows &ldquo;N online now&rdquo;: devices with the jukebox page open in the last minute. It can&apos;t count radio-only listeners. Nothing is stored.
-              </AdminTextSmall>
+              </p>
             </div>
           </label>
-        </div>
+        </section>
 
         {/* Save Button */}
-        <div className="mt-8 flex gap-3">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saving ? '⏳ Saving...' : '💾 Save Settings'}
+        <div className="mt-6 flex gap-3 border-t border-adm-line pt-5">
+          <button onClick={handleSave} disabled={saving} className={accentButton}>
+            {saving ? 'Saving…' : 'Save settings'}
           </button>
         </div>
       </div>
 
-      {/* Info Section */}
-      <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
-        <AdminH3>ℹ️ How It Works</AdminH3>
-        <ul className="space-y-2 mt-4">
-          <li><AdminTextSmall>• <strong>Rate Limiting:</strong> Prevents spam by limiting requests per visitor (tracked by IP)</AdminTextSmall></li>
-          <li><AdminTextSmall>• <strong>After Current:</strong> Best user experience - no interruption, smooth transitions</AdminTextSmall></li>
-          <li><AdminTextSmall>• <strong>Interrupt:</strong> Fastest response - request plays immediately</AdminTextSmall></li>
-          <li><AdminTextSmall>• <strong>End of Playlist:</strong> Traditional queue - maintains playlist order</AdminTextSmall></li>
-          <li><AdminTextSmall>• Settings take effect immediately for all new requests</AdminTextSmall></li>
-          <li><AdminTextSmall>• Visitors see the current rate limit and queue behavior on the request page</AdminTextSmall></li>
-        </ul>
-      </div>
-
       {/* Sequence Cache Management */}
-      <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <AdminH3>🎵 Song Cache Management</AdminH3>
-            <AdminTextMuted>
-              Refresh the list of available songs from FPP
-            </AdminTextMuted>
-          </div>
-        </div>
+      <div className={card}>
+        <AdminH3 className="mb-0.5">Song cache</AdminH3>
+        <AdminTextMuted>Refresh the list of available songs from FPP</AdminTextMuted>
 
         {/* Cache Status */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-            <AdminTextSmall className="mb-1">Cached Songs</AdminTextSmall>
-            <AdminValue>{cacheInfo.count}</AdminValue>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className={insetBox}>
+            <p className={eyebrow}>Cached songs</p>
+            <p className="mt-1 font-mono text-2xl font-semibold text-adm-text">{cacheInfo.count}</p>
           </div>
-          <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-            <AdminTextSmall className="mb-1">Cache Status</AdminTextSmall>
-            <AdminValue>
-              {cacheInfo.count > 0 ? (
-                <span className="text-green-400">✅ Active</span>
-              ) : (
-                <span className="text-yellow-400">⚠️ Empty</span>
-              )}
-            </AdminValue>
+          <div className={insetBox}>
+            <p className={eyebrow}>Cache status</p>
+            {cacheInfo.count > 0 ? (
+              <p className="mt-1 text-lg font-semibold text-adm-ok">Active</p>
+            ) : (
+              <p className="mt-1 text-lg font-semibold text-adm-warn">Empty</p>
+            )}
           </div>
         </div>
 
         {/* Refresh Button */}
-        <div className="space-y-4">
-          <button
-            onClick={handleRefreshCache}
-            disabled={refreshingCache}
-            className="w-full px-6 py-3 bg-linear-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:from-blue-600 hover:to-cyan-700 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-          >
-            {refreshingCache ? '🔄 Refreshing...' : '🔄 Refresh Song Cache from FPP'}
-          </button>
-
-          <AdminTextSmall className="text-white/60">
-            This fetches the latest playlist from your FPP server and updates the available songs for visitors to request.
-          </AdminTextSmall>
-        </div>
+        <button onClick={handleRefreshCache} disabled={refreshingCache} className={`${button} mt-4 w-full`}>
+          <RefreshCw className={`h-4 w-4 ${refreshingCache ? 'animate-spin' : ''}`} aria-hidden="true" />
+          {refreshingCache ? 'Refreshing…' : 'Refresh song cache from FPP'}
+        </button>
+        <p className="mt-2 text-[13px] text-adm-muted">
+          This fetches the latest playlist from your FPP server and updates the available songs for visitors to request.
+        </p>
 
         {/* Info Box */}
-        <div className="mt-6 p-4 bg-blue-500/20 rounded-lg border border-blue-500/30">
-          <AdminH4>ℹ️ When to Refresh</AdminH4>
-          <ul className="space-y-1 mt-2">
-            <li><AdminTextSmall>• After adding or removing songs from your FPP playlist</AdminTextSmall></li>
-            <li><AdminTextSmall>• After reordering songs in FPP</AdminTextSmall></li>
-            <li><AdminTextSmall>• If visitors report missing songs</AdminTextSmall></li>
-            <li><AdminTextSmall>• The cache also refreshes automatically in the background when admins visit the jukebox page</AdminTextSmall></li>
+        <div className={`${notice.info} mt-4`}>
+          <p className="font-medium text-adm-info">When to refresh</p>
+          <ul className="mt-1.5 list-disc space-y-1 pl-5">
+            <li className="text-adm-info">After adding or removing songs from your FPP playlist</li>
+            <li className="text-adm-info">After reordering songs in FPP</li>
+            <li className="text-adm-info">If visitors report missing songs</li>
+            <li className="text-adm-info">The cache also refreshes automatically in the background when admins visit the jukebox page</li>
           </ul>
         </div>
       </div>
@@ -555,104 +498,73 @@ export default function JukeboxSettings() {
       <BannerSettings />
 
       {/* User Rate Limit Management */}
-      <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
-        <div className="flex items-center justify-between mb-4">
+      <div className={card}>
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <AdminH3>👥 User Rate Limits</AdminH3>
-            <AdminTextMuted>
-              View and manage users with active requests in the last hour
-            </AdminTextMuted>
+            <AdminH3 className="mb-0.5">User rate limits</AdminH3>
+            <AdminTextMuted>View and manage users with active requests in the last hour</AdminTextMuted>
           </div>
-          <button
-            onClick={fetchJukeboxUsers}
-            disabled={loadingUsers}
-            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-          >
-            {loadingUsers ? '🔄 Loading...' : '🔄 Refresh'}
+          <button onClick={fetchJukeboxUsers} disabled={loadingUsers} className={smallButton}>
+            <RefreshCw className={`h-3.5 w-3.5 ${loadingUsers ? 'animate-spin' : ''}`} aria-hidden="true" />
+            {loadingUsers ? 'Loading…' : 'Refresh'}
           </button>
         </div>
 
         {jukeboxUsers.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">👻</div>
-            <AdminH4 className="text-white/80 mb-2">No Active Users</AdminH4>
-            <AdminTextMuted>No song requests in the last hour</AdminTextMuted>
+          <div className="py-10 text-center">
+            <p className="text-sm font-medium text-adm-soft">No active users</p>
+            <p className="mt-1 text-[13px] text-adm-muted">No song requests in the last hour</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <ul className="flex flex-col gap-2.5">
             {jukeboxUsers.map((user) => {
               const percentage = Math.min(100, (user.requestCount / rateLimit) * 100);
               const isAtLimit = user.requestCount >= rateLimit;
-              
+
               return (
-                <div 
-                  key={user.ip}
-                  className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/20 hover:border-blue-400/50 transition-all"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <AdminH4 className="text-white">{user.name}</AdminH4>
-                        {isAtLimit && (
-                          <span className="px-2 py-0.5 bg-red-500/20 text-red-300 text-xs font-semibold rounded border border-red-500/30">
-                            🚫 RATE LIMITED
-                          </span>
-                        )}
+                <li key={user.ip} className={insetBox}>
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex flex-wrap items-center gap-2">
+                        <p className="truncate text-sm font-semibold text-adm-text">{user.name}</p>
+                        {isAtLimit && <span className={badge.danger}>Rate limited</span>}
                       </div>
-                      <AdminTextSmall className="text-white/50">
-                        IP: {user.ip}
-                      </AdminTextSmall>
-                      <AdminTextSmall className="text-white/60">
-                        Last request: {formatDateTime(user.lastRequest, 'relative')}
-                      </AdminTextSmall>
+                      <p className="font-mono text-xs text-adm-faint">IP: {user.ip}</p>
+                      <p className="text-xs text-adm-muted">Last request: {formatDateTime(user.lastRequest, 'relative')}</p>
                     </div>
-                    
                     <button
                       onClick={() => handleClearUserRateLimit(user.ip, user.name)}
-                      className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded transition-all shadow-md hover:shadow-lg"
+                      className={smallDangerButton}
                       title="Clear rate limit for this user"
                     >
-                      🗑️ Clear
+                      Clear
                     </button>
                   </div>
 
                   {/* Request count progress bar */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-sm">
-                      <AdminTextSmall className="text-white/70">
-                        {user.requestCount} / {rateLimit} requests
-                      </AdminTextSmall>
-                      <AdminTextSmall className="text-white/70 font-semibold">
-                        {Math.round(percentage)}%
-                      </AdminTextSmall>
-                    </div>
-                    <div className="w-full bg-white/10 rounded-full h-2.5 overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          percentage >= 100 ? 'bg-red-500' : 
-                          percentage >= 80 ? 'bg-yellow-500' : 
-                          'bg-green-500'
-                        }`}
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-adm-muted">{user.requestCount} / {rateLimit} requests</span>
+                    <span className="font-semibold text-adm-muted">{Math.round(percentage)}%</span>
                   </div>
-                </div>
+                  <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-adm-line">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        percentage >= 100 ? 'bg-adm-danger' :
+                        percentage >= 80 ? 'bg-adm-warn' :
+                        'bg-adm-ok'
+                      }`}
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
 
-        <div className="mt-6 p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/30">
-          <div className="flex items-start gap-2">
-            <span className="text-yellow-400 text-xl">💡</span>
-            <div className="flex-1">
-              <AdminTextSmall className="text-yellow-200">
-                <strong>Tip:</strong> Clearing a user's rate limit removes their request history for the last hour and gives them their full allowance back immediately. A song of theirs that is playing right now keeps playing but no longer counts.
-              </AdminTextSmall>
-            </div>
-          </div>
-        </div>
+        <p className={`${notice.warn} mt-4`}>
+          <strong>Tip:</strong> Clearing a user's rate limit removes their request history for the last hour and gives them their full allowance back immediately. A song of theirs that is playing right now keeps playing but no longer counts.
+        </p>
       </div>
     </div>
   );
@@ -717,14 +629,14 @@ function SongDetailsSettings({ reloadKey }: { reloadKey: number }) {
   const suggestions = [...new Set([...SUGGESTED_CATEGORIES, ...songCategories(songs.map((song) => ({ ...song, category: categories[song.name] || null })))])];
 
   return (
-    <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
-      <AdminH3>🏷️ Song Details</AdminH3>
+    <div className={card}>
+      <AdminH3 className="mb-0.5">Song details</AdminH3>
       <AdminTextMuted>
         Categories become filter buttons on the visitor song list. Titles and artists come from the Media Library; song lengths come from your FPP playlist when you refresh the song cache.
       </AdminTextMuted>
 
-      {success && <AdminSuccess className="mt-4">{success}</AdminSuccess>}
-      {error && <AdminError className="mt-4">{error}</AdminError>}
+      {success && <p className={`${notice.ok} mt-4`}>{success}</p>}
+      {error && <p className={`${notice.danger} mt-4`}>{error}</p>}
 
       {loading ? (
         <AdminTextMuted className="mt-4">Loading...</AdminTextMuted>
@@ -737,14 +649,14 @@ function SongDetailsSettings({ reloadKey }: { reloadKey: number }) {
               <option key={category} value={category} />
             ))}
           </datalist>
-          <ul className="mt-4 space-y-2">
+          <ul className="mt-4 flex flex-col gap-2">
             {songs.map((song) => (
-              <li key={song.name} className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 p-3 bg-white/5 rounded-lg border border-white/10">
-                <div className="flex-1 min-w-0">
-                  <AdminText className="font-semibold truncate">{song.title || song.name}</AdminText>
-                  <AdminTextSmall className="text-white/60 truncate">
+              <li key={song.name} className="flex flex-col gap-2 rounded-xl border border-adm-line bg-adm-side p-3 md:flex-row md:items-center md:gap-4">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-adm-text">{song.title || song.name}</p>
+                  <p className="truncate text-xs text-adm-muted">
                     {[song.artist || 'Unknown artist', song.durationSeconds != null ? formatClock(song.durationSeconds) : 'length unknown'].join(' · ')}
-                  </AdminTextSmall>
+                  </p>
                 </div>
                 <input
                   type="text"
@@ -754,19 +666,15 @@ function SongDetailsSettings({ reloadKey }: { reloadKey: number }) {
                   maxLength={MAX_CATEGORY_LENGTH}
                   placeholder="Category"
                   aria-label={`Category for ${song.title || song.name}`}
-                  className="w-full md:w-56 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/40"
+                  className={`${field} md:w-56`}
                 />
               </li>
             ))}
           </ul>
 
-          <div className="mt-6">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saving ? '⏳ Saving...' : '💾 Save Categories'}
+          <div className="mt-5">
+            <button onClick={handleSave} disabled={saving} className={accentButton}>
+              {saving ? 'Saving…' : 'Save categories'}
             </button>
           </div>
         </>

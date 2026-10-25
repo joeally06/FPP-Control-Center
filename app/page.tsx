@@ -5,6 +5,10 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '@/components/AdminLayout';
+import AdminLoadingScreen from '@/components/admin/AdminLoadingScreen';
+import {
+  accentButton, button, card, cardTitle, dangerButton, eyebrow, field, roundButton, textLink,
+} from '@/components/admin/ui-classes';
 import { useFPPConnection } from '@/contexts/FPPConnectionContext';
 import {
   CircleCheck, Mail, Pause, Play, RotateCcw, Server, Shuffle, SkipBack, SkipForward, Square, TriangleAlert, WifiOff,
@@ -49,17 +53,6 @@ interface PlaylistDetails {
   }>;
   [key: string]: any;
 }
-
-// Shared class strings for the Show page cards and controls
-const card = 'rounded-2xl border border-adm-line bg-adm-surface p-5';
-const eyebrow = 'text-xs font-semibold uppercase tracking-[0.08em] text-adm-muted';
-const cardTitle = 'text-[15px] font-semibold text-adm-text';
-const button = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-adm-control-line bg-adm-control px-4 text-sm font-medium text-adm-text transition-colors hover:bg-adm-line disabled:cursor-not-allowed disabled:opacity-50';
-const accentButton = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-adm-accent px-4 text-sm font-semibold text-adm-accent-ink transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50';
-const dangerButton = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-adm-danger-line px-4 text-sm font-medium text-adm-danger transition-colors hover:bg-adm-danger-bg disabled:cursor-not-allowed disabled:opacity-50';
-const roundButton = 'grid h-11 w-11 place-items-center rounded-full border border-adm-control-line bg-adm-control text-adm-text transition-colors hover:bg-adm-line disabled:cursor-not-allowed disabled:opacity-50';
-const field = 'min-h-11 w-full rounded-xl border border-adm-control-line bg-adm-field px-3 text-sm text-adm-text focus:outline-2 focus:outline-offset-1 focus:outline-adm-accent disabled:opacity-50';
-const textLink = 'text-[13px] font-medium text-adm-accent hover:underline';
 
 export default function Home() {
   const [status, setStatus] = useState<Status | null>(null);
@@ -220,14 +213,7 @@ export default function Home() {
 
   // Show loading while checking authentication
   if (sessionStatus === 'loading') {
-    return (
-      <div className="min-h-screen bg-linear-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-xl text-white">Loading...</p>
-        </div>
-      </div>
-    );
+    return <AdminLoadingScreen />;
   }
 
   // Non-admins will be redirected

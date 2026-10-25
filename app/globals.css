@@ -4,18 +4,18 @@
   --background: #ffffff;
   --foreground: #000000;
   
-  /* Admin Panel Design System */
-  --admin-bg-primary: #1a1a2e;
-  --admin-bg-secondary: rgba(255, 255, 255, 0.1);
-  --admin-bg-tertiary: rgba(255, 255, 255, 0.05);
-  
-  --admin-text-primary: #ffffff;
-  --admin-text-secondary: rgba(255, 255, 255, 0.8);
-  --admin-text-muted: rgba(255, 255, 255, 0.6);
-  --admin-text-accent: #3b82f6;
-  
-  --admin-border-primary: rgba(255, 255, 255, 0.2);
-  --admin-border-secondary: rgba(255, 255, 255, 0.1);
+  /* Admin Panel Design System (same palette as the adm-* tokens below) */
+  --admin-bg-primary: #0e1014;
+  --admin-bg-secondary: #161920;
+  --admin-bg-tertiary: #12151b;
+
+  --admin-text-primary: #eceef2;
+  --admin-text-secondary: #c9cfda;
+  --admin-text-muted: #a0a8b6;
+  --admin-text-accent: #f5b544;
+
+  --admin-border-primary: #232833;
+  --admin-border-secondary: #1f2430;
 }
 
 @theme inline {
@@ -109,6 +109,12 @@ body {
   --color-adm-danger: #ff9a8c;
   --color-adm-danger-line: #5c2b27;
   --color-adm-danger-bg: #2a1614;
+  --color-adm-ok-bg: #13241a;
+  --color-adm-ok-line: #23452f;
+  --color-adm-warn-line: #4a3a17;
+  --color-adm-info: #8fb8ff;
+  --color-adm-info-bg: #14223a;
+  --color-adm-info-line: #24406b;
 }
 
 @layer base {
@@ -139,41 +145,40 @@ body {
 @layer components {
   /* Typography */
   .admin-h1 {
-    @apply text-4xl font-bold mb-4;
+    @apply text-2xl sm:text-3xl font-semibold tracking-tight mb-2;
     color: var(--admin-text-primary);
   }
-  
+
   .admin-h2 {
-    @apply text-2xl font-bold mb-6;
+    @apply text-lg font-semibold mb-4;
     color: var(--admin-text-primary);
   }
-  
+
   .admin-h3 {
-    @apply text-xl font-semibold mb-3;
+    @apply text-[15px] font-semibold mb-2;
     color: var(--admin-text-primary);
   }
-  
+
   .admin-text {
-    @apply text-base;
+    @apply text-[15px];
     color: var(--admin-text-secondary);
   }
-  
+
   .admin-text-muted {
     @apply text-sm;
     color: var(--admin-text-muted);
   }
-  
+
   .admin-label {
-    @apply text-sm font-medium mb-2 block;
-    color: var(--admin-text-primary);
+    @apply text-[13px] font-medium mb-1.5 block;
+    color: var(--admin-text-secondary);
   }
-  
+
   /* Cards & Containers */
   .admin-card {
-    @apply rounded-xl p-6 border;
+    @apply rounded-2xl p-5 border;
     background-color: var(--admin-bg-secondary);
     border-color: var(--admin-border-primary);
-    backdrop-filter: blur(10px);
   }
   
   .admin-section {

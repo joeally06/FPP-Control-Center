@@ -5,6 +5,12 @@ const nextConfig = {
     ? process.env.ALLOWED_DEV_ORIGINS.split(',')
     : ['localhost', '127.0.0.1'],
   
+  experimental: {
+    // Every `next build` starts clean. The persistent build cache (on by default since Next 16.3) has shipped
+    // stale Tailwind CSS with newly added @theme colours missing, and the self-update builds on top of it.
+    turbopackFileSystemCacheForBuild: false,
+  },
+
   async headers() {
     const isProd = process.env.NODE_ENV === 'production';
     const baseHeaders = [

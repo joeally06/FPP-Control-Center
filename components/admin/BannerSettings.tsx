@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { OFF_SEASON_BANNER_DEFAULTS, OFF_SEASON_BANNER_LIMITS, type OffSeasonBanner } from '@/lib/jukebox-display';
+import { accentButton, card, field, notice } from '@/components/admin/ui-classes';
 
 /** Settings → Jukebox: the one optional message shown under the logo on the visitor page. */
 export default function BannerSettings() {
@@ -37,11 +38,11 @@ export default function BannerSettings() {
   };
 
   return (
-    <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 space-y-4">
+    <div className={`${card} space-y-4`}>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-xl font-bold text-white mb-1">📣 Off-season message</h3>
-          <p className="text-white/60 text-sm">
+          <h3 className="mb-0.5 text-[15px] font-semibold text-adm-text">Off-season message</h3>
+          <p className="text-sm text-adm-muted">
             A message under the logo on the visitor page, for example between seasons. Show times, the countdown and
             whether the show is live are already shown automatically.
           </p>
@@ -52,59 +53,58 @@ export default function BannerSettings() {
           aria-checked={banner.enabled}
           aria-label="Show the off-season message"
           onClick={() => setBanner({ ...banner, enabled: !banner.enabled })}
-          className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
-            banner.enabled ? 'bg-green-500' : 'bg-gray-600'
+          className={`relative h-7 w-11.5 shrink-0 rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-adm-accent ${
+            banner.enabled ? 'bg-adm-accent' : 'bg-adm-control-line'
           }`}
         >
           <span
-            className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${banner.enabled ? 'translate-x-7' : 'translate-x-1'}`}
+            className={`absolute top-0.75 left-0.75 h-5.5 w-5.5 rounded-full transition-transform ${
+              banner.enabled ? 'translate-x-4.5 bg-adm-accent-ink' : 'bg-adm-soft'
+            }`}
           />
         </button>
       </div>
 
-      <label className="block">
-        <span className="block text-sm font-medium text-white/80 mb-1">Heading</span>
+      <div>
+        <label htmlFor="banner-heading" className="mb-1.5 block text-[13px] font-medium text-adm-soft">Heading</label>
         <input
+          id="banner-heading"
           type="text"
           value={banner.heading}
           maxLength={OFF_SEASON_BANNER_LIMITS.heading}
           onChange={(e) => setBanner({ ...banner, heading: e.target.value })}
           placeholder="e.g. Thanks for a great season!"
-          className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40"
+          className={field}
         />
-      </label>
+      </div>
 
-      <label className="block">
-        <span className="block text-sm font-medium text-white/80 mb-1">Message</span>
+      <div>
+        <label htmlFor="banner-subtitle" className="mb-1.5 block text-[13px] font-medium text-adm-soft">Message</label>
         <input
+          id="banner-subtitle"
           type="text"
           value={banner.subtitle}
           maxLength={OFF_SEASON_BANNER_LIMITS.subtitle}
           onChange={(e) => setBanner({ ...banner, subtitle: e.target.value })}
           placeholder="e.g. See you in October"
-          className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40"
+          className={field}
         />
-      </label>
+      </div>
 
-      <p className="text-xs text-white/60">
+      <p className="text-xs text-adm-muted">
         {banner.enabled
           ? 'Switched on: visitors see this message, drawn in the active theme’s colours and lettering.'
           : 'Switched off: visitors don’t see a message.'}
       </p>
 
       {message && (
-        <div role={message.ok ? 'status' : 'alert'} className={`p-3 rounded-lg ${message.ok ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
+        <div role={message.ok ? 'status' : 'alert'} className={message.ok ? notice.ok : notice.danger}>
           {message.text}
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={handleSave}
-        disabled={saving}
-        className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg"
-      >
-        {saving ? '💾 Saving…' : '💾 Save message'}
+      <button type="button" onClick={handleSave} disabled={saving} className={accentButton}>
+        {saving ? 'Saving…' : 'Save message'}
       </button>
     </div>
   );
