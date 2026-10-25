@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import AdminNavigation from '@/components/AdminNavigation';
+import AdminLayout from '@/components/AdminLayout';
 import { formatDateTime } from '@/lib/time-utils';
 import { TIMING } from '@/lib/constants';
 import { 
@@ -279,22 +279,16 @@ export default function DeviceStatusPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-purple-900 via-blue-900 to-indigo-900">
-        <AdminNavigation />
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center">
-            <AdminH2>Loading device status...</AdminH2>
-          </div>
+      <AdminLayout>
+        <div className="text-center">
+          <AdminH2>Loading device status...</AdminH2>
         </div>
-      </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-purple-900 via-blue-900 to-indigo-900">
-      <AdminNavigation />
-      
-      <div className="container mx-auto px-4 py-8">
+    <AdminLayout>
         {/* Header */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4">
@@ -734,7 +728,6 @@ export default function DeviceStatusPage() {
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </AdminLayout>
   );
 }

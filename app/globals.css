@@ -86,6 +86,46 @@ body {
   }
 }
 
+/* ===== Admin frame (components/AdminLayout.tsx, components/AdminNavigation.tsx) ===== */
+@theme {
+  --color-adm-bg: #0e1014;
+  --color-adm-side: #12151b;
+  --color-adm-surface: #161920;
+  --color-adm-hover: #1a1e26;
+  --color-adm-raised: #1f2430;
+  --color-adm-line: #232833;
+  --color-adm-text: #eceef2;
+  --color-adm-soft: #b4bbc8;
+  --color-adm-muted: #a0a8b6;
+  --color-adm-faint: #7c8596;
+  --color-adm-accent: #f5b544;
+  --color-adm-accent-ink: #1a1205;
+}
+
+@layer base {
+  /* Page content inside the admin frame keeps the white text it got from the old gradient background */
+  .admin-content p,
+  .admin-content span,
+  .admin-content div,
+  .admin-content h1,
+  .admin-content h2,
+  .admin-content h3,
+  .admin-content h4,
+  .admin-content label,
+  .admin-content td,
+  .admin-content th,
+  .admin-content li,
+  .admin-content a {
+    @apply text-white;
+  }
+
+  /* The frame itself sets colours with utilities; text inherits them instead of the black default */
+  .admin-nav p, .admin-nav span, .admin-nav div, .admin-nav label, .admin-nav li,
+  .admin-nav a, .admin-nav h1, .admin-nav h2, .admin-nav h3, .admin-nav h4 {
+    color: inherit;
+  }
+}
+
 /* Admin Panel Component Utilities */
 @layer components {
   /* Typography */

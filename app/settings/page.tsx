@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { TIMING } from '@/lib/constants';
-import AdminNavigation from '@/components/AdminNavigation';
+import AdminLayout from '@/components/AdminLayout';
 import UpdateChecker from '@/components/UpdateChecker';
 import BannerSettings from '@/components/admin/BannerSettings';
 import TriviaSettings from '@/components/admin/TriviaSettings';
@@ -35,16 +36,29 @@ import {
 } from '@/components/admin/Typography';
 import Link from 'next/link';
 
-type SettingSection = 'themes' | 'santa' | 'monitoring' | 'database' | 'updates' | 'youtube' | 'jukebox' | 'location' | 'trivia' | 'display';
+const SETTING_SECTIONS = ['themes', 'santa', 'monitoring', 'database', 'updates', 'youtube', 'jukebox', 'location', 'trivia', 'display'] as const;
+type SettingSection = typeof SETTING_SECTIONS[number];
 
+// useSearchParams needs a Suspense boundary on this prerendered page
 export default function SettingsPage() {
-  const [activeSection, setActiveSection] = useState<SettingSection>('themes');
+  return (
+    <AdminLayout>
+      <Suspense fallback={null}>
+        <SettingsContent />
+      </Suspense>
+    </AdminLayout>
+  );
+}
+
+function SettingsContent() {
+  const router = useRouter();
+  // The section lives in the URL (?section=jukebox) so the admin nav can link straight to it
+  const requested = useSearchParams().get('section');
+  const activeSection: SettingSection = SETTING_SECTIONS.find((s) => s === requested) ?? 'themes';
+  const selectSection = (section: SettingSection) => router.push(`/settings?section=${section}`, { scroll: false });
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-purple-900 via-blue-900 to-indigo-900">
-      <AdminNavigation />
-      
-      <div className="container mx-auto px-4 py-8">
+    <>
         <div className="mb-8">
           <AdminH1>⚙️ Settings</AdminH1>
           <AdminText>
@@ -57,7 +71,7 @@ export default function SettingsPage() {
           <div className="lg:col-span-1">
             <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 space-y-2">
               <button
-                onClick={() => setActiveSection('updates')}
+                onClick={() => selectSection('updates')}
                 className={`w-full text-left px-4 py-3 rounded-lg transition-all font-semibold ${
                   activeSection === 'updates'
                     ? 'bg-white text-black shadow-lg'
@@ -67,7 +81,7 @@ export default function SettingsPage() {
                 🔄 System Updates
               </button>
               <button
-                onClick={() => setActiveSection('themes')}
+                onClick={() => selectSection('themes')}
                 className={`w-full text-left px-4 py-3 rounded-lg transition-all font-semibold ${
                   activeSection === 'themes'
                     ? 'bg-white text-black shadow-lg'
@@ -77,7 +91,7 @@ export default function SettingsPage() {
                 🎨 Themes
               </button>
               <button
-                onClick={() => setActiveSection('santa')}
+                onClick={() => selectSection('santa')}
                 className={`w-full text-left px-4 py-3 rounded-lg transition-all font-semibold ${
                   activeSection === 'santa'
                     ? 'bg-white text-black shadow-lg'
@@ -87,7 +101,7 @@ export default function SettingsPage() {
                 🎅 Santa Letters
               </button>
               <button
-                onClick={() => setActiveSection('monitoring')}
+                onClick={() => selectSection('monitoring')}
                 className={`w-full text-left px-4 py-3 rounded-lg transition-all font-semibold ${
                   activeSection === 'monitoring'
                     ? 'bg-white text-black shadow-lg'
@@ -97,7 +111,7 @@ export default function SettingsPage() {
                 📡 Device Monitoring
               </button>
               <button
-                onClick={() => setActiveSection('database')}
+                onClick={() => selectSection('database')}
                 className={`w-full text-left px-4 py-3 rounded-lg transition-all font-semibold ${
                   activeSection === 'database'
                     ? 'bg-white text-black shadow-lg'
@@ -107,7 +121,7 @@ export default function SettingsPage() {
                 💾 Database
               </button>
               <button
-                onClick={() => setActiveSection('youtube')}
+                onClick={() => selectSection('youtube')}
                 className={`w-full text-left px-4 py-3 rounded-lg transition-all font-semibold ${
                   activeSection === 'youtube'
                     ? 'bg-white text-black shadow-lg'
@@ -117,7 +131,7 @@ export default function SettingsPage() {
                 🎬 YouTube Videos
               </button>
               <button
-                onClick={() => setActiveSection('jukebox')}
+                onClick={() => selectSection('jukebox')}
                 className={`w-full text-left px-4 py-3 rounded-lg transition-all font-semibold ${
                   activeSection === 'jukebox'
                     ? 'bg-white text-black shadow-lg'
@@ -127,7 +141,7 @@ export default function SettingsPage() {
                 🎵 Jukebox
               </button>
               <button
-                onClick={() => setActiveSection('location')}
+                onClick={() => selectSection('location')}
                 className={`w-full text-left px-4 py-3 rounded-lg transition-all font-semibold ${
                   activeSection === 'location'
                     ? 'bg-white text-black shadow-lg'
@@ -137,7 +151,7 @@ export default function SettingsPage() {
                 📍 Location
               </button>
               <button
-                onClick={() => setActiveSection('trivia')}
+                onClick={() => selectSection('trivia')}
                 className={`w-full text-left px-4 py-3 rounded-lg transition-all font-semibold ${
                   activeSection === 'trivia'
                     ? 'bg-white text-black shadow-lg'
@@ -147,7 +161,7 @@ export default function SettingsPage() {
                 🎅 Trivia
               </button>
               <button
-                onClick={() => setActiveSection('display')}
+                onClick={() => selectSection('display')}
                 className={`w-full text-left px-4 py-3 rounded-lg transition-all font-semibold ${
                   activeSection === 'display'
                     ? 'bg-white text-black shadow-lg'
@@ -173,8 +187,7 @@ export default function SettingsPage() {
             {activeSection === 'display' && <DisplaySettings />}
           </div>
         </div>
-      </div>
-    </div>
+    </>
   );
 }
 
