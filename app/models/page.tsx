@@ -3,10 +3,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { Search, Upload, Zap, Cable, Info, Power, File, X, Edit, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import AdminLayout from '@/components/AdminLayout';
-import StatCard from '@/components/ui/StatCard';
-import GlassCard from '@/components/ui/GlassCard';
 import EditModelModal from '@/components/EditModelModal';
-import { gradients, glassStyles } from '@/lib/theme';
+import { card, eyebrow, button, accentButton, smallButton, smallDangerButton, field, sizedField, textLink, notice, badge } from '@/components/admin/ui-classes';
 
 interface Model {
   id: number;
@@ -161,59 +159,95 @@ export default function ModelsPage() {
 
   if (loading) {
     return (
-      <AdminLayout title="⚙️ Model Configuration">
-        <div className="flex items-center justify-center min-h-[400px]">
+      <AdminLayout title="Model Configuration">
+        <div className="flex min-h-[400px] items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-white/70">Loading models...</p>
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-adm-line border-t-adm-accent"></div>
+            <p className="text-sm text-adm-muted">Loading models...</p>
           </div>
         </div>
       </AdminLayout>
     );
   }
 
+  const stats = [
+    { icon: File, label: 'Total Models', value: models.length.toLocaleString() },
+    { icon: Cable, label: 'Total Channels', value: totalChannels.toLocaleString() },
+    { icon: Zap, label: 'Total Nodes', value: models.reduce((sum, m) => sum + (m.node_count || 0), 0).toLocaleString() },
+    { icon: Power, label: 'Est. Power', value: `${totalAmps.toFixed(1)}A` },
+    { icon: Info, label: 'Controllers', value: controllers.length.toLocaleString() },
+  ];
+
   return (
     <AdminLayout
-      title="⚙️ Model Configuration"
+      title="Model Configuration"
       subtitle="Your yearly setup reference guide - Never forget a connection again!"
     >
-      <div className="space-y-6">
-      
-      {/* Import Button */}
-      <div className="flex justify-end">
+      <div className="space-y-4">
+
+      {/* Search, Filter & Import */}
+      <div className="flex flex-col gap-2.5 sm:flex-row">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-adm-faint" aria-hidden="true" />
+          <input
+            type="text"
+            placeholder="Search models, controllers..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Search models"
+            className={`${field} pl-10`}
+          />
+        </div>
+        <select
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          aria-label="Filter by controller"
+          className={`${sizedField} w-full sm:w-56`}
+        >
+          <option value="all">All Controllers</option>
+          {controllers.map(controller => (
+            <option key={controller} value={controller}>{controller}</option>
+          ))}
+        </select>
         <button
           onClick={() => setShowUploadModal(true)}
-          className={`flex items-center gap-2 px-6 py-3 ${glassStyles.button}`}
+          className={button}
         >
-          <Upload className="w-5 h-5" />
+          <Upload className="h-4 w-4" aria-hidden="true" />
           Import Excel File
         </button>
       </div>
 
       {/* Upload Modal */}
       {showUploadModal && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50">
-          <GlassCard className="max-w-md w-full mx-4 p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-white">Import Models from Excel</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="import-models-title"
+            className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-adm-line bg-adm-surface p-5"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 id="import-models-title" className="text-lg font-semibold text-adm-text">Import Models from Excel</h2>
               <button
                 onClick={() => {
                   setShowUploadModal(false);
                   setSelectedFile(null);
                 }}
-                className="text-white/70 hover:text-white transition-colors"
+                aria-label="Close"
+                className="grid h-9 w-9 place-items-center rounded-lg text-adm-muted transition-colors hover:bg-adm-hover hover:text-adm-text"
               >
-                <X className="w-5 h-5" />
+                <X className="h-5 w-5" aria-hidden="true" />
               </button>
             </div>
 
             <div className="space-y-4">
-              <p className="text-sm text-white/80">
-                Upload your <strong className="text-white">Export Models.xlsx</strong> file from xLights to import your model configuration.
+              <p className="text-sm text-adm-soft">
+                Upload your <strong className="text-adm-text">Export Models.xlsx</strong> file from xLights to import your model configuration.
               </p>
 
               {/* File Input */}
-              <div className="border-2 border-dashed border-white/20 rounded-lg p-6 text-center hover:border-white/30 transition-colors bg-white/5">
+              <div className="rounded-xl border border-dashed border-adm-control-line bg-adm-side p-6 text-center transition-colors hover:border-adm-faint">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -221,31 +255,31 @@ export default function ModelsPage() {
                   onChange={handleFileSelect}
                   className="hidden"
                 />
-                
+
                 {selectedFile ? (
                   <div className="space-y-2">
-                    <File className="w-12 h-12 text-green-400 mx-auto" />
-                    <p className="font-medium text-white">{selectedFile.name}</p>
-                    <p className="text-sm text-white/60">
+                    <File className="mx-auto h-10 w-10 text-adm-ok" aria-hidden="true" />
+                    <p className="font-medium text-adm-text">{selectedFile.name}</p>
+                    <p className="text-sm text-adm-muted">
                       {(selectedFile.size / 1024).toFixed(1)} KB
                     </p>
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="text-blue-400 hover:text-blue-300 text-sm"
+                      className={textLink}
                     >
                       Choose different file
                     </button>
                   </div>
                 ) : (
                   <div>
-                    <Upload className="w-12 h-12 text-white/40 mx-auto mb-2" />
+                    <Upload className="mx-auto mb-2 h-10 w-10 text-adm-faint" aria-hidden="true" />
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="text-blue-400 hover:text-blue-300 font-medium"
+                      className="text-sm font-semibold text-adm-accent hover:underline"
                     >
                       Click to select file
                     </button>
-                    <p className="text-sm text-white/60 mt-1">
+                    <p className="mt-1 text-sm text-adm-muted">
                       Accepts .xlsx and .xls files
                     </p>
                   </div>
@@ -253,20 +287,18 @@ export default function ModelsPage() {
               </div>
 
               {/* Warning */}
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
-                <p className="text-sm text-amber-300">
-                  ⚠️ This will replace all existing model data
-                </p>
-              </div>
+              <p className={notice.warn}>
+                This will replace all existing model data
+              </p>
 
               {/* Actions */}
-              <div className="flex gap-3">
+              <div className="flex gap-2.5">
                 <button
                   onClick={() => {
                     setShowUploadModal(false);
                     setSelectedFile(null);
                   }}
-                  className={`flex-1 px-4 py-2 ${glassStyles.button}`}
+                  className={`${button} flex-1`}
                   disabled={importing}
                 >
                   Cancel
@@ -274,98 +306,53 @@ export default function ModelsPage() {
                 <button
                   onClick={importModels}
                   disabled={!selectedFile || importing}
-                  className="flex-1 px-4 py-2 bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`${accentButton} flex-1`}
                 >
                   {importing ? 'Importing...' : 'Import'}
                 </button>
               </div>
             </div>
-          </GlassCard>
+          </div>
         </div>
       )}
 
-      {/* Search & Filter */}
-      <div className="flex gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-4 h-4" />
-          <input
-            type="text"
-            placeholder="Search models, controllers..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className={`w-full pl-10 pr-4 py-2 ${glassStyles.input}`}
-          />
-        </div>
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className={`px-4 py-2 min-w-[200px] ${glassStyles.input}`}
-        >
-          <option value="all" className="bg-gray-800 text-white">All Controllers</option>
-          {controllers.map(controller => (
-            <option key={controller} value={controller} className="bg-gray-800 text-white">{controller}</option>
-          ))}
-        </select>
-      </div>
-
       {/* Stats Dashboard */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-        <StatCard
-          icon={File}
-          label="Total Models"
-          value={models.length}
-          gradient={gradients.blue}
-        />
-        <StatCard
-          icon={Cable}
-          label="Total Channels"
-          value={totalChannels}
-          gradient={gradients.purple}
-        />
-        <StatCard
-          icon={Zap}
-          label="Total Nodes"
-          value={models.reduce((sum, m) => sum + (m.node_count || 0), 0)}
-          gradient={gradients.green}
-        />
-        <StatCard
-          icon={Power}
-          label="Est. Power"
-          value={`${totalAmps.toFixed(1)}A`}
-          gradient={gradients.orange}
-        />
-        <StatCard
-          icon={Info}
-          label="Controllers"
-          value={controllers.length}
-          gradient={gradients.indigo}
-        />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
+        {stats.map(({ icon: Icon, label, value }) => (
+          <div key={label} className={card}>
+            <div className="flex items-start justify-between gap-2">
+              <p className={eyebrow}>{label}</p>
+              <Icon className="h-4.5 w-4.5 shrink-0 text-adm-faint" aria-hidden="true" />
+            </div>
+            <p className="mt-1 text-2xl font-semibold text-adm-text sm:text-3xl">{value}</p>
+          </div>
+        ))}
       </div>
 
       {/* Models Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
         {filteredModels.map(model => {
           const isExpanded = expandedModels.has(model.id);
           return (
-          <GlassCard key={model.id} hover className="p-4">
+          <div key={model.id} className={`${card} transition-colors hover:border-adm-control-line`}>
             {/* Header - Always Visible */}
-            <div 
+            <div
               className="cursor-pointer"
               onClick={() => toggleModelExpansion(model.id)}
             >
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-white">{model.model_name}</h3>
-                  <p className="text-sm text-white/70">{model.display_as}</p>
+              <div className="mb-3 flex items-start justify-between">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-[15px] font-semibold text-adm-text">{model.model_name}</h3>
+                  <p className="text-sm text-adm-muted">{model.display_as}</p>
                 </div>
-                <div className="flex items-center gap-2 ml-2">
-                  <span className="px-2 py-1 bg-white/10 text-white/90 text-xs rounded whitespace-nowrap border border-white/20">
+                <div className="ml-2 flex items-center gap-2">
+                  <span className={`${badge.neutral} whitespace-nowrap`}>
                     {model.string_type}
                   </span>
                   {isExpanded ? (
-                    <ChevronUp className="w-5 h-5 text-white/50 flex-shrink-0" />
+                    <ChevronUp className="h-5 w-5 shrink-0 text-adm-faint" aria-hidden="true" />
                   ) : (
-                    <ChevronDown className="w-5 h-5 text-white/50 flex-shrink-0" />
+                    <ChevronDown className="h-5 w-5 shrink-0 text-adm-faint" aria-hidden="true" />
                   )}
                 </div>
               </div>
@@ -373,80 +360,80 @@ export default function ModelsPage() {
               {/* Compact Info - Always Visible */}
               <div className="space-y-2">
                 {/* Channel Range */}
-                <div className="flex items-center gap-2 text-sm text-white/90">
-                  <Cable className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                  <span className="font-medium">Ch {model.start_channel_no?.toLocaleString()}-{model.end_channel_no?.toLocaleString()}</span>
-                  <span className="ml-auto px-2 py-0.5 bg-blue-500/20 text-blue-300 text-xs rounded border border-blue-500/30">
+                <div className="flex items-center gap-2 text-sm">
+                  <Cable className="h-4 w-4 shrink-0 text-adm-info" aria-hidden="true" />
+                  <span className="font-medium text-adm-text">Ch {model.start_channel_no?.toLocaleString()}-{model.end_channel_no?.toLocaleString()}</span>
+                  <span className={`${badge.info} ml-auto`}>
                     {model.channel_count} ch
                   </span>
                 </div>
 
                 {/* Controller */}
-                <div className="flex items-center gap-2 text-sm text-white/90">
-                  <Info className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                  <span className="font-medium truncate">{model.controller_name}</span>
+                <div className="flex items-center gap-2 text-sm">
+                  <Info className="h-4 w-4 shrink-0 text-adm-accent" aria-hidden="true" />
+                  <span className="truncate font-medium text-adm-text">{model.controller_name}</span>
                   {model.controller_ports && (
-                    <span className="px-2 py-0.5 bg-white/10 text-white/90 text-xs rounded flex-shrink-0 border border-white/20">
+                    <span className={`${badge.neutral} shrink-0`}>
                       P{model.controller_ports}
                     </span>
                   )}
                 </div>
 
                 {/* Nodes */}
-                <div className="text-sm text-white/70">
+                <p className="text-sm text-adm-muted">
                   {model.string_count} string{model.string_count > 1 ? 's' : ''} × {model.node_count} nodes = {(model.string_count * model.node_count).toLocaleString()} total
-                </div>
+                </p>
               </div>
             </div>
 
             {/* Expanded Details */}
             {isExpanded && (
-              <div className="mt-4 pt-4 border-t border-white/10 space-y-3">
+              <div className="mt-4 space-y-3 border-t border-adm-line pt-4">
                 {/* IP & Protocol */}
-                <div className="flex items-center gap-2 text-sm text-white/70">
-                  <Info className="w-4 h-4 flex-shrink-0" />
-                  <span className="truncate">{model.controller_ip}</span>
-                  <span className="ml-auto px-2 py-0.5 bg-white/10 text-white/90 text-xs rounded flex-shrink-0 border border-white/20">
+                <div className="flex items-center gap-2 text-sm">
+                  <Info className="h-4 w-4 shrink-0 text-adm-faint" aria-hidden="true" />
+                  <span className="truncate font-mono text-adm-soft">{model.controller_ip}</span>
+                  <span className={`${badge.neutral} ml-auto shrink-0`}>
                     {model.protocol}
                   </span>
                 </div>
 
                 {/* Power Consumption */}
-                <div className="flex items-center gap-2 text-sm text-white/90">
-                  <Power className="w-4 h-4 text-red-400 flex-shrink-0" />
-                  <span className="font-medium">{model.est_current_amps?.toFixed(2)}A</span>
-                  <span className="text-white/60 text-xs ml-auto">
+                <div className="flex items-center gap-2 text-sm">
+                  <Power className="h-4 w-4 shrink-0 text-adm-danger" aria-hidden="true" />
+                  <span className="font-medium text-adm-text">{model.est_current_amps?.toFixed(2)}A</span>
+                  <span className="ml-auto text-xs text-adm-muted">
                     @ {model.connection_protocol}
                   </span>
                 </div>
 
                 {/* Universe ID */}
                 {model.universe_id && (
-                  <div className="text-sm text-white/70">
-                    <span className="text-white/50">Universe:</span> {model.universe_id}
-                  </div>
+                  <p className="text-sm text-adm-soft">
+                    <span className="text-adm-muted">Universe:</span> {model.universe_id}
+                  </p>
                 )}
 
                 {/* Connection Attributes */}
                 {model.connection_attributes && (
-                  <div className="bg-black/30 rounded p-2 border border-white/10">
-                    <p className="text-xs text-white/50 mb-1">Connection Attributes:</p>
-                    <p className="text-xs text-white/70 font-mono break-all">
+                  <div className="rounded-lg border border-adm-line bg-adm-field p-2.5">
+                    <p className="mb-1 text-xs text-adm-muted">Connection Attributes:</p>
+                    <p className="break-all font-mono text-xs text-adm-soft">
                       {model.connection_attributes}
                     </p>
                   </div>
                 )}
 
                 {/* Edit/Delete Buttons */}
-                <div className="flex gap-2 pt-2">
+                <div className="flex gap-2 pt-1">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setEditingModel(model);
                     }}
-                    className="flex-1 px-3 py-2 bg-linear-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg transition-all text-sm font-semibold shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                    className={`${smallButton} flex-1`}
                   >
-                    <Edit className="w-4 h-4" />
+                    <Edit className="h-3.5 w-3.5" aria-hidden="true" />
                     Edit
                   </button>
                   <button
@@ -454,33 +441,33 @@ export default function ModelsPage() {
                       e.stopPropagation();
                       deleteModel(model.id, model.model_name);
                     }}
-                    className="flex-1 px-3 py-2 bg-linear-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg transition-all text-sm font-semibold shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                    className={`${smallDangerButton} flex-1`}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                     Delete
                   </button>
                 </div>
               </div>
             )}
-          </GlassCard>
+          </div>
         )})}
       </div>
 
       {/* Empty State */}
       {filteredModels.length === 0 && (
-        <GlassCard className="text-center py-12">
-          <Upload className="w-12 h-12 text-white/40 mx-auto mb-4" />
-          <p className="text-lg font-medium mb-2 text-white">
+        <div className={`${card} py-12 text-center`}>
+          <Upload className="mx-auto mb-4 h-10 w-10 text-adm-faint" aria-hidden="true" />
+          <p className="mb-2 text-base font-medium text-adm-text">
             {models.length === 0
               ? 'No models imported yet'
               : 'No models match your search'}
           </p>
-          <p className="text-white/70">
+          <p className="text-sm text-adm-muted">
             {models.length === 0
               ? 'Click "Import Excel File" to load your Export Models.xlsx file'
               : 'Try adjusting your search or filters'}
           </p>
-        </GlassCard>
+        </div>
       )}
 
       {/* Edit Modal */}

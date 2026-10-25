@@ -21,6 +21,9 @@ export const accentButton = `${buttonBase} ${medium} ${accent}`;
 export const dangerButton = `${buttonBase} ${medium} ${danger}`;
 export const smallButton = `${buttonBase} ${small} ${neutral}`;
 export const smallDangerButton = `${buttonBase} ${small} ${danger}`;
+/** 36px square button holding only an icon (give it an aria-label) */
+export const iconButton = 'grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-adm-control-line bg-adm-control text-adm-text transition-colors hover:bg-adm-line disabled:cursor-not-allowed disabled:opacity-50';
+export const iconDangerButton = 'grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-adm-danger-line text-adm-danger transition-colors hover:bg-adm-danger-bg disabled:cursor-not-allowed disabled:opacity-50';
 export const roundButton = 'grid h-11 w-11 place-items-center rounded-full border border-adm-control-line bg-adm-control text-adm-text transition-colors hover:bg-adm-line disabled:cursor-not-allowed disabled:opacity-50';
 
 const fieldBase = 'min-h-11 rounded-xl border border-adm-control-line bg-adm-field px-3 py-2.5 text-sm text-adm-text placeholder:text-adm-faint focus:outline-2 focus:outline-offset-1 focus:outline-adm-accent disabled:opacity-50';

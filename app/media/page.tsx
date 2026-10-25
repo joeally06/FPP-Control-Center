@@ -25,8 +25,10 @@ import {
   AlertCircle,
   CheckCircle,
   FileAudio,
-  HardDrive
+  HardDrive,
+  Clock
 } from 'lucide-react';
+import { card, insetBox, button, accentButton, smallButton, smallDangerButton, iconButton, iconDangerButton, field, notice, badge, tabClass } from '@/components/admin/ui-classes';
 
 // Tab type for the unified Media Center
 type MediaTab = 'library' | 'audio-sync' | 'local-files';
@@ -787,125 +789,88 @@ export default function MediaCenter() {
 
   if (!isAdmin) return null;
 
+  const spinner = 'mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-adm-line border-t-adm-accent';
+  // Card that holds a table or list edge to edge (card's own padding would win over p-0)
+  const flushCard = 'overflow-hidden rounded-2xl border border-adm-line bg-adm-surface';
+  const th = 'px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.06em] text-adm-muted';
+  const tabs = [
+    { key: 'library', label: 'Library', icon: Library },
+    { key: 'audio-sync', label: 'Audio Sync', icon: Link2 },
+    { key: 'local-files', label: 'Local Files', icon: FolderOpen },
+  ] as const;
+
   return (
     <AdminLayout
-      title="🎵 Media Center"
+      title="Media Center"
       subtitle="Unified media management with library, audio sync, and local files"
     >
       {/* Tab Navigation */}
-      <div className="backdrop-blur-md bg-white/10 rounded-xl shadow-2xl border border-white/20 mb-6 overflow-hidden">
-        <div className="flex">
+      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-adm-line">
+        {tabs.map(({ key, label, icon: Icon }) => (
           <button
-            onClick={() => setActiveTab('library')}
-            className={`flex-1 flex items-center justify-center gap-2 py-4 px-6 font-semibold transition-all ${
-              activeTab === 'library'
-                ? 'bg-white/20 text-white border-b-2 border-white'
-                : 'text-white/70 hover:bg-white/10 hover:text-white'
-            }`}
+            key={key}
+            onClick={() => setActiveTab(key)}
+            aria-pressed={activeTab === key}
+            className={`${tabClass(activeTab === key)} inline-flex items-center gap-2`}
           >
-            <Library className="w-5 h-5" />
-            <span>Library</span>
+            <Icon className="h-4 w-4" aria-hidden="true" />
+            {label}
           </button>
-          <button
-            onClick={() => setActiveTab('audio-sync')}
-            className={`flex-1 flex items-center justify-center gap-2 py-4 px-6 font-semibold transition-all ${
-              activeTab === 'audio-sync'
-                ? 'bg-white/20 text-white border-b-2 border-white'
-                : 'text-white/70 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <Link2 className="w-5 h-5" />
-            <span>Audio Sync</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('local-files')}
-            className={`flex-1 flex items-center justify-center gap-2 py-4 px-6 font-semibold transition-all ${
-              activeTab === 'local-files'
-                ? 'bg-white/20 text-white border-b-2 border-white'
-                : 'text-white/70 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <FolderOpen className="w-5 h-5" />
-            <span>Local Files</span>
-          </button>
-        </div>
+        ))}
       </div>
 
-      {/* Sync Status Banner - Show on Library and Audio Sync tabs */}
       {/* Sync Status Banner - Show only on Library tab */}
       {activeTab === 'library' && syncStatus && (
-        <div className="backdrop-blur-md bg-white/10 rounded-xl p-4 shadow-2xl border border-white/20 mb-6">
-          <div className="flex items-center justify-between">
+        <div className={`${card} mb-4`}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-                <span className="text-white font-semibold">FPP Data Cache</span>
+              <div className="mb-1 flex items-center gap-2">
+                <RefreshCw className={`h-4 w-4 text-adm-muted ${syncing ? 'animate-spin' : ''}`} aria-hidden="true" />
+                <span className="font-semibold text-adm-text">FPP Data Cache</span>
               </div>
-              <div className="text-sm text-white/70">
+              <div className="text-sm text-adm-muted">
                 {syncStatus.lastSuccess ? (
                   <>
-                    Last synced: {formatDateTime(syncStatus.lastSuccess, 'relative')} 
+                    Last synced: {formatDateTime(syncStatus.lastSuccess, 'relative')}
                     {' - '}
                     {syncStatus.playlistsCount} playlists, {syncStatus.sequencesCount} sequences
                   </>
                 ) : syncStatus.lastError ? (
-                  <span className="text-red-300">Error: {syncStatus.lastError}</span>
+                  <span className="text-adm-danger">Error: {syncStatus.lastError}</span>
                 ) : (
-                  <span className="text-yellow-300">No data cached yet - click Sync to load from FPP</span>
+                  <span className="text-adm-warn">No data cached yet - click Sync to load from FPP</span>
                 )}
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={handleSync}
                 disabled={syncing}
-                className={`px-6 py-2 rounded-lg font-semibold transition-all ${
-                  syncing
-                    ? 'bg-white/10 text-white/50 cursor-not-allowed'
-                    : 'bg-white/20 hover:bg-white/30 text-white'
-                }`}
+                className={button}
               >
-                {syncing ? (
-                  <span className="flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    Syncing...
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4" />
-                    Sync FPP
-                  </span>
-                )}
+                <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} aria-hidden="true" />
+                {syncing ? 'Syncing...' : 'Sync FPP'}
               </button>
-              
+
               <button
                 onClick={handleRefreshSpotifyUrls}
                 disabled={refreshingSpotifyUrls}
-                className={`px-6 py-2 rounded-lg font-semibold transition-all ${
-                  refreshingSpotifyUrls
-                    ? 'bg-green-600/30 text-white/50 cursor-not-allowed'
-                    : 'bg-green-600 hover:bg-green-700 text-white'
-                }`}
+                className={button}
                 title="Refresh Spotify URLs for all songs missing links"
               >
                 {refreshingSpotifyUrls ? (
-                  <span className="flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    Refreshing...
-                  </span>
+                  <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
                 ) : (
-                  <span className="flex items-center gap-2">
-                    <Music className="w-4 h-4" />
-                    Refresh Spotify URLs
-                  </span>
+                  <Music className="h-4 w-4" aria-hidden="true" />
                 )}
+                {refreshingSpotifyUrls ? 'Refreshing...' : 'Refresh Spotify URLs'}
               </button>
             </div>
           </div>
           {(syncMessage || refreshSpotifyMessage) && (
-            <div className="mt-2 text-sm text-white space-y-1">
-              {syncMessage && <div>{syncMessage}</div>}
-              {refreshSpotifyMessage && <div>{refreshSpotifyMessage}</div>}
+            <div className="mt-3 space-y-1 text-sm text-adm-soft">
+              {syncMessage && <div className="text-adm-soft">{syncMessage}</div>}
+              {refreshSpotifyMessage && <div className="text-adm-soft">{refreshSpotifyMessage}</div>}
             </div>
           )}
         </div>
@@ -915,74 +880,64 @@ export default function MediaCenter() {
       {activeTab === 'library' && (
         <>
           {/* Search Bar */}
-          <div className="backdrop-blur-md bg-white/10 rounded-xl p-4 shadow-2xl border border-white/20 mb-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search playlists..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50"
-              />
-            </div>
+          <div className="relative mb-4">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-adm-faint" aria-hidden="true" />
+            <input
+              type="text"
+              placeholder="Search playlists..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Search playlists"
+              className={`${field} pl-10`}
+            />
           </div>
 
       {loading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white/70">Loading media library...</p>
+        <div className="py-12 text-center">
+          <div className={spinner}></div>
+          <p className="text-sm text-adm-muted">Loading media library...</p>
         </div>
       ) : playlists.length === 0 ? (
-        <div className="backdrop-blur-md bg-white/10 rounded-xl p-12 shadow-2xl border border-white/20 text-center">
-          <div className="text-6xl mb-4">📚</div>
-          <h3 className="text-2xl font-bold text-white mb-2">No Data Cached</h3>
-          <p className="text-white/70 mb-4">Click "Sync Now" to load playlists and sequences from FPP.</p>
+        <div className={`${card} py-12 text-center`}>
+          <Library className="mx-auto mb-4 h-10 w-10 text-adm-faint" aria-hidden="true" />
+          <h3 className="mb-2 text-lg font-semibold text-adm-text">No Data Cached</h3>
+          <p className="text-sm text-adm-muted">Click &quot;Sync Now&quot; to load playlists and sequences from FPP.</p>
         </div>
       ) : (
-        <div className="space-y-6">
-          
+        <div className="space-y-4">
+
           {/* Playlist Dropdown */}
-          <div className="backdrop-blur-md bg-white/10 rounded-xl p-6 shadow-2xl border border-white/20">
-            <h2 className="text-2xl font-bold text-white flex items-center gap-3 mb-4">
-              <List className="w-6 h-6" />
-              Select Playlist
-            </h2>
+          <div className={card}>
+            <label htmlFor="media-playlist" className="admin-h2 block">Select Playlist</label>
 
             <select
+              id="media-playlist"
               value={selectedPlaylist?.name || ''}
               onChange={(e) => {
                 const playlist = playlists.find(p => p.name === e.target.value);
                 setSelectedPlaylist(playlist || null);
               }}
-              className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/50 cursor-pointer appearance-none"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 0.75rem center',
-                backgroundSize: '1.5rem',
-                paddingRight: '3rem'
-              }}
+              className={`${field} cursor-pointer`}
             >
-              <option value="" disabled className="bg-gray-800">Choose a playlist...</option>
+              <option value="" disabled>Choose a playlist...</option>
               {filteredPlaylists.map((playlist) => (
-                <option key={playlist.name} value={playlist.name} className="bg-gray-800">
+                <option key={playlist.name} value={playlist.name}>
                   {playlist.name} ({playlist.playlistInfo?.total_items || 0} items)
                 </option>
               ))}
             </select>
 
             {selectedPlaylist && (
-              <div className="mt-4 p-4 bg-white/5 rounded-lg border border-white/10">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="text-white font-semibold mb-1">{selectedPlaylist.name}</h3>
+              <div className={`${insetBox} mt-4`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="mb-1 font-semibold text-adm-text">{selectedPlaylist.name}</h3>
                     {selectedPlaylist.desc && (
-                      <p className="text-sm text-white/60 mb-2">{selectedPlaylist.desc}</p>
+                      <p className="mb-2 text-sm text-adm-muted">{selectedPlaylist.desc}</p>
                     )}
-                    <div className="flex gap-4 text-sm text-white/50">
-                      <span>📋 {selectedPlaylist.playlistInfo?.total_items || 0} items</span>
-                      <span>⏱️ {formatDuration(selectedPlaylist.playlistInfo?.total_duration)}</span>
+                    <div className="flex gap-4 text-sm text-adm-muted">
+                      <span className="inline-flex items-center gap-1.5"><List className="h-3.5 w-3.5" aria-hidden="true" />{selectedPlaylist.playlistInfo?.total_items || 0} items</span>
+                      <span className="inline-flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" aria-hidden="true" />{formatDuration(selectedPlaylist.playlistInfo?.total_duration)}</span>
                     </div>
                   </div>
 
@@ -990,18 +945,20 @@ export default function MediaCenter() {
                     <button
                       onClick={() => playPlaylist(selectedPlaylist.name)}
                       disabled={!isOnline}
-                      className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className={iconButton}
                       title="Play Playlist"
+                      aria-label={`Play ${selectedPlaylist.name}`}
                     >
-                      <Play className="w-5 h-5" />
+                      <Play className="h-4 w-4" aria-hidden="true" />
                     </button>
                     <button
                       onClick={() => deletePlaylist(selectedPlaylist.name)}
                       disabled={!isOnline}
-                      className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className={iconDangerButton}
                       title="Delete Playlist"
+                      aria-label={`Delete ${selectedPlaylist.name}`}
                     >
-                      <Trash2 className="w-5 h-5" />
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
                     </button>
                   </div>
                 </div>
@@ -1012,112 +969,98 @@ export default function MediaCenter() {
           {/* Sequences Section - Full Width */}
           <div>
             {!selectedPlaylist ? (
-              <div className="backdrop-blur-md bg-white/10 rounded-xl p-12 shadow-2xl border border-white/20 text-center">
-                <div className="text-6xl mb-4">☝️</div>
-                <h3 className="text-2xl font-bold text-white mb-2">Select a Playlist</h3>
-                <p className="text-white/70">Choose a playlist from the dropdown to view its sequences with album art and metadata</p>
+              <div className={`${card} py-12 text-center`}>
+                <List className="mx-auto mb-4 h-10 w-10 text-adm-faint" aria-hidden="true" />
+                <h3 className="mb-2 text-lg font-semibold text-adm-text">Select a Playlist</h3>
+                <p className="text-sm text-adm-muted">Choose a playlist from the dropdown to view its sequences with album art and metadata</p>
               </div>
             ) : (
-              <div className="backdrop-blur-md bg-white/10 rounded-xl p-6 shadow-2xl border border-white/20">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                    <Music className="w-6 h-6" />
-                    {selectedPlaylist.name}
-                  </h2>
+              <div className={card}>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h2 className="admin-h2 mb-0 truncate">{selectedPlaylist.name}</h2>
                   {loadingMetadata && (
-                    <div className="flex items-center gap-2 text-white/70">
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span className="text-sm">Loading metadata...</span>
+                    <div className="flex shrink-0 items-center gap-2 text-adm-muted">
+                      <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      <span className="text-sm text-adm-muted">Loading metadata...</span>
                     </div>
                   )}
                 </div>
 
                 {loadingMetadata && sequencesWithMetadata.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white mx-auto mb-4"></div>
-                    <p className="text-white/70">Loading Spotify metadata...</p>
+                  <div className="py-12 text-center">
+                    <div className={spinner}></div>
+                    <p className="text-sm text-adm-muted">Loading Spotify metadata...</p>
                   </div>
                 ) : sequencesWithMetadata.length === 0 && !loadingMetadata ? (
-                  <p className="text-white/50 text-center py-8">No sequences in this playlist</p>
+                  <p className="py-8 text-center text-sm text-adm-muted">No sequences in this playlist</p>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {sequencesWithMetadata.map((sequence) => (
                       <div
                         key={sequence.name}
-                        className="bg-white/5 rounded-lg border border-white/10 overflow-hidden hover:bg-white/10 transition-all group"
+                        className="overflow-hidden rounded-xl border border-adm-line bg-adm-side transition-colors hover:border-adm-control-line"
                       >
                         {/* Album Art */}
-                        <div className="relative aspect-square bg-linear-to-br from-purple-900/50 to-blue-900/50">
+                        <div className="relative aspect-square bg-adm-field">
                           {sequence.albumArt ? (
                             <img
                               src={sequence.albumArt}
                               alt={sequence.name}
-                              className="w-full h-full object-cover"
+                              className="h-full w-full object-cover"
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Music className="w-24 h-24 text-white/30" />
+                            <div className="flex h-full w-full items-center justify-center">
+                              <Music className="h-20 w-20 text-adm-line" aria-hidden="true" />
                             </div>
                           )}
                         </div>
 
                         {/* Metadata */}
                         <div className="p-4">
-                          <h3 className="text-white font-semibold mb-1 truncate" title={sequence.name}>
+                          <h3 className="mb-1 truncate font-semibold text-adm-text" title={sequence.name}>
                             {sequence.trackName || sequence.name}
                           </h3>
-                          
+
                           {sequence.artist && (
-                            <p className="text-sm text-white/70 mb-1 truncate">{sequence.artist}</p>
+                            <p className="mb-1 truncate text-sm text-adm-soft">{sequence.artist}</p>
                           )}
-                          
+
                           {sequence.album && (
-                            <p className="text-xs text-white/50 mb-3 truncate">{sequence.album}</p>
+                            <p className="mb-3 truncate text-xs text-adm-muted">{sequence.album}</p>
                           )}
 
                           {/* Stats */}
-                          <div className="flex items-center gap-3 text-xs text-white/60 mb-3">
-                            <span>⏱️ {formatDuration(sequence.duration)}</span>
-                            <span>💾 {formatSize(sequence.size)}</span>
+                          <div className="mb-3 flex items-center gap-3 text-xs text-adm-muted">
+                            <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" aria-hidden="true" />{formatDuration(sequence.duration)}</span>
+                            <span className="inline-flex items-center gap-1"><HardDrive className="h-3.5 w-3.5" aria-hidden="true" />{formatSize(sequence.size)}</span>
                           </div>
 
                           {/* Analytics */}
-                          {(sequence.votes || sequence.playCount || sequence.rating) ? (
-                            <div className="flex items-center gap-3 pt-3 border-t border-white/10">
-                              {(sequence.rating ?? 0) > 0 && (
-                                <div className="flex items-center gap-1">
-                                  <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                                  <span className="text-sm text-white">{sequence.rating!.toFixed(1)}</span>
-                                </div>
-                              )}
-                              {(sequence.votes ?? 0) > 0 && (
-                                <span className="text-xs text-white/60">{sequence.votes} votes</span>
-                              )}
-                              {(sequence.playCount ?? 0) > 0 && (
-                                <div className="flex items-center gap-1">
-                                  <TrendingUp className="w-3 h-3 text-blue-400" />
-                                  <span className="text-xs text-white/60">{sequence.playCount}</span>
-                                </div>
-                              )}
-                              <button
-                                onClick={() => openEditModal(sequence)}
-                                className="ml-auto text-white/60 hover:text-white transition-colors"
-                                title="Edit metadata"
-                              >
-                                <Edit3 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-end pt-3 border-t border-white/10">
-                              <button
-                                onClick={() => openEditModal(sequence)}
-                                className="text-white/60 hover:text-white transition-colors"
-                                title="Edit metadata"
-                              >
-                                <Edit3 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          )}
+                          <div className={`flex items-center gap-3 border-t border-adm-line pt-3 ${(sequence.votes || sequence.playCount || sequence.rating) ? '' : 'justify-end'}`}>
+                            {(sequence.rating ?? 0) > 0 && (
+                              <div className="flex items-center gap-1">
+                                <Star className="h-4 w-4 fill-adm-accent text-adm-accent" aria-hidden="true" />
+                                <span className="text-sm text-adm-text">{sequence.rating!.toFixed(1)}</span>
+                              </div>
+                            )}
+                            {(sequence.votes ?? 0) > 0 && (
+                              <span className="text-xs text-adm-muted">{sequence.votes} votes</span>
+                            )}
+                            {(sequence.playCount ?? 0) > 0 && (
+                              <div className="flex items-center gap-1">
+                                <TrendingUp className="h-3.5 w-3.5 text-adm-info" aria-hidden="true" />
+                                <span className="text-xs text-adm-muted">{sequence.playCount}</span>
+                              </div>
+                            )}
+                            <button
+                              onClick={() => openEditModal(sequence)}
+                              className="ml-auto grid h-9 w-9 place-items-center rounded-lg text-adm-muted transition-colors hover:bg-adm-hover hover:text-adm-text"
+                              title="Edit metadata"
+                              aria-label={`Edit metadata for ${sequence.trackName || sequence.name}`}
+                            >
+                              <Edit3 className="h-4 w-4" aria-hidden="true" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -1133,31 +1076,22 @@ export default function MediaCenter() {
 
       {/* AUDIO SYNC TAB CONTENT */}
       {activeTab === 'audio-sync' && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Playlist Selector for Audio Sync */}
-          <div className="backdrop-blur-md bg-white/10 rounded-xl p-6 shadow-2xl border border-white/20">
-            <h2 className="text-xl font-bold text-white flex items-center gap-3 mb-4">
-              <List className="w-5 h-5" />
-              Select Playlist for Audio Sync
-            </h2>
+          <div className={card}>
+            <label htmlFor="audio-sync-playlist" className="admin-h2 block">Select Playlist for Audio Sync</label>
             <select
+              id="audio-sync-playlist"
               value={selectedAudioSyncPlaylist?.name || ''}
               onChange={(e) => {
                 const playlist = playlists.find(p => p.name === e.target.value);
                 setSelectedAudioSyncPlaylist(playlist || null);
               }}
-              className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/50 cursor-pointer appearance-none"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 0.75rem center',
-                backgroundSize: '1.5rem',
-                paddingRight: '3rem'
-              }}
+              className={`${field} cursor-pointer`}
             >
-              <option value="" disabled className="bg-gray-800">Choose a playlist...</option>
+              <option value="" disabled>Choose a playlist...</option>
               {playlists.map((playlist) => (
-                <option key={playlist.name} value={playlist.name} className="bg-gray-800">
+                <option key={playlist.name} value={playlist.name}>
                   {playlist.name} ({playlist.playlistInfo?.total_items || 0} items)
                 </option>
               ))}
@@ -1165,10 +1099,10 @@ export default function MediaCenter() {
           </div>
 
           {!selectedAudioSyncPlaylist ? (
-            <div className="backdrop-blur-md bg-white/10 rounded-xl p-12 shadow-2xl border border-white/20 text-center">
-              <div className="text-6xl mb-4">☝️</div>
-              <h3 className="text-2xl font-bold text-white mb-2">Select a Playlist</h3>
-              <p className="text-white/70">Choose a playlist above to view and manage audio sync status</p>
+            <div className={`${card} py-12 text-center`}>
+              <Link2 className="mx-auto mb-4 h-10 w-10 text-adm-faint" aria-hidden="true" />
+              <h3 className="mb-2 text-lg font-semibold text-adm-text">Select a Playlist</h3>
+              <p className="text-sm text-adm-muted">Choose a playlist above to view and manage audio sync status</p>
             </div>
           ) : (
             <>
@@ -1176,142 +1110,143 @@ export default function MediaCenter() {
               {(() => {
                 const stats = getAudioSyncStats();
                 return (
-                  <div className="backdrop-blur-md bg-white/10 rounded-xl p-4 shadow-2xl border border-white/20">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Link2 className="w-5 h-5 text-white flex-shrink-0" />
-                        <span className="text-white font-semibold truncate">Audio Sync: {selectedAudioSyncPlaylist.name}</span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm">
-                        <div className="flex items-center gap-1.5">
-                          <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
-                          <span className="text-green-400 whitespace-nowrap">{stats.ready} Ready</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Download className="w-4 h-4 text-yellow-400 flex-shrink-0" />
-                          <span className="text-yellow-400 whitespace-nowrap">{stats.needsDownload} Download</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <AlertCircle className="w-4 h-4 text-orange-400 flex-shrink-0" />
-                          <span className="text-orange-400 whitespace-nowrap">{stats.needsMapping} Mapping</span>
-                        </div>
+                  <div className={card}>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="min-w-0 truncate font-semibold text-adm-text">Audio Sync: {selectedAudioSyncPlaylist.name}</span>
+                      <div className="flex flex-wrap items-center gap-3 text-sm">
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-adm-ok">
+                          <CheckCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                          {stats.ready} Ready
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-adm-warn">
+                          <Download className="h-4 w-4 shrink-0" aria-hidden="true" />
+                          {stats.needsDownload} Download
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-adm-danger">
+                          <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                          {stats.needsMapping} Mapping
+                        </span>
                         <button
                           onClick={loadAudioSyncData}
                           disabled={loadingAudioSync}
-                          className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors touch-manipulation"
+                          className={iconButton}
                           title="Refresh audio sync data"
+                          aria-label="Refresh audio sync data"
                         >
-                          <RefreshCw className={`w-4 h-4 text-white ${loadingAudioSync ? 'animate-spin' : ''}`} />
+                          <RefreshCw className={`h-4 w-4 ${loadingAudioSync ? 'animate-spin' : ''}`} aria-hidden="true" />
                         </button>
                       </div>
                     </div>
                     {audioSyncMessage && (
-                      <div className="mt-3 text-sm text-white">{audioSyncMessage}</div>
+                      <p className="mt-3 text-sm text-adm-soft">{audioSyncMessage}</p>
                     )}
                   </div>
                 );
               })()}
 
               {/* Playlist Sequences Table */}
-              <div className="backdrop-blur-md bg-white/10 rounded-xl shadow-2xl border border-white/20 overflow-hidden">
+              <div className={flushCard}>
                 {loadingAudioSync ? (
-                  <div className="text-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white mx-auto mb-4"></div>
-                    <p className="text-white/70">Loading audio sync status...</p>
+                  <div className="py-12 text-center">
+                    <div className={spinner}></div>
+                    <p className="text-sm text-adm-muted">Loading audio sync status...</p>
                   </div>
                 ) : playlistSequences.length === 0 ? (
-                  <div className="text-center py-12">
-                    <FileAudio className="w-12 h-12 text-white/30 mx-auto mb-3" />
-                    <p className="text-white/70">No sequences found in this playlist</p>
+                  <div className="py-12 text-center">
+                    <FileAudio className="mx-auto mb-3 h-10 w-10 text-adm-faint" aria-hidden="true" />
+                    <p className="text-sm text-adm-muted">No sequences found in this playlist</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
                   <table className="w-full min-w-[640px]">
-                    <thead className="bg-white/5 border-b border-white/10">
+                    <thead className="border-b border-adm-line bg-adm-side">
                       <tr>
-                        <th className="text-left py-3 px-4 text-white/80 font-medium">Sequence</th>
-                        <th className="text-left py-3 px-4 text-white/80 font-medium">Audio File</th>
-                        <th className="text-center py-3 px-4 text-white/80 font-medium">Status</th>
-                        <th className="text-right py-3 px-4 text-white/80 font-medium">Actions</th>
+                        <th scope="col" className={`${th} text-left`}>Sequence</th>
+                        <th scope="col" className={`${th} text-left`}>Audio File</th>
+                        <th scope="col" className={`${th} text-center`}>Status</th>
+                        <th scope="col" className={`${th} text-right`}>Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/10">
+                    <tbody className="divide-y divide-adm-line">
                       {playlistSequences.map((seq) => (
-                        <tr key={seq.sequenceName} className="hover:bg-white/5 transition-colors">
-                          <td className="py-3 px-4 max-w-[200px]">
-                            <span className="text-white font-medium block truncate" title={seq.sequenceName}>{seq.sequenceName}</span>
+                        <tr key={seq.sequenceName} className="transition-colors hover:bg-adm-hover">
+                          <td className="max-w-[200px] px-4 py-3">
+                            <span className="block truncate text-sm font-medium text-adm-text" title={seq.sequenceName}>{seq.sequenceName}</span>
                           </td>
-                          <td className="py-3 px-4 max-w-[250px]">
+                          <td className="max-w-[250px] px-4 py-3">
                             {mappingSequence === seq.sequenceName ? (
-                              <div className="flex items-center gap-1 min-w-0">
+                              <div className="flex min-w-0 items-center gap-1.5">
                                 <select
                                   value={selectedAudioFile}
                                   onChange={(e) => setSelectedAudioFile(e.target.value)}
-                                  className="flex-1 min-w-0 bg-white/10 border border-white/20 rounded px-2 py-1 text-white text-sm"
+                                  aria-label={`Audio file for ${seq.sequenceName}`}
+                                  className="min-h-9 min-w-0 flex-1 rounded-lg border border-adm-control-line bg-adm-field px-2 text-sm text-adm-text"
                                 >
-                                  <option value="" className="bg-gray-800 text-white">Select...</option>
+                                  <option value="">Select...</option>
                                   {localAudioFiles.map((file) => (
-                                    <option key={file.name} value={file.name} className="bg-gray-800 text-white">{file.name}</option>
+                                    <option key={file.name} value={file.name}>{file.name}</option>
                                   ))}
                                 </select>
                                 <button
                                   onClick={() => selectedAudioFile && saveAudioMapping(seq.sequenceName, selectedAudioFile)}
                                   disabled={!selectedAudioFile}
-                                  className="flex-shrink-0 p-1.5 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 touch-manipulation"
+                                  className={`${iconButton} touch-manipulation`}
+                                  aria-label="Save mapping"
                                 >
-                                  <Check className="w-4 h-4" />
+                                  <Check className="h-4 w-4 text-adm-ok" aria-hidden="true" />
                                 </button>
                                 <button
                                   onClick={() => setMappingSequence(null)}
-                                  className="flex-shrink-0 p-1.5 bg-white/10 text-white rounded hover:bg-white/20 touch-manipulation"
+                                  className={`${iconButton} touch-manipulation`}
+                                  aria-label="Cancel mapping"
                                 >
-                                  <X className="w-4 h-4" />
+                                  <X className="h-4 w-4" aria-hidden="true" />
                                 </button>
                               </div>
                             ) : seq.audioFile ? (
-                              <span className="text-green-400 block truncate" title={seq.audioFile}>{seq.audioFile}</span>
+                              <span className="block truncate text-sm text-adm-ok" title={seq.audioFile}>{seq.audioFile}</span>
                             ) : seq.mediaName ? (
-                              <span className="text-yellow-400 text-sm block truncate" title={`FPP: ${seq.mediaName}`}>FPP: {seq.mediaName}</span>
+                              <span className="block truncate text-sm text-adm-warn" title={`FPP: ${seq.mediaName}`}>FPP: {seq.mediaName}</span>
                             ) : (
-                              <span className="text-white/50">Not mapped</span>
+                              <span className="text-sm text-adm-muted">Not mapped</span>
                             )}
                           </td>
-                          <td className="py-3 px-4 text-center">
+                          <td className="px-4 py-3 text-center">
                             {seq.status === 'ready' ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs whitespace-nowrap" title="Ready">
-                                <CheckCircle className="w-3 h-3" />
+                              <span className={`${badge.ok} items-center gap-1 whitespace-nowrap`} title="Ready">
+                                <CheckCircle className="h-3 w-3" aria-hidden="true" />
                                 <span className="hidden sm:inline">Ready</span>
                               </span>
                             ) : seq.status === 'needs-download' ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs whitespace-nowrap" title="Need Download">
-                                <Download className="w-3 h-3" />
+                              <span className={`${badge.warn} items-center gap-1 whitespace-nowrap`} title="Need Download">
+                                <Download className="h-3 w-3" aria-hidden="true" />
                                 <span className="hidden sm:inline">Download</span>
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-500/20 text-orange-400 rounded text-xs whitespace-nowrap" title="Need Mapping">
-                                <AlertCircle className="w-3 h-3" />
+                              <span className={`${badge.danger} items-center gap-1 whitespace-nowrap`} title="Need Mapping">
+                                <AlertCircle className="h-3 w-3" aria-hidden="true" />
                                 <span className="hidden sm:inline">Mapping</span>
                               </span>
                             )}
                           </td>
-                          <td className="py-3 px-4 text-right">
-                            <div className="flex items-center justify-end gap-1">
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
                               {/* Download button - shows when audio needs to be downloaded from FPP */}
                               {seq.status === 'needs-download' && seq.mediaName && (
                                 <button
                                   onClick={() => downloadAudioFromFPP(seq.sequenceName, seq.mediaName)}
                                   disabled={downloadingSequence === seq.sequenceName}
-                                  className="px-2 py-1.5 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 whitespace-nowrap touch-manipulation"
+                                  className={`${smallButton} whitespace-nowrap touch-manipulation`}
                                   title="Download audio from FPP"
                                 >
                                   {downloadingSequence === seq.sequenceName ? (
                                     <>
-                                      <RefreshCw className="w-3 h-3 animate-spin" />
+                                      <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
                                       <span className="hidden sm:inline">Downloading...</span>
                                     </>
                                   ) : (
                                     <>
-                                      <Download className="w-3 h-3" />
+                                      <Download className="h-3.5 w-3.5" aria-hidden="true" />
                                       <span className="hidden sm:inline">Download</span>
                                     </>
                                   )}
@@ -1321,10 +1256,10 @@ export default function MediaCenter() {
                               {mappingSequence !== seq.sequenceName && (
                                 <button
                                   onClick={() => setMappingSequence(seq.sequenceName)}
-                                  className={`px-2 py-1.5 ${seq.status === 'ready' ? 'bg-white/10 hover:bg-white/20' : 'bg-orange-600 hover:bg-orange-700'} text-white rounded text-xs font-medium flex items-center gap-1 whitespace-nowrap touch-manipulation`}
+                                  className={`${smallButton} whitespace-nowrap touch-manipulation`}
                                   title={seq.status === 'ready' ? 'Change audio mapping' : 'Map to local audio file'}
                                 >
-                                  <Link2 className="w-3 h-3" />
+                                  <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
                                   <span className="hidden sm:inline">{seq.status === 'ready' ? 'Remap' : 'Map'}</span>
                                 </button>
                               )}
@@ -1344,31 +1279,31 @@ export default function MediaCenter() {
 
       {/* LOCAL FILES TAB CONTENT */}
       {activeTab === 'local-files' && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Local Files Header */}
-          <div className="backdrop-blur-md bg-white/10 rounded-xl p-4 shadow-2xl border border-white/20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <HardDrive className="w-5 h-5 text-white" />
-                <span className="text-white font-semibold">Local Audio Files</span>
-                <span className="text-white/60 text-sm">({localAudioFiles.length} files)</span>
+          <div className={card}>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <HardDrive className="h-5 w-5 shrink-0 text-adm-muted" aria-hidden="true" />
+                <span className="font-semibold text-adm-text">Local Audio Files</span>
+                <span className="text-sm text-adm-muted">({localAudioFiles.length} files)</span>
               </div>
               <div className="flex items-center gap-2">
                 {localAudioFiles.length > 0 && (
                   <button
                     onClick={deleteAllLocalFiles}
                     disabled={deletingAll}
-                    className="px-3 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm touch-manipulation"
+                    className={`${smallDangerButton} touch-manipulation`}
                     title="Delete all files"
                   >
                     {deletingAll ? (
                       <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
                         <span className="hidden sm:inline">Deleting...</span>
                       </>
                     ) : (
                       <>
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                         <span className="hidden sm:inline">Delete All</span>
                       </>
                     )}
@@ -1377,35 +1312,36 @@ export default function MediaCenter() {
                 <button
                   onClick={loadLocalFiles}
                   disabled={deletingAll}
-                  className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors disabled:opacity-50"
+                  className={iconButton}
                   title="Refresh file list"
+                  aria-label="Refresh file list"
                 >
-                  <RefreshCw className="w-4 h-4 text-white" />
+                  <RefreshCw className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
             </div>
             {audioSyncMessage && (
-              <div className="mt-3 text-sm text-white">{audioSyncMessage}</div>
+              <p className="mt-3 text-sm text-adm-soft">{audioSyncMessage}</p>
             )}
           </div>
 
           {/* Local Files List */}
-          <div className="backdrop-blur-md bg-white/10 rounded-xl shadow-2xl border border-white/20 overflow-hidden">
+          <div className={flushCard}>
             {localAudioFiles.length === 0 ? (
-              <div className="text-center py-12">
-                <FolderOpen className="w-12 h-12 text-white/30 mx-auto mb-3" />
-                <p className="text-white/70">No local audio files found</p>
-                <p className="text-white/50 text-sm mt-1">Download audio from FPP using the Audio Sync tab</p>
+              <div className="py-12 text-center">
+                <FolderOpen className="mx-auto mb-3 h-10 w-10 text-adm-faint" aria-hidden="true" />
+                <p className="text-sm text-adm-soft">No local audio files found</p>
+                <p className="mt-1 text-sm text-adm-muted">Download audio from FPP using the Audio Sync tab</p>
               </div>
             ) : (
-              <div className="divide-y divide-white/10">
+              <ul className="divide-y divide-adm-line">
                 {localAudioFiles.map((file) => (
-                  <div key={file.name} className="flex items-start sm:items-center justify-between gap-3 p-4 hover:bg-white/5 transition-colors">
-                    <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
-                      <FileAudio className="w-8 h-8 text-blue-400 flex-shrink-0" />
+                  <li key={file.name} className="flex items-start justify-between gap-3 p-4 transition-colors hover:bg-adm-hover sm:items-center">
+                    <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center">
+                      <FileAudio className="h-7 w-7 shrink-0 text-adm-info" aria-hidden="true" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-white font-medium wrap-break-word" title={file.name}>{file.name}</p>
-                        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-white/50">
+                        <p className="wrap-break-word text-sm font-medium text-adm-text" title={file.name}>{file.name}</p>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-adm-muted sm:gap-4">
                           <span>{formatFileSize(file.size)}</span>
                           <span className="whitespace-nowrap">{new Date(file.lastModified).toLocaleDateString()}</span>
                         </div>
@@ -1414,18 +1350,19 @@ export default function MediaCenter() {
                     <button
                       onClick={() => deleteLocalFile(file.name)}
                       disabled={deletingFile === file.name || deletingAll}
-                      className="flex-shrink-0 p-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors disabled:opacity-50 touch-manipulation"
+                      className={`${iconDangerButton} touch-manipulation`}
                       title="Delete file"
+                      aria-label={`Delete ${file.name}`}
                     >
                       {deletingFile === file.name ? (
-                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
                       ) : (
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
                       )}
                     </button>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </div>
         </div>
@@ -1433,51 +1370,51 @@ export default function MediaCenter() {
 
       {/* Edit Metadata Modal */}
       {editingSequence && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-linear-to-br from-gray-900 to-gray-800 rounded-xl shadow-2xl border border-white/20 max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-metadata-title"
+            className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-adm-line bg-adm-surface"
+          >
+
             {/* Header */}
-            <div className="p-6 border-b border-white/10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-bold text-white">Edit Metadata</h3>
-                  <p className="text-sm text-white/60 mt-1">{editingSequence.name}</p>
+            <div className="border-b border-adm-line p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 id="edit-metadata-title" className="text-lg font-semibold text-adm-text">Edit Metadata</h3>
+                  <p className="mt-0.5 truncate text-sm text-adm-muted">{editingSequence.name}</p>
                 </div>
                 <button
                   onClick={closeEditModal}
-                  className="text-white/60 hover:text-white transition-colors"
+                  aria-label="Close"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-adm-muted transition-colors hover:bg-adm-hover hover:text-adm-text"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="h-5 w-5" aria-hidden="true" />
                 </button>
               </div>
 
               {/* Mode Toggle */}
-              <div className="flex gap-2 mt-4">
-                <button
-                  onClick={() => setManualMode(false)}
-                  className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                    !manualMode
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white/10 text-white/60 hover:bg-white/20'
-                  }`}
-                >
-                  Search Spotify
-                </button>
-                <button
-                  onClick={() => setManualMode(true)}
-                  className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                    manualMode
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white/10 text-white/60 hover:bg-white/20'
-                  }`}
-                >
-                  Manual Entry
-                </button>
+              <div className="mt-4 flex rounded-xl border border-adm-control-line bg-adm-side p-1">
+                {([[false, 'Search Spotify'], [true, 'Manual Entry']] as const).map(([manual, label]) => (
+                  <button
+                    key={label}
+                    onClick={() => setManualMode(manual)}
+                    aria-pressed={manualMode === manual}
+                    className={`min-h-9 flex-1 rounded-lg px-3.5 text-sm font-medium transition-colors ${
+                      manualMode === manual
+                        ? 'bg-adm-raised text-adm-text'
+                        : 'text-adm-muted hover:text-adm-text'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-5">
               {!manualMode ? (
                 /* Search Mode */
                 <div className="space-y-4">
@@ -1488,68 +1425,64 @@ export default function MediaCenter() {
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                       placeholder="Search for a song..."
-                      className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      aria-label="Search Spotify"
+                      className={`${field} flex-1`}
                     />
                     <button
                       onClick={handleSearch}
                       disabled={searching || !searchQuery.trim()}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      className={accentButton}
                     >
                       {searching ? (
-                        <>
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                          Searching...
-                        </>
+                        <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
                       ) : (
-                        <>
-                          <Search className="w-4 h-4" />
-                          Search
-                        </>
+                        <Search className="h-4 w-4" aria-hidden="true" />
                       )}
+                      {searching ? 'Searching...' : 'Search'}
                     </button>
                   </div>
 
                   {/* Search Results */}
                   {searchResults.length > 0 ? (
                     <div className="space-y-2">
-                      <p className="text-sm text-white/60">{searchResults.length} results found</p>
+                      <p className="text-sm text-adm-muted">{searchResults.length} results found</p>
                       {saving && (
-                        <div className="p-3 bg-blue-500/20 border border-blue-500/50 rounded-lg text-blue-200 text-sm flex items-center gap-2">
-                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        <p className={`${notice.info} flex items-center gap-2`}>
+                          <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
                           Saving metadata and refreshing...
-                        </div>
+                        </p>
                       )}
                       {searchResults.map((result) => (
                         <div
                           key={result.id}
                           onClick={() => !saving && selectSpotifyResult(result)}
-                          className={`flex items-center gap-4 p-3 bg-white/5 rounded-lg border border-white/10 transition-colors group ${
-                            saving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-white/10'
+                          className={`group flex items-center gap-4 rounded-xl border border-adm-line bg-adm-side p-3 transition-colors ${
+                            saving ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-adm-control-line hover:bg-adm-hover'
                           }`}
                         >
                           {result.albumArt && (
                             <img
                               src={result.albumArt}
                               alt={result.album}
-                              className="w-16 h-16 rounded object-cover"
+                              className="h-16 w-16 rounded-lg object-cover"
                             />
                           )}
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-white font-medium truncate">{result.name}</h4>
-                            <p className="text-sm text-white/70 truncate">{result.artist}</p>
-                            <p className="text-xs text-white/50 truncate">{result.album}</p>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="truncate font-medium text-adm-text">{result.name}</h4>
+                            <p className="truncate text-sm text-adm-soft">{result.artist}</p>
+                            <p className="truncate text-xs text-adm-muted">{result.album}</p>
                           </div>
-                          <Check className={`w-5 h-5 text-green-400 transition-opacity ${
+                          <Check className={`h-5 w-5 text-adm-ok transition-opacity ${
                             saving ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'
-                          }`} />
+                          }`} aria-hidden="true" />
                         </div>
                       ))}
                     </div>
                   ) : searchQuery && !searching ? (
-                    <div className="text-center py-12 text-white/50">
-                      <Search className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p>No results found</p>
-                      <p className="text-sm mt-1">Try a different search query</p>
+                    <div className="py-12 text-center">
+                      <Search className="mx-auto mb-3 h-10 w-10 text-adm-faint" aria-hidden="true" />
+                      <p className="text-sm text-adm-soft">No results found</p>
+                      <p className="mt-1 text-sm text-adm-muted">Try a different search query</p>
                     </div>
                   ) : null}
                 </div>
@@ -1557,22 +1490,23 @@ export default function MediaCenter() {
                 /* Manual Entry Mode */
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-white mb-2">
+                    <label htmlFor="meta-album-art" className="admin-label">
                       Album Art URL
                     </label>
                     <input
+                      id="meta-album-art"
                       type="text"
                       value={manualForm.albumArt}
                       onChange={(e) => setManualForm({ ...manualForm, albumArt: e.target.value })}
                       placeholder="https://..."
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className={field}
                     />
                     {manualForm.albumArt && (
                       <div className="mt-3">
                         <img
                           src={manualForm.albumArt}
                           alt="Preview"
-                          className="w-32 h-32 rounded object-cover"
+                          className="h-32 w-32 rounded-lg object-cover"
                           onError={(e) => {
                             (e.target as HTMLImageElement).style.display = 'none';
                           }}
@@ -1582,66 +1516,64 @@ export default function MediaCenter() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-white mb-2">
+                    <label htmlFor="meta-track-name" className="admin-label">
                       Track Name
                     </label>
                     <input
+                      id="meta-track-name"
                       type="text"
                       value={manualForm.trackName}
                       onChange={(e) => setManualForm({ ...manualForm, trackName: e.target.value })}
                       placeholder="Song title"
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className={field}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-white mb-2">
+                    <label htmlFor="meta-artist" className="admin-label">
                       Artist
                     </label>
                     <input
+                      id="meta-artist"
                       type="text"
                       value={manualForm.artist}
                       onChange={(e) => setManualForm({ ...manualForm, artist: e.target.value })}
                       placeholder="Artist name"
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className={field}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-white mb-2">
+                    <label htmlFor="meta-album" className="admin-label">
                       Album
                     </label>
                     <input
+                      id="meta-album"
                       type="text"
                       value={manualForm.album}
                       onChange={(e) => setManualForm({ ...manualForm, album: e.target.value })}
                       placeholder="Album name"
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className={field}
                     />
                   </div>
 
-                  <div className="flex gap-3 pt-4">
+                  <div className="flex gap-2.5 pt-2">
                     <button
                       onClick={saveManualMetadata}
                       disabled={!manualForm.trackName.trim() || saving}
-                      className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className={`${accentButton} flex-1`}
                     >
                       {saving ? (
-                        <>
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                          Saving...
-                        </>
+                        <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
                       ) : (
-                        <>
-                          <Check className="w-4 h-4" />
-                          Save
-                        </>
+                        <Check className="h-4 w-4" aria-hidden="true" />
                       )}
+                      {saving ? 'Saving...' : 'Save'}
                     </button>
                     <button
                       onClick={closeEditModal}
                       disabled={saving}
-                      className="flex-1 py-2 px-4 bg-white/10 text-white rounded-lg font-medium hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className={`${button} flex-1`}
                     >
                       Cancel
                     </button>

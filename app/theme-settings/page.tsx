@@ -5,6 +5,8 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '@/components/AdminLayout';
 import AdminLoadingScreen from '@/components/admin/AdminLoadingScreen';
+import { card, insetBox, button, accentButton, smallButton, smallDangerButton, notice, badge } from '@/components/admin/ui-classes';
+import { Check, Upload } from 'lucide-react';
 import {
   getAllThemes,
   NO_ASSETS,
@@ -134,8 +136,8 @@ export default function ThemeSettings() {
   }
 
   return (
-    <AdminLayout title="🎨 Theme Settings" subtitle="Pick the season and upload its logo for the visitor jukebox page">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+    <AdminLayout title="Theme Settings" subtitle="Pick the season and upload its logo for the visitor jukebox page">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {themes.map((theme) => {
           const isActive = activeThemeId === theme.id;
           const themeAssets = assets[theme.id] ?? NO_ASSETS;
@@ -145,7 +147,7 @@ export default function ThemeSettings() {
             <section
               key={theme.id}
               aria-labelledby={`theme-${theme.id}`}
-              className={`overflow-hidden rounded-xl border-2 bg-white/5 ${isActive ? 'border-green-400 shadow-lg shadow-green-500/30' : 'border-white/20'}`}
+              className={`overflow-hidden rounded-2xl border bg-adm-surface ${isActive ? 'border-adm-accent' : 'border-adm-line'}`}
             >
               {/* Preview in the season's own colours (tokens from app/globals.css) */}
               <div
@@ -160,21 +162,24 @@ export default function ThemeSettings() {
                   <p className="sp-display sp-title sp-glow-text px-4 text-center text-3xl">{theme.name}</p>
                 )}
                 {isActive && (
-                  <span className="absolute right-3 top-3 rounded-full bg-green-500 px-3 py-1 text-xs font-semibold text-white">✓ Showing now</span>
+                  <span className={`${badge.ok} absolute right-3 top-3 items-center gap-1`}>
+                    <Check className="h-3 w-3" aria-hidden="true" />
+                    Showing now
+                  </span>
                 )}
               </div>
 
-              <div className="space-y-5 p-5">
+              <div className="space-y-4 p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h2 id={`theme-${theme.id}`} className="text-xl font-bold text-white">{theme.icon} {theme.name}</h2>
-                    <p className="text-sm text-white/70">{theme.description}</p>
+                    <h2 id={`theme-${theme.id}`} className="text-lg font-semibold text-adm-text">{theme.name}</h2>
+                    <p className="text-sm text-adm-muted">{theme.description}</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => activate(theme)}
                     disabled={isActive || busy !== null}
-                    className="min-h-11 rounded-lg bg-green-600 px-4 text-sm font-semibold text-white transition hover:bg-green-500 disabled:cursor-not-allowed disabled:bg-white/15 disabled:text-white/60"
+                    className={isActive ? button : accentButton}
                   >
                     {isActive ? 'Active' : busy === `${theme.id}:activate` ? 'Switching…' : 'Make active'}
                   </button>
@@ -185,7 +190,7 @@ export default function ThemeSettings() {
                   const slotBusy = busy === `${theme.id}:${slot.kind}`;
                   const inputId = `upload-${theme.id}-${slot.kind}`;
                   return (
-                    <div key={slot.kind} className="flex items-start gap-4 rounded-lg border border-white/10 bg-black/20 p-3">
+                    <div key={slot.kind} className={`${insetBox} flex items-start gap-4`}>
                       <div
                         data-season={theme.id}
                         className={`flex h-16 shrink-0 items-center justify-center overflow-hidden ${slot.kind === 'badge' ? 'w-16 rounded-full' : 'w-28 rounded-lg'}`}
@@ -195,13 +200,13 @@ export default function ThemeSettings() {
                           // eslint-disable-next-line @next/next/no-img-element -- served from /api/theme/asset
                           <img src={current.url} alt="" className={`h-full w-full ${slot.kind === 'badge' ? 'object-cover' : 'object-contain'}`} />
                         ) : (
-                          <span className="text-xs text-white/50">None</span>
+                          <span className="text-xs text-adm-faint">None</span>
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-white">{slot.label}</p>
-                        <p className="mt-0.5 text-xs text-white/60">{slot.help} JPEG, PNG or WebP, up to 5 MB.</p>
-                        <div className="mt-2 flex flex-wrap gap-2">
+                        <p className="text-sm font-semibold text-adm-text">{slot.label}</p>
+                        <p className="mt-0.5 text-xs text-adm-muted">{slot.help} JPEG, PNG or WebP, up to 5 MB.</p>
+                        <div className="mt-2.5 flex flex-wrap gap-2">
                           {/* Hidden file input before its label, so the label shows the input's keyboard focus */}
                           <input
                             id={inputId}
@@ -217,8 +222,9 @@ export default function ThemeSettings() {
                           />
                           <label
                             htmlFor={inputId}
-                            className={`inline-flex min-h-10 cursor-pointer items-center rounded-lg bg-blue-600 px-3 text-sm font-semibold text-white transition hover:bg-blue-500 peer-focus-visible:ring-2 peer-focus-visible:ring-white ${busy !== null ? 'pointer-events-none opacity-60' : ''}`}
+                            className={`${smallButton} cursor-pointer peer-focus-visible:outline-2 peer-focus-visible:outline-offset-1 peer-focus-visible:outline-adm-accent ${busy !== null ? 'pointer-events-none opacity-50' : ''}`}
                           >
+                            <Upload className="h-3.5 w-3.5" aria-hidden="true" />
                             {slotBusy ? 'Saving…' : current ? `Replace ${slot.label.toLowerCase()}` : `Upload ${slot.label.toLowerCase()}`}
                           </label>
                           {current && (
@@ -226,7 +232,7 @@ export default function ThemeSettings() {
                               type="button"
                               onClick={() => remove(theme, slot.kind)}
                               disabled={busy !== null}
-                              className="min-h-10 rounded-lg bg-white/10 px-3 text-sm font-semibold text-white transition hover:bg-white/20 disabled:opacity-60"
+                              className={smallDangerButton}
                             >
                               Remove
                             </button>
@@ -240,7 +246,7 @@ export default function ThemeSettings() {
                 {note && (
                   <p
                     role={note.type === 'error' ? 'alert' : 'status'}
-                    className={`rounded-lg px-3 py-2 text-sm ${note.type === 'error' ? 'bg-red-500/20 text-red-100' : 'bg-green-500/20 text-green-100'}`}
+                    className={note.type === 'error' ? notice.danger : notice.ok}
                   >
                     {note.text}
                   </p>
@@ -251,13 +257,13 @@ export default function ThemeSettings() {
         })}
       </div>
 
-      <div className="mt-6 rounded-xl border border-blue-500/30 bg-blue-500/10 p-6">
-        <h3 className="mb-3 font-semibold text-white">💡 How themes work</h3>
-        <ul className="space-y-2 text-sm text-white/80">
-          <li>• The active theme sets the colours, lettering, string lights and background (stars or snow) of the visitor jukebox page.</li>
-          <li>• Each theme keeps its own logo and badge, so you can upload Christmas artwork during Halloween and switch over when you&apos;re ready.</li>
-          <li>• Images are stored in the database (and its backups), resized for the web, and shown to visitors right away.</li>
-          <li>• The Letter to Santa card and the trivia button only appear in the Christmas theme.</li>
+      <div className={`${card} mt-4`}>
+        <h3 className="admin-h3">How themes work</h3>
+        <ul className="list-disc space-y-1.5 pl-5 text-sm">
+          <li className="text-adm-soft">The active theme sets the colours, lettering, string lights and background (stars or snow) of the visitor jukebox page.</li>
+          <li className="text-adm-soft">Each theme keeps its own logo and badge, so you can upload Christmas artwork during Halloween and switch over when you&apos;re ready.</li>
+          <li className="text-adm-soft">Images are stored in the database (and its backups), resized for the web, and shown to visitors right away.</li>
+          <li className="text-adm-soft">The Letter to Santa card and the trivia button only appear in the Christmas theme.</li>
         </ul>
       </div>
 

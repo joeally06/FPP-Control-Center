@@ -19,7 +19,7 @@ import {
   AdminError,
   AdminWarning
 } from '@/components/admin/Typography';
-import { card, insetBox, eyebrow, button, accentButton, dangerButton, field, choiceCard, checkInput, badge } from '@/components/admin/ui-classes';
+import { card, insetBox, eyebrow, button, accentButton, dangerButton, iconButton, iconDangerButton, field, choiceCard, checkInput, badge } from '@/components/admin/ui-classes';
 
 interface Device {
   id: string;
@@ -363,7 +363,7 @@ export default function DeviceStatusPage() {
                   <div className="flex shrink-0 gap-1.5">
                     <button
                       onClick={() => openEditModal(device)}
-                      className="grid h-9 w-9 place-items-center rounded-xl border border-adm-control-line bg-adm-control text-adm-text transition-colors hover:bg-adm-line"
+                      className={iconButton}
                       title="Edit Device"
                       aria-label={`Edit ${device.name}`}
                     >
@@ -371,7 +371,7 @@ export default function DeviceStatusPage() {
                     </button>
                     <button
                       onClick={() => openDeleteModal(device)}
-                      className="grid h-9 w-9 place-items-center rounded-xl border border-adm-danger-line text-adm-danger transition-colors hover:bg-adm-danger-bg"
+                      className={iconDangerButton}
                       title="Delete Device"
                       aria-label={`Delete ${device.name}`}
                     >
