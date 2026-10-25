@@ -133,6 +133,17 @@ fi
 
 log "📦 Updates available: $LOCAL_COMMIT -> $REMOTE_COMMIT"
 
+# Refuse to update over local changes to tracked files - the pull and any
+# rollback (git reset --hard) would lose them. Runtime data is gitignored.
+LOCAL_CHANGES=$(git status --porcelain --untracked-files=no)
+if [ -n "$LOCAL_CHANGES" ]; then
+    log "❌ Local changes to tracked files would be lost by the update:"
+    echo "$LOCAL_CHANGES" | tee -a "$LOG_FILE"
+    log "   Nothing was changed. Review them with 'git diff', commit or discard them, then update again."
+    write_status "FAILED"
+    exit 1
+fi
+
 # Get commit messages
 log "Changes to be applied:"
 git log --oneline "$LOCAL_COMMIT..$REMOTE_COMMIT" >> "$LOG_FILE" 2>&1
@@ -198,9 +209,6 @@ fi
 # Phase 4: Apply updates
 log "📥 Phase 4: Applying updates..."
 write_status "UPDATING"
-
-# Stash any local changes
-git stash >> "$LOG_FILE" 2>&1 || true
 
 # Pull updates
 if git pull origin master >> "$LOG_FILE" 2>&1; then

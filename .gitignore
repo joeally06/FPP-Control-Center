@@ -76,5 +76,6 @@ public/audio/*.m4a
 public/audio/*.flac
 public/audio/*.aac
 
-# audio mapping (keep this in git for configuration)
-# data/audio-mapping.json is tracked
+# runtime data written by the app - local to each install, never touched by updates
+data/audio-mapping.json
+public/uploads/

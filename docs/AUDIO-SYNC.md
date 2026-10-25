@@ -38,7 +38,7 @@ This implementation uses a three-component architecture:
 3. **Downloads audio files** from FPP to local storage
 4. **Creates mappings** linking sequences to audio files
 5. **Audio files are saved** to `public/audio/` directory
-6. **Mappings are saved** to `data/audio-mapping.json`
+6. **Mappings are saved** to `data/audio-mapping.json` (local to each install, not in git — include it in your own backups)
 
 ### Visitor Experience Flow
 

@@ -1278,6 +1278,12 @@ Settings  Email  Send Test Email
 tail -f logs/update.log
 ```
 
+**If the log says "Local changes to tracked files would be lost by the update":**
+someone edited files on the show machine. Nothing was changed and the site keeps running.
+Review the listed files with `git diff`, then commit them or discard them
+(`git checkout -- <file>`) and run the update again. Audio mappings (`data/audio-mapping.json`)
+and uploaded display images (`public/uploads/`) are not in git and are never touched by updates.
+
 **If update is stuck:**
 ```bash
 # Check if daemon is running
