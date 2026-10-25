@@ -1,12 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '@/components/AdminLayout';
 import { useFPPConnection } from '@/contexts/FPPConnectionContext';
-import { Play, Square, SkipForward, SkipBack, Repeat, Shuffle, Pause, RotateCcw } from 'lucide-react';
+import {
+  CircleCheck, Mail, Pause, Play, RotateCcw, Server, Shuffle, SkipBack, SkipForward, Square, TriangleAlert, WifiOff,
+} from 'lucide-react';
 import { TIMING } from '@/lib/constants';
+import { formatDateTime } from '@/lib/time-utils';
+import { formatClock, stripFseq, type PublicQueueItem } from '@/lib/jukebox-display';
+import type { ShowSummary } from '@/lib/show-summary';
 
 interface Status {
   status_name: string;
@@ -14,6 +20,9 @@ interface Status {
   current_sequence: string;
   volume: number;
   mode_name: string;
+  // FPP sends these as numbers or numeric strings; absent when nothing is playing
+  seconds_played?: number | string;
+  seconds_remaining?: number | string;
 }
 
 interface Playlist {
@@ -41,6 +50,17 @@ interface PlaylistDetails {
   [key: string]: any;
 }
 
+// Shared class strings for the Show page cards and controls
+const card = 'rounded-2xl border border-adm-line bg-adm-surface p-5';
+const eyebrow = 'text-xs font-semibold uppercase tracking-[0.08em] text-adm-muted';
+const cardTitle = 'text-[15px] font-semibold text-adm-text';
+const button = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-adm-control-line bg-adm-control px-4 text-sm font-medium text-adm-text transition-colors hover:bg-adm-line disabled:cursor-not-allowed disabled:opacity-50';
+const accentButton = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-adm-accent px-4 text-sm font-semibold text-adm-accent-ink transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50';
+const dangerButton = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-adm-danger-line px-4 text-sm font-medium text-adm-danger transition-colors hover:bg-adm-danger-bg disabled:cursor-not-allowed disabled:opacity-50';
+const roundButton = 'grid h-11 w-11 place-items-center rounded-full border border-adm-control-line bg-adm-control text-adm-text transition-colors hover:bg-adm-line disabled:cursor-not-allowed disabled:opacity-50';
+const field = 'min-h-11 w-full rounded-xl border border-adm-control-line bg-adm-field px-3 text-sm text-adm-text focus:outline-2 focus:outline-offset-1 focus:outline-adm-accent disabled:opacity-50';
+const textLink = 'text-[13px] font-medium text-adm-accent hover:underline';
+
 export default function Home() {
   const [status, setStatus] = useState<Status | null>(null);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -52,6 +72,10 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<ShowSummary | null>(null);
+  const [queue, setQueue] = useState<PublicQueueItem[]>([]);
+  const [confirmStopNow, setConfirmStopNow] = useState(false);
+  const keepPlayingRef = useRef<HTMLButtonElement>(null);
   const { data: session, status: sessionStatus } = useSession();
   const { isOnline } = useFPPConnection();
   const isAdmin = session?.user?.role === 'admin';
@@ -121,6 +145,38 @@ export default function Home() {
     fetchStaticData();
   }, [isAdmin, isOnline]);
 
+  // Today's numbers, letters waiting and device health: SQLite only, so it runs while FPP is offline too
+  useEffect(() => {
+    if (!isAdmin) return;
+    const fetchSummary = async () => {
+      try {
+        const res = await fetch('/api/admin/show-summary');
+        if (res.ok) setSummary(await res.json());
+      } catch (err) {
+        console.error('Failed to fetch show summary:', err);
+      }
+    };
+    fetchSummary();
+    const interval = setInterval(fetchSummary, TIMING.POLL_INTERVAL_SLOW);
+    return () => clearInterval(interval);
+  }, [isAdmin]);
+
+  // Jukebox requests waiting to play
+  useEffect(() => {
+    if (!isAdmin) return;
+    const fetchQueue = async () => {
+      try {
+        const res = await fetch('/api/jukebox/queue');
+        if (res.ok) setQueue(await res.json());
+      } catch (err) {
+        console.error('Failed to fetch jukebox queue:', err);
+      }
+    };
+    fetchQueue();
+    const interval = setInterval(fetchQueue, TIMING.POLL_INTERVAL_MEDIUM);
+    return () => clearInterval(interval);
+  }, [isAdmin]);
+
   // Fetch playlist details when playlist is selected
   useEffect(() => {
     const fetchPlaylistDetails = async () => {
@@ -150,6 +206,17 @@ export default function Home() {
 
     fetchPlaylistDetails();
   }, [selectedPlaylist, isOnline, playlistDetails]);
+
+  // The stop-now dialog: focus the safe choice, close on Escape
+  useEffect(() => {
+    if (!confirmStopNow) return;
+    keepPlayingRef.current?.focus();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setConfirmStopNow(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [confirmStopNow]);
 
   // Show loading while checking authentication
   if (sessionStatus === 'loading') {
@@ -275,21 +342,21 @@ export default function Home() {
       showMessage('error', 'Please select a sequence');
       return;
     }
-    
+
     // Find the index of the selected sequence in the playlist
     const sequences = getPlaylistSequences();
     const sequenceIndex = sequences.findIndex(seq => seq.name === selectedSequence);
-    
+
     if (sequenceIndex === -1) {
       showMessage('error', 'Sequence not found in playlist');
       return;
     }
-    
+
     // FPP uses 1-based indexing for Start Playlist At Item (item 1 is the first item)
     const fppIndex = sequenceIndex + 1;
     console.log('Starting playlist item:', fppIndex, 'in playlist:', selectedPlaylist);
     sendCommand('Start Playlist At Item', [selectedPlaylist, fppIndex, false, false]);
-    
+
     // Clear selection after starting so user can start playlist from beginning if desired
     setSelectedSequence('');
   };
@@ -319,426 +386,372 @@ export default function Home() {
     }
   };
 
-  const getStatusColor = (statusName: string) => {
-    if (statusName === 'playing') return 'from-green-500 to-emerald-600';
-    if (statusName === 'idle') return 'from-blue-500 to-cyan-600';
-    if (statusName === 'stopped') return 'from-gray-500 to-slate-600';
-    return 'from-purple-500 to-pink-600';
-  };
+  const isPlaying = status?.status_name === 'playing';
+  const hasCurrent = isOnline && !!status?.current_sequence && status.status_name !== 'idle';
+  const played = Number(status?.seconds_played);
+  const remaining = Number(status?.seconds_remaining);
+  const showProgress = hasCurrent && Number.isFinite(played) && Number.isFinite(remaining) && played + remaining > 0;
+  const playlistSequences = getPlaylistSequences();
+  const offlineDevices = summary?.offlineDevices ?? [];
+  const attentionCount = (isOnline ? 0 : 1) + (offlineDevices.length > 0 ? 1 : 0) + (summary?.lettersPending ? 1 : 0);
 
   return (
-    <AdminLayout 
-      title="🎮 FPP Control Center" 
-      subtitle="Monitor and control your Falcon Player"
+    <AdminLayout
+      title="Tonight"
+      subtitle={
+        !isOnline
+          ? 'FPP is offline. The controls work again once it reconnects.'
+          : status ? `FPP ${status.mode_name} mode` : 'Connecting to FPP…'
+      }
     >
-      {/* Compact Status Bar */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className={`backdrop-blur-md bg-linear-to-br ${status && isOnline ? getStatusColor(status.status_name) : 'from-gray-500 to-slate-600'} rounded-xl p-4 shadow-xl border border-white/20 transform transition-all hover:scale-105`}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-white/70 text-xs font-medium mb-1">Status</p>
-              <p className="text-2xl font-bold text-white capitalize">
-                {!isOnline ? 'Offline' : (status?.status_name || '...')}
-              </p>
-            </div>
-            <span className="text-3xl">🎯</span>
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Now playing */}
+        <section aria-labelledby="now-playing-heading" className={`${card} lg:col-span-2`}>
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="now-playing-heading" className={eyebrow}>Now playing</h2>
+            {isOnline && status?.current_playlist?.playlist && (
+              <span className="truncate rounded-full bg-adm-warn-bg px-2.5 py-1 text-[11px] font-semibold text-adm-warn">
+                {status.current_playlist.playlist}
+              </span>
+            )}
           </div>
-        </div>
+          <p className="mt-2 text-2xl font-semibold tracking-tight text-adm-text sm:text-3xl wrap-break-word">
+            {!isOnline ? 'FPP is offline' : hasCurrent ? stripFseq(status?.current_sequence) : 'Nothing playing'}
+          </p>
+          <p className="mt-1 text-sm text-adm-muted">
+            {isOnline && status ? (
+              <>
+                <span className="capitalize text-adm-muted">{status.status_name}</span>
+                {status.current_playlist?.index && status.current_playlist.index !== '0' && (
+                  <span className="text-adm-muted"> · Song {status.current_playlist.index} of {status.current_playlist.count}</span>
+                )}
+                <span className="text-adm-muted"> · repeat {repeat ? 'on' : 'off'}</span>
+              </>
+            ) : (
+              <span className="text-adm-muted">Waiting for FPP</span>
+            )}
+          </p>
 
-        <div className="backdrop-blur-md bg-linear-to-br from-orange-500 to-amber-600 rounded-xl p-4 shadow-xl border border-white/20 transform transition-all hover:scale-105">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-white/70 text-xs font-medium mb-1">Mode</p>
-              <p className="text-xl font-bold text-white">
-                {!isOnline ? 'N/A' : (status?.mode_name || '...')}
-              </p>
-            </div>
-            <span className="text-3xl">⚙️</span>
-          </div>
-        </div>
-
-        <div className="backdrop-blur-md bg-linear-to-br from-purple-500 to-violet-600 rounded-xl p-4 shadow-xl border border-white/20 transform transition-all hover:scale-105">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-white/70 text-xs font-medium mb-1">Playlist</p>
-              <p className="text-sm font-bold text-white truncate">
-                {!isOnline ? 'Offline' : (status?.current_playlist?.playlist || 'None')}
-              </p>
-              {status?.current_playlist?.index && isOnline && (
-                <p className="text-xs text-white/70">
-                  {status.current_playlist.index}/{status.current_playlist.count}
-                </p>
-              )}
-            </div>
-            <span className="text-3xl">📋</span>
-          </div>
-        </div>
-
-        <div className="backdrop-blur-md bg-linear-to-br from-pink-500 to-rose-600 rounded-xl p-4 shadow-xl border border-white/20 transform transition-all hover:scale-105">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-white/70 text-xs font-medium mb-1">Volume</p>
-              <p className="text-2xl font-bold text-white">
-                {!isOnline ? '--' : (status?.volume || 0)}%
-              </p>
-            </div>
-            <span className="text-3xl">🔊</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Now Playing - Only show when actively playing */}
-      {status?.current_sequence && status?.status_name === 'playing' && (
-        <div className="backdrop-blur-md bg-linear-to-br from-green-500/20 to-emerald-600/20 rounded-xl p-6 shadow-2xl border border-green-400/30 mb-6 relative overflow-hidden">
-          <div className="absolute inset-0 bg-linear-to-r from-green-400/10 via-emerald-500/10 to-green-400/10 animate-pulse"></div>
-          
-          <div className="relative flex items-center gap-4">
-            <div className="relative">
-              <div className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-20"></div>
-              <div className="relative w-12 h-12 bg-linear-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center shadow-lg">
-                <span className="text-2xl">▶️</span>
+          {showProgress && (
+            <div className="mt-4">
+              <div className="h-1.5 overflow-hidden rounded-full bg-adm-line" aria-hidden="true">
+                <div className="h-full rounded-full bg-adm-accent" style={{ width: `${(played / (played + remaining)) * 100}%` }} />
+              </div>
+              <div className="mt-1.5 flex justify-between font-mono text-xs text-adm-muted">
+                <span className="text-adm-muted">{formatClock(played)}</span>
+                <span className="text-adm-muted">{formatClock(played + remaining)}</span>
               </div>
             </div>
-            <div className="flex-1">
-              <p className="text-xs text-green-300/90 font-semibold uppercase tracking-wider mb-1 flex items-center gap-2">
-                <span className="inline-block w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                Now Playing
-              </p>
-              <p className="text-2xl font-bold text-white">{status.current_sequence}</p>
-              {status.current_playlist?.playlist && (
-                <p className="text-sm text-white/70 mt-1">
-                  From: {status.current_playlist.playlist} • Track {status.current_playlist.index} of {status.current_playlist.count}
-                </p>
-              )}
+          )}
+
+          <div className="mt-5 flex flex-wrap items-center gap-2.5">
+            <button onClick={prevItem} disabled={loading} aria-label="Previous song" title="Previous" className={roundButton}>
+              <SkipBack className="h-4.5 w-4.5" aria-hidden="true" />
+            </button>
+            <button
+              onClick={togglePauseResume}
+              disabled={loading}
+              aria-label={isPlaying ? 'Pause' : 'Resume'}
+              title={isPlaying ? 'Pause' : 'Resume'}
+              className="grid h-14 w-14 place-items-center rounded-full bg-adm-accent text-adm-accent-ink transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isPlaying ? <Pause className="h-6 w-6" aria-hidden="true" /> : <Play className="h-6 w-6" aria-hidden="true" />}
+            </button>
+            <button onClick={nextItem} disabled={loading} aria-label="Next song" title="Next" className={roundButton}>
+              <SkipForward className="h-4.5 w-4.5" aria-hidden="true" />
+            </button>
+            <button
+              onClick={restartItem}
+              disabled={loading || !status?.current_playlist?.playlist}
+              aria-label="Restart song"
+              title="Restart song"
+              className={roundButton}
+            >
+              <RotateCcw className="h-4.5 w-4.5" aria-hidden="true" />
+            </button>
+            <div className="flex w-full flex-wrap gap-2.5 sm:ml-auto sm:w-auto">
+              <button
+                onClick={stopPlaylist}
+                disabled={loading}
+                title="Completes current sequence then stops"
+                className={`${button} flex-1 sm:flex-none`}
+              >
+                Stop after this song
+              </button>
+              <button
+                onClick={() => setConfirmStopNow(true)}
+                disabled={loading}
+                title="Stops immediately without completing sequence"
+                className={`${dangerButton} flex-1 sm:flex-none`}
+              >
+                <Square className="h-4 w-4" aria-hidden="true" />
+                Stop now
+              </button>
             </div>
-            <div className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div
-                  key={i}
-                  className="w-1 bg-linear-to-t from-green-400 to-emerald-500 rounded-full animate-equalizer"
-                  style={{
-                    animationDelay: `${i * 0.1}s`,
-                    animationDuration: `${0.5 + (i % 3) * 0.2}s`
-                  }}
-                ></div>
+          </div>
+        </section>
+
+        {/* Needs attention */}
+        <section aria-labelledby="attention-heading" className={card}>
+          <div className="mb-3.5 flex items-center justify-between gap-3">
+            <h2 id="attention-heading" className={cardTitle}>Needs attention</h2>
+            {attentionCount > 0 && (
+              <span className="rounded-full bg-adm-line px-2 py-0.5 text-xs font-semibold text-adm-text">{attentionCount}</span>
+            )}
+          </div>
+          <ul className="flex flex-col gap-2.5">
+            {!isOnline && (
+              <li className="flex gap-3 rounded-xl border border-adm-line bg-adm-hover p-3">
+                <WifiOff className="mt-0.5 h-4.5 w-4.5 shrink-0 text-adm-warn" aria-hidden="true" />
+                <div className="min-w-0">
+                  <p className="text-sm text-adm-text">FPP is not responding</p>
+                  <p className="mt-0.5 text-[13px] text-adm-muted">Playback controls are unavailable</p>
+                </div>
+              </li>
+            )}
+            {offlineDevices.length > 0 && (
+              <li className="flex gap-3 rounded-xl border border-adm-line bg-adm-hover p-3">
+                <TriangleAlert className="mt-0.5 h-4.5 w-4.5 shrink-0 text-adm-warn" aria-hidden="true" />
+                <div className="min-w-0">
+                  <p className="text-sm text-adm-text">
+                    {offlineDevices.length === 1 ? `${offlineDevices[0].name} is offline` : `${offlineDevices.length} devices are offline`}
+                  </p>
+                  <p className="mt-0.5 text-[13px] text-adm-muted">
+                    {offlineDevices.length === 1
+                      ? offlineDevices[0].lastSeenOnline
+                        ? `Last seen ${formatDateTime(offlineDevices[0].lastSeenOnline, 'relative')}`
+                        : 'Not seen online yet'
+                      : offlineDevices.map((d) => d.name).join(', ')}
+                  </p>
+                  <Link href="/device-status" className={`${textLink} mt-1.5 inline-block`}>Open devices</Link>
+                </div>
+              </li>
+            )}
+            {!!summary?.lettersPending && (
+              <li className="flex gap-3 rounded-xl border border-adm-line bg-adm-hover p-3">
+                <Mail className="mt-0.5 h-4.5 w-4.5 shrink-0 text-adm-warn" aria-hidden="true" />
+                <div className="min-w-0">
+                  <p className="text-sm text-adm-text">
+                    {summary.lettersPending} Santa {summary.lettersPending === 1 ? 'letter' : 'letters'} pending
+                  </p>
+                  {summary.oldestPendingLetterAt && (
+                    <p className="mt-0.5 text-[13px] text-adm-muted">
+                      Oldest arrived {formatDateTime(summary.oldestPendingLetterAt, 'relative')}
+                    </p>
+                  )}
+                  <Link href="/santa-letters" className={`${textLink} mt-1.5 inline-block`}>Review letters</Link>
+                </div>
+              </li>
+            )}
+            {attentionCount === 0 && (
+              <li className="flex items-center gap-3 p-1">
+                <CircleCheck className="h-4.5 w-4.5 shrink-0 text-adm-ok" aria-hidden="true" />
+                <p className="text-sm text-adm-muted">{summary ? 'Nothing needs attention' : 'Checking…'}</p>
+              </li>
+            )}
+          </ul>
+        </section>
+
+        {/* Playlist */}
+        <section aria-labelledby="playlist-heading" className={card}>
+          <h2 id="playlist-heading" className={`${cardTitle} mb-3.5`}>Playlist</h2>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="playlist-select" className="text-[13px] font-medium text-adm-soft">Playlist to run</label>
+              <select
+                id="playlist-select"
+                value={selectedPlaylist}
+                onChange={(e) => {
+                  setSelectedPlaylist(e.target.value);
+                  // A song picked from the old playlist is not in the new one
+                  setSelectedSequence('');
+                }}
+                className={field}
+                disabled={loading}
+              >
+                {playlists.length === 0 ? (
+                  <option>No playlists available</option>
+                ) : (
+                  playlists.map((playlist) => (
+                    <option key={playlist.name} value={playlist.name}>
+                      {playlist.name}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="start-from-select" className="text-[13px] font-medium text-adm-soft">Start from</label>
+              <select
+                id="start-from-select"
+                value={selectedSequence}
+                onChange={(e) => setSelectedSequence(e.target.value)}
+                className={field}
+                disabled={loading || playlistSequences.length === 0}
+              >
+                <option value="">{playlistSequences.length === 0 && selectedPlaylist ? 'Loading songs…' : 'The beginning'}</option>
+                {playlistSequences.map((seq, index) => (
+                  <option key={`${seq.section}-${index}`} value={seq.name}>
+                    {index + 1}. {stripFseq(seq.name)}{seq.section !== 'Main' ? ` (${seq.section})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center justify-between gap-3 py-1">
+              <span id="repeat-label" className="text-sm font-medium text-adm-text">Repeat</span>
+              <button
+                role="switch"
+                aria-checked={repeat}
+                aria-labelledby="repeat-label"
+                onClick={() => setRepeat(!repeat)}
+                disabled={loading}
+                className={`relative h-7 w-11.5 shrink-0 rounded-full transition-colors disabled:opacity-50 ${repeat ? 'bg-adm-accent' : 'bg-adm-control-line'}`}
+              >
+                <span
+                  className={`absolute top-0.75 left-0.75 h-5.5 w-5.5 rounded-full transition-transform ${
+                    repeat ? 'translate-x-4.5 bg-adm-accent-ink' : 'bg-adm-soft'
+                  }`}
+                />
+              </button>
+            </div>
+            <div className="flex gap-2.5">
+              <button onClick={startPlaylist} disabled={loading || !selectedPlaylist} className={`${accentButton} flex-1`}>
+                <Play className="h-4 w-4" aria-hidden="true" />
+                Start
+              </button>
+              <button onClick={startRandom} disabled={loading || !selectedPlaylist} className={`${button} flex-1`}>
+                <Shuffle className="h-4 w-4" aria-hidden="true" />
+                Random
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Volume */}
+        <section aria-labelledby="volume-heading" className={card}>
+          <h2 id="volume-heading" className={cardTitle}>Volume</h2>
+          <p className="mt-1 mb-3 font-mono text-4xl font-semibold text-adm-text">
+            {!isOnline ? '--' : status?.volume || 0}%
+          </p>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={status?.volume || 0}
+            disabled={!isOnline}
+            onChange={(e) => handleVolumeChange(parseInt(e.target.value))}
+            aria-labelledby="volume-heading"
+            className="h-7 w-full cursor-pointer accent-adm-accent disabled:cursor-not-allowed disabled:opacity-50"
+          />
+          <div className="mt-1 flex justify-between text-xs text-adm-muted">
+            <span className="text-adm-muted">Mute</span>
+            <span className="text-adm-muted">Max</span>
+          </div>
+          {!isOnline && <p className="mt-3 text-[13px] text-adm-muted">Volume control unavailable while FPP is offline</p>}
+        </section>
+
+        {/* Up next */}
+        <section aria-labelledby="up-next-heading" className={card}>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 id="up-next-heading" className={cardTitle}>Up next</h2>
+            <Link href="/settings?section=jukebox" className={textLink}>Jukebox</Link>
+          </div>
+          {queue.length === 0 ? (
+            <p className="text-sm text-adm-muted">No requests waiting</p>
+          ) : (
+            <ol className="flex flex-col">
+              {queue.slice(0, 3).map((item, index) => (
+                <li key={item.id} className="flex items-center gap-3 border-t border-adm-line py-2.5 first:border-t-0 first:pt-0.5">
+                  <span className="w-5 font-mono text-[13px] text-adm-faint">{index + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-adm-text">{stripFseq(item.sequence_name)}</p>
+                    <p className="mt-0.5 text-xs text-adm-muted">Requested {formatDateTime(item.created_at, 'short')}</p>
+                  </div>
+                </li>
               ))}
+              {queue.length > 3 && <li className="pt-1 text-xs text-adm-muted">+{queue.length - 3} more</li>}
+            </ol>
+          )}
+        </section>
+
+        {/* Today */}
+        <section aria-labelledby="today-heading" className="lg:col-span-3">
+          <div className="mb-2.5 flex items-center justify-between gap-3">
+            <h2 id="today-heading" className={eyebrow}>Today</h2>
+            <Link href="/admin" className={textLink}>Request &amp; vote analytics</Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+            {[
+              { label: 'Requests', value: summary?.requestsToday, detail: 'jukebox requests' },
+              { label: 'Votes', value: summary?.votesToday, detail: 'song votes' },
+              { label: 'Letters', value: summary?.lettersPending, detail: 'pending review' },
+              {
+                label: 'Devices',
+                value: summary && summary.devicesTotal > 0 ? `${summary.devicesOnline}/${summary.devicesTotal}` : undefined,
+                detail: summary && summary.devicesTotal === 0 ? 'none set up' : 'online',
+              },
+            ].map((stat) => (
+              <div key={stat.label} className="rounded-2xl border border-adm-line bg-adm-surface px-4.5 py-4">
+                <p className={eyebrow}>{stat.label}</p>
+                <p className="mt-1.5 font-mono text-3xl font-semibold text-adm-text">{stat.value ?? '—'}</p>
+                <p className="mt-1 text-xs text-adm-muted">{stat.detail}</p>
+              </div>
+            ))}
+          </div>
+          {summary && summary.devicesTotal > 0 && offlineDevices.length === 0 && (
+            <p className="mt-2.5 flex items-center gap-1.5 text-xs text-adm-muted">
+              <Server className="h-3.5 w-3.5" aria-hidden="true" />
+              All enabled devices are online
+            </p>
+          )}
+        </section>
+      </div>
+
+      {/* Stop-now confirmation */}
+      {confirmStopNow && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="stop-now-title"
+            aria-describedby="stop-now-text"
+            className="w-full max-w-md rounded-2xl border border-adm-control-line bg-adm-surface p-5.5"
+          >
+            <h2 id="stop-now-title" className="text-lg font-semibold text-adm-text">Stop the show now?</h2>
+            <p id="stop-now-text" className="mt-2 text-sm leading-relaxed text-adm-muted">
+              The lights and music stop immediately, mid-song. Use &ldquo;Stop after this song&rdquo; to finish gracefully.
+            </p>
+            <div className="mt-5 flex flex-wrap justify-end gap-2.5">
+              <button ref={keepPlayingRef} onClick={() => setConfirmStopNow(false)} className={button}>
+                Keep playing
+              </button>
+              <button
+                onClick={() => {
+                  setConfirmStopNow(false);
+                  stopNow();
+                }}
+                className={dangerButton}
+              >
+                Stop now
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Status Message */}
+      {/* Command results */}
       {message && (
         <div
-          className={`mb-4 p-3 rounded-lg ${
+          role="status"
+          className={`fixed inset-x-4 bottom-24 z-50 mx-auto max-w-sm rounded-xl px-4 py-3 text-center text-sm font-medium shadow-xl lg:bottom-6 ${
             message.type === 'success'
-              ? 'bg-green-600/20 text-green-400 border border-green-600/30'
-              : 'bg-red-600/20 text-red-400 border border-red-600/30'
+              ? 'bg-adm-text text-adm-bg'
+              : 'border border-adm-danger-line bg-adm-danger-bg text-adm-danger'
           }`}
         >
           {message.text}
         </div>
       )}
-
-      {/* Unified Controls Card */}
-      <div className="backdrop-blur-md bg-white/10 rounded-xl shadow-2xl border border-white/20 mb-6">
-        <div className="p-6">
-          <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-            <span>🎛️</span> Playlist Player
-          </h2>
-
-          <div className="space-y-6">
-            {/* Playlist Controls & Sequences */}
-            <div className="space-y-6">
-              {/* Playlist Selection */}
-              <div className="space-y-3">
-                <div className="flex gap-3 flex-wrap">
-                  <select
-                    value={selectedPlaylist}
-                    onChange={(e) => setSelectedPlaylist(e.target.value)}
-                    className="flex-1 min-w-[200px] bg-gray-700 text-white rounded-lg px-4 py-3 border border-gray-600 focus:border-blue-500 focus:outline-none text-lg font-medium"
-                    disabled={loading}
-                  >\n                    {playlists.length === 0 ? (
-                      <option>No playlists available</option>
-                    ) : (
-                      playlists.map((playlist) => (
-                        <option key={playlist.name} value={playlist.name}>
-                          {playlist.name}
-                        </option>
-                      ))
-                    )}
-                  </select>
-
-                  <label className="flex items-center gap-2 text-white bg-gray-700 px-4 py-3 rounded-lg border border-gray-600 cursor-pointer hover:bg-gray-600 transition">
-                    <input
-                      type="checkbox"
-                      checked={repeat}
-                      onChange={(e) => setRepeat(e.target.checked)}
-                      className="w-4 h-4"
-                      disabled={loading}
-                    />
-                    <Repeat size={18} />
-                    <span className="hidden sm:inline">Repeat</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Primary Playback Controls */}
-              <div className="space-y-2">
-                <h4 className="text-xs font-semibold text-white/60 uppercase tracking-wide">Primary Controls</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <button
-                    onClick={startPlaylist}
-                    disabled={loading || !selectedPlaylist}
-                    className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-semibold transition shadow-lg hover:shadow-xl"
-                  >
-                    <Play size={20} />
-                    <span>Start</span>
-                  </button>
-
-                  <button
-                    onClick={togglePauseResume}
-                    disabled={loading}
-                    className="flex items-center justify-center gap-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-semibold transition shadow-lg hover:shadow-xl"
-                  >
-                    {status?.status_name === 'playing' ? (
-                      <>
-                        <Pause size={20} />
-                        <span>Pause</span>
-                      </>
-                    ) : (
-                      <>
-                        <Play size={20} />
-                        <span>Resume</span>
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    onClick={stopPlaylist}
-                    disabled={loading}
-                    className="flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-semibold transition shadow-lg hover:shadow-xl col-span-2 sm:col-span-1"
-                    title="Completes current sequence then stops"
-                  >
-                    <Square size={20} />
-                    <span>Stop</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Navigation Controls */}
-              <div className="space-y-2 pt-4 border-t border-white/10">
-                <h4 className="text-xs font-semibold text-white/60 uppercase tracking-wide">Navigation</h4>
-                <div className="grid grid-cols-3 gap-3">
-                  <button
-                    onClick={prevItem}
-                    disabled={loading}
-                    className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-lg font-medium transition shadow-lg"
-                  >
-                    <SkipBack size={18} />
-                    <span className="text-sm">Previous</span>
-                  </button>
-
-                  <button
-                    onClick={nextItem}
-                    disabled={loading}
-                    className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-lg font-medium transition shadow-lg"
-                  >
-                    <SkipForward size={18} />
-                    <span className="text-sm">Next</span>
-                  </button>
-
-                  <button
-                    onClick={restartItem}
-                    disabled={loading || !status?.current_playlist?.playlist}
-                    className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-lg font-medium transition shadow-lg"
-                  >
-                    <RotateCcw size={18} />
-                    <span className="text-sm">Restart</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Advanced Options */}
-              <div className="space-y-2 pt-4 border-t border-white/10">
-                <h4 className="text-xs font-semibold text-white/60 uppercase tracking-wide">Advanced Options</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={startRandom}
-                    disabled={loading || !selectedPlaylist}
-                    className="flex items-center justify-center gap-1.5 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-3 py-2 rounded-lg text-sm font-medium transition shadow-lg"
-                  >
-                    <Shuffle size={16} />
-                    <span>Random</span>
-                  </button>
-
-                  <button
-                    onClick={stopNow}
-                    disabled={loading}
-                    className="flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-3 py-2 rounded-lg text-sm font-medium transition shadow-lg border-2 border-red-400/30"
-                    title="Stops immediately without completing sequence"
-                  >
-                    <Square size={16} />
-                    <span>Stop Now</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Sequences in Playlist */}
-              <div className="space-y-2 pt-4 border-t border-white/10">
-                <h4 className="text-xs font-semibold text-white/60 uppercase tracking-wide flex items-center gap-2">
-                  <span>🎬</span> Sequences in this Playlist
-                </h4>
-                <div className="bg-white/5 rounded-lg border border-white/10 max-h-64 overflow-y-auto">
-                  {getPlaylistSequences().length === 0 ? (
-                    <div className="p-4 text-center text-white/50 text-sm">
-                      {selectedPlaylist ? 'Loading sequences...' : 'Select a playlist to view sequences'}
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-white/10">
-                      {getPlaylistSequences().map((seq, index) => (
-                        <div
-                          key={`${seq.section}-${index}`}
-                          onClick={() => setSelectedSequence(seq.name)}
-                          className={`px-4 py-2.5 hover:bg-white/5 transition flex items-center gap-3 cursor-pointer ${
-                            selectedSequence === seq.name ? 'bg-blue-600/20 border-l-4 border-blue-500' : ''
-                          }`}
-                        >
-                          <span className="text-white/40 text-xs font-mono w-6">{index + 1}</span>
-                          <span className="text-xs text-white/50 bg-white/10 px-2 py-0.5 rounded">{seq.section}</span>
-                          <span className="flex-1 text-sm text-white">{seq.name}</span>
-                          {selectedSequence === seq.name && (
-                            <span className="text-xs text-blue-400">✓ Selected</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Volume Control */}
-      <div className="backdrop-blur-md bg-white/10 rounded-xl shadow-2xl border border-white/20 mb-6">
-        <div className="p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="text-2xl">🔊</span>
-            <h2 className="text-2xl font-bold text-white">Volume Control</h2>
-            <div className="ml-auto text-4xl font-bold text-white">
-              {!isOnline ? '--' : status?.volume || 0}%
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={status?.volume || 0}
-              disabled={!isOnline}
-              onChange={(e) => handleVolumeChange(parseInt(e.target.value))}
-              className={`w-full h-4 bg-white/20 rounded-full appearance-none slider ${
-                !isOnline ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-              }`}
-              style={{
-                background: isOnline && status
-                  ? `linear-gradient(to right, #10b981 0%, #10b981 ${status.volume}%, rgba(255,255,255,0.2) ${status.volume}%, rgba(255,255,255,0.2) 100%)`
-                  : 'rgba(255,255,255,0.1)'
-              }}
-            />
-
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-white/70">🔇 Mute</span>
-              <span className="text-sm text-white/70">🔊 Max</span>
-            </div>
-
-            {!isOnline && (
-              <p className="text-center text-white/60 text-sm">
-                Volume control unavailable - FPP Offline
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="backdrop-blur-md bg-white/10 rounded-xl p-6 shadow-2xl border border-white/20">
-        <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-3">
-          <span>⚡</span> Quick Actions
-        </h2>
-        
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <button
-            onClick={() => router.push('/media')}
-            className="backdrop-blur-sm bg-linear-to-br from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-6 py-4 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl hover:scale-105 flex items-center justify-center gap-3 border-2 border-purple-300/50"
-          >
-            <span className="text-2xl">📚</span>
-            <span>Media Library</span>
-          </button>
-          
-          <button
-            onClick={() => router.push('/models')}
-            className="backdrop-blur-sm bg-amber-500/80 hover:bg-amber-600 text-white px-6 py-4 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl hover:scale-105 flex items-center justify-center gap-3"
-          >
-            <span className="text-2xl">�</span>
-            <span>Models</span>
-          </button>
-          
-          <button
-            onClick={() => router.push('/jukebox')}
-            className="backdrop-blur-sm bg-green-500/80 hover:bg-green-600 text-white px-6 py-4 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl hover:scale-105 flex items-center justify-center gap-3"
-          >
-            <span className="text-2xl">🎶</span>
-            <span>Jukebox</span>
-          </button>
-          
-          <button
-            onClick={() => router.push('/admin')}
-            className="backdrop-blur-sm bg-indigo-500/80 hover:bg-indigo-600 text-white px-6 py-4 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl hover:scale-105 flex items-center justify-center gap-3"
-          >
-            <span className="text-2xl">📊</span>
-            <span>Analytics</span>
-          </button>
-        </div>
-      </div>
-
-      <style jsx>{`
-        .slider::-webkit-slider-thumb {
-          appearance: none;
-          width: 24px;
-          height: 24px;
-          border-radius: 50%;
-          background: white;
-          cursor: pointer;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        }
-        
-        .slider::-moz-range-thumb {
-          width: 24px;
-          height: 24px;
-          border-radius: 50%;
-          background: white;
-          cursor: pointer;
-          border: none;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        }
-        
-        @keyframes equalizer {
-          0%, 100% {
-            height: 8px;
-          }
-          50% {
-            height: 24px;
-          }
-        }
-        
-        .animate-equalizer {
-          animation: equalizer 0.8s ease-in-out infinite;
-        }
-      `}</style>
     </AdminLayout>
   );
 }

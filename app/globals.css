@@ -100,6 +100,15 @@ body {
   --color-adm-faint: #7c8596;
   --color-adm-accent: #f5b544;
   --color-adm-accent-ink: #1a1205;
+  --color-adm-control: #1c2029;
+  --color-adm-control-line: #2f3542;
+  --color-adm-field: #0f1217;
+  --color-adm-ok: #86e3a9;
+  --color-adm-warn: #f7c766;
+  --color-adm-warn-bg: #2a2110;
+  --color-adm-danger: #ff9a8c;
+  --color-adm-danger-line: #5c2b27;
+  --color-adm-danger-bg: #2a1614;
 }
 
 @layer base {
