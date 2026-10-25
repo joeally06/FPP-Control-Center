@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react';
 import {
   AdminH2,
-  AdminH4,
+  AdminTextMuted,
   AdminTextSmall,
   AdminLabel,
-  AdminInfo,
 } from '@/components/admin/Typography';
+import { card, field, sizedField, accentButton, choiceCard, checkInput, notice } from '@/components/admin/ui-classes';
 
 // onSaved lets the host page refresh anything that shows the schedule
 export default function MonitoringSettings({ onSaved }: { onSaved?: () => void }) {
@@ -101,91 +101,93 @@ export default function MonitoringSettings({ onSaved }: { onSaved?: () => void }
 
   if (loading) {
     return (
-      <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
-        <AdminH2>📡 Device Monitoring Settings</AdminH2>
-        <p className="text-white/60 mt-4">Loading settings...</p>
+      <div className={card}>
+        <AdminH2>Device Monitoring Settings</AdminH2>
+        <AdminTextMuted>Loading settings...</AdminTextMuted>
       </div>
     );
   }
 
   return (
-    <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
-      <AdminH2>📡 Device Monitoring Settings</AdminH2>
-      
+    <div className={`${card} max-w-3xl`}>
+      <AdminH2 className="mb-1">Device Monitoring Settings</AdminH2>
+      <AdminTextMuted>
+        During the scheduled window, enabled devices are checked every 5 minutes and an email alert goes out when one goes offline.
+      </AdminTextMuted>
+
       {message && (
-        <div className="mb-6 mt-4 p-4 bg-blue-500/20 rounded-lg border border-blue-500/30">
-          <AdminInfo>{message}</AdminInfo>
-        </div>
+        <p className={`${notice.info} mt-4`}>{message}</p>
       )}
-      
-      <div className="space-y-6 mt-6">
-        <div className="flex items-start gap-3">
+
+      <div className="mt-6 space-y-6">
+        <label className={choiceCard}>
           <input
             type="checkbox"
-            id="monitoring-enabled"
             checked={monitoringEnabled}
             onChange={(e) => setMonitoringEnabled(e.target.checked)}
-            className="w-5 h-5 rounded mt-1"
+            className={checkInput}
           />
           <div>
-            <AdminLabel htmlFor="monitoring-enabled" className="cursor-pointer mb-0">
-              Enable Device Monitoring
-            </AdminLabel>
-            <AdminTextSmall className="mt-1">
+            <p className="text-sm font-medium text-adm-text">Enable Device Monitoring</p>
+            <p className="mt-0.5 text-[13px] text-adm-muted">
               Automatically check device status and send email alerts when offline
-            </AdminTextSmall>
+            </p>
           </div>
-        </div>
+        </label>
 
-        <div>
-          <AdminLabel>Monitoring Schedule</AdminLabel>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <fieldset>
+          <legend className="admin-label">Monitoring Schedule</legend>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-              <AdminTextSmall className="mb-2">Start Time</AdminTextSmall>
+              <AdminLabel htmlFor="monitoring-start-hour">Start Time</AdminLabel>
               <div className="flex gap-2">
                 <select
+                  id="monitoring-start-hour"
                   value={startHour}
                   onChange={(e) => setStartHour(parseInt(e.target.value, 10))}
-                  className="flex-1 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white"
+                  className={`${field} flex-1`}
                 >
                   {Array.from({ length: 24 }, (_, i) => (
-                    <option key={i} value={i} className="bg-gray-900 text-white">{formatTime(i, 0).split(':')[0]} {formatTime(i, 0).split(' ')[1]}</option>
+                    <option key={i} value={i}>{formatTime(i, 0).split(':')[0]} {formatTime(i, 0).split(' ')[1]}</option>
                   ))}
                 </select>
                 <select
                   value={startMinute}
                   onChange={(e) => setStartMinute(parseInt(e.target.value, 10))}
-                  className="w-20 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white"
+                  aria-label="Start minute"
+                  className={`${sizedField} w-24`}
                 >
-                  <option value={0} className="bg-gray-900 text-white">:00</option>
-                  <option value={15} className="bg-gray-900 text-white">:15</option>
-                  <option value={30} className="bg-gray-900 text-white">:30</option>
-                  <option value={45} className="bg-gray-900 text-white">:45</option>
+                  <option value={0}>:00</option>
+                  <option value={15}>:15</option>
+                  <option value={30}>:30</option>
+                  <option value={45}>:45</option>
                 </select>
               </div>
             </div>
-            
+
             <div>
-              <AdminTextSmall className="mb-2">End Time</AdminTextSmall>
+              <AdminLabel htmlFor="monitoring-end-hour">End Time</AdminLabel>
               <div className="flex gap-2">
                 <select
+                  id="monitoring-end-hour"
                   value={endHour}
                   onChange={(e) => setEndHour(parseInt(e.target.value, 10))}
-                  className="flex-1 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white"
+                  className={`${field} flex-1`}
                 >
                   {Array.from({ length: 24 }, (_, i) => (
-                    <option key={i} value={i} className="bg-gray-900 text-white">{formatTime(i, 0).split(':')[0]} {formatTime(i, 0).split(' ')[1]}</option>
+                    <option key={i} value={i}>{formatTime(i, 0).split(':')[0]} {formatTime(i, 0).split(' ')[1]}</option>
                   ))}
                 </select>
                 <select
                   value={endMinute}
                   onChange={(e) => setEndMinute(parseInt(e.target.value, 10))}
-                  className="w-20 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white"
+                  aria-label="End minute"
+                  className={`${sizedField} w-24`}
                 >
-                  <option value={0} className="bg-gray-900 text-white">:00</option>
-                  <option value={15} className="bg-gray-900 text-white">:15</option>
-                  <option value={30} className="bg-gray-900 text-white">:30</option>
-                  <option value={45} className="bg-gray-900 text-white">:45</option>
+                  <option value={0}>:00</option>
+                  <option value={15}>:15</option>
+                  <option value={30}>:30</option>
+                  <option value={45}>:45</option>
                 </select>
               </div>
             </div>
@@ -193,39 +195,30 @@ export default function MonitoringSettings({ onSaved }: { onSaved?: () => void }
           <AdminTextSmall className="mt-2">
             Current schedule: {formatTime(startHour, startMinute)} - {formatTime(endHour, endMinute)} CST
           </AdminTextSmall>
-        </div>
-
-        <div className="pt-4 border-t border-white/10">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-6 py-3 bg-linear-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-          >
-            {saving ? '⏳ Saving...' : '💾 Save Monitoring Settings'}
-          </button>
-        </div>
-
-        <div className="p-4 bg-blue-500/20 rounded-lg border border-blue-500/30">
-          <AdminH4>ℹ️ How Device Monitoring Works</AdminH4>
-          <ul className="space-y-1 mt-2">
-            <li><AdminTextSmall>• Monitoring runs automatically during the scheduled time window</AdminTextSmall></li>
-            <li><AdminTextSmall>• Devices are checked every 5 minutes when enabled</AdminTextSmall></li>
-            <li><AdminTextSmall>• Email alerts are sent when devices go offline</AdminTextSmall></li>
-            <li><AdminTextSmall>• Configure devices on the Device Status page</AdminTextSmall></li>
-          </ul>
-        </div>
+        </fieldset>
 
         <div>
-          <AdminLabel>Alert Email</AdminLabel>
+          <AdminLabel htmlFor="monitoring-alert-email">Alert Email</AdminLabel>
           <input
+            id="monitoring-alert-email"
             type="email"
             defaultValue="joeally5@gmail.com"
             disabled
-            className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white/60"
+            className={field}
           />
           <AdminTextSmall className="mt-1">
             Configure in .env.local as SMTP_USER
           </AdminTextSmall>
+        </div>
+
+        <div className="border-t border-adm-line pt-5">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className={accentButton}
+          >
+            {saving ? 'Saving...' : 'Save Monitoring Settings'}
+          </button>
         </div>
 
       </div>

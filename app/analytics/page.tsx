@@ -8,13 +8,11 @@ import RequestVoteAnalytics from '@/components/analytics/RequestVoteAnalytics';
 import {
   AdminH1,
   AdminH2,
-  AdminH3,
-  AdminText,
   AdminTextSmall,
-  AdminValue,
-  AdminInfo,
 } from '@/components/admin/Typography';
-import { Download, TrendingUp, Star, Mail, FileText } from 'lucide-react';
+import { card, insetBox, eyebrow, button, notice, tabClass } from '@/components/admin/ui-classes';
+import { chartColors, axisTick, legendStyle, tooltipStyle } from '@/components/analytics/chart-theme';
+import { Download, TrendingUp, Star, FileText, Users, CalendarDays, Clock, ListMusic } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
@@ -85,9 +83,7 @@ function AnalyticsViews() {
             key={v.key}
             href={v.href}
             aria-current={view === v.key ? 'page' : undefined}
-            className={`inline-flex min-h-11 items-center whitespace-nowrap border-b-2 px-3.5 text-sm font-medium transition-colors ${
-              view === v.key ? 'border-adm-accent text-adm-text' : 'border-transparent text-adm-muted hover:text-adm-text'
-            }`}
+            className={`${tabClass(view === v.key)} inline-flex items-center`}
           >
             {v.label}
           </Link>
@@ -315,139 +311,100 @@ function SiteAnalytics() {
 
   if (loading || !data) {
     return (
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center py-24">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent mx-auto mb-4"></div>
-            <AdminText>Loading analytics...</AdminText>
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-adm-line border-t-adm-accent"></div>
+            <p className="text-sm text-adm-muted">Loading analytics...</p>
           </div>
         </div>
     );
   }
 
+  const santaSlices = [
+    { name: 'Pending', value: data.santaLetters.pending, color: chartColors.warn },
+    { name: 'Sent', value: data.santaLetters.sent, color: chartColors.ok },
+    { name: 'Failed', value: data.santaLetters.failed, color: chartColors.danger },
+  ].filter(item => item.value > 0);
+
+  const th = 'px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.06em] text-adm-muted';
+  const td = 'px-3 py-3 text-sm text-adm-soft';
+
   return (
-      <div className="space-y-6">
+      <div className="flex flex-col gap-4">
         {/* Header */}
-        <div className="flex justify-between items-center">
-          <AdminH1>📊 Show Analytics</AdminH1>
-          
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <AdminH1 className="mb-0">Show Analytics</AdminH1>
+
           {/* Time Range Selector */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => setTimeRange('7d')}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                timeRange === '7d'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white/10 text-white/70 hover:bg-white/20'
-              }`}
-            >
-              Last 7 Days
-            </button>
-            <button
-              onClick={() => setTimeRange('30d')}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                timeRange === '30d'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white/10 text-white/70 hover:bg-white/20'
-              }`}
-            >
-              Last 30 Days
-            </button>
+          <div className="inline-flex self-start rounded-xl border border-adm-control-line bg-adm-side p-1 sm:self-auto">
+            {([['7d', 'Last 7 Days'], ['30d', 'Last 30 Days']] as const).map(([range, label]) => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                aria-pressed={timeRange === range}
+                className={`min-h-9 rounded-lg px-3.5 text-sm font-medium transition-colors ${
+                  timeRange === range
+                    ? 'bg-adm-raised text-adm-text'
+                    : 'text-adm-muted hover:text-adm-text'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <div className="relative overflow-hidden rounded-xl p-6 bg-linear-to-br from-blue-500/80 to-blue-600/80 backdrop-blur-md border border-white/20 shadow-lg hover:scale-105 transition-transform duration-200">
-            <div className="flex items-start justify-between">
-              <div>
-                <AdminTextSmall className="text-white/90 mb-2">Total Views</AdminTextSmall>
-                <AdminValue className="text-white">{data.overview.totalViews.toLocaleString()}</AdminValue>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          {([
+            ['Total Views', data.overview.totalViews.toLocaleString(), Users],
+            ["Today's Views", data.overview.todayViews.toLocaleString(), CalendarDays],
+            ['Peak Hour', data.overview.peakHour, Clock],
+            ['Avg Rating', data.overview.avgRating.toFixed(1), Star],
+          ] as const).map(([label, value, Icon]) => (
+            <div key={label} className={card}>
+              <div className="flex items-start justify-between gap-2">
+                <p className={eyebrow}>{label}</p>
+                <Icon className="h-4.5 w-4.5 shrink-0 text-adm-faint" aria-hidden="true" />
               </div>
-              <div className="text-4xl opacity-80">👥</div>
+              <p className="mt-1 text-2xl font-semibold text-adm-text sm:text-3xl">{value}</p>
             </div>
-            <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
-          </div>
-
-          <div className="relative overflow-hidden rounded-xl p-6 bg-linear-to-br from-green-500/80 to-emerald-600/80 backdrop-blur-md border border-white/20 shadow-lg hover:scale-105 transition-transform duration-200">
-            <div className="flex items-start justify-between">
-              <div>
-                <AdminTextSmall className="text-white/90 mb-2">Today&apos;s Views</AdminTextSmall>
-                <AdminValue className="text-white">{data.overview.todayViews.toLocaleString()}</AdminValue>
-              </div>
-              <div className="text-4xl opacity-80">📅</div>
-            </div>
-            <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
-          </div>
-
-          <div className="relative overflow-hidden rounded-xl p-6 bg-linear-to-br from-purple-500/80 to-purple-600/80 backdrop-blur-md border border-white/20 shadow-lg hover:scale-105 transition-transform duration-200">
-            <div className="flex items-start justify-between">
-              <div>
-                <AdminTextSmall className="text-white/90 mb-2">Peak Hour</AdminTextSmall>
-                <AdminValue className="text-white">{data.overview.peakHour}</AdminValue>
-              </div>
-              <div className="text-4xl opacity-80">⏰</div>
-            </div>
-            <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
-          </div>
-
-          <div className="relative overflow-hidden rounded-xl p-6 bg-linear-to-br from-orange-500/80 to-amber-600/80 backdrop-blur-md border border-white/20 shadow-lg hover:scale-105 transition-transform duration-200">
-            <div className="flex items-start justify-between">
-              <div>
-                <AdminTextSmall className="text-white/90 mb-2">Avg Rating</AdminTextSmall>
-                <AdminValue className="text-white">{data.overview.avgRating.toFixed(1)}</AdminValue>
-              </div>
-              <div className="text-4xl opacity-80">⭐</div>
-            </div>
-            <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
-          </div>
+          ))}
         </div>
 
         {/* Visitor Trends Chart */}
-        <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 shadow-lg">
-          <div className="flex justify-between items-center mb-6">
-            <AdminH2 className="mb-0">📈 Visitor Trends</AdminH2>
-            <TrendingUp className="w-6 h-6 text-green-400" />
+        <div className={card}>
+          <div className="mb-4 flex items-center justify-between">
+            <AdminH2 className="mb-0">Visitor Trends</AdminH2>
+            <TrendingUp className="h-5 w-5 text-adm-faint" aria-hidden="true" />
           </div>
-          
-          <div className="h-80">
+
+          <div className="h-72 sm:h-80">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={data.trends}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                margin={{ top: 5, right: 16, left: 0, bottom: 5 }}
               >
-                <defs>
-                  <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#06b6d4" stopOpacity={0.1}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis 
-                  dataKey="date" 
-                  stroke="rgba(255,255,255,0.6)"
+                <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+                <XAxis
+                  dataKey="date"
+                  tick={axisTick}
+                  stroke={chartColors.grid}
                   tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 />
-                <YAxis stroke="rgba(255,255,255,0.6)" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(0,0,0,0.8)', 
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    borderRadius: '8px',
-                    color: '#fff'
-                  }}
+                <YAxis tick={axisTick} stroke={chartColors.grid} />
+                <Tooltip
+                  contentStyle={tooltipStyle}
                   labelFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                 />
-                <Legend 
-                  wrapperStyle={{ color: 'rgba(255,255,255,0.8)' }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="views" 
-                  stroke="#3b82f6" 
-                  strokeWidth={3}
-                  fill="url(#colorViews)"
-                  dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, fill: '#06b6d4' }}
+                <Legend wrapperStyle={legendStyle} />
+                <Line
+                  type="monotone"
+                  dataKey="views"
+                  stroke={chartColors.accent}
+                  strokeWidth={2.5}
+                  dot={{ fill: chartColors.accent, strokeWidth: 0, r: 3 }}
+                  activeDot={{ r: 5, fill: chartColors.accent }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -455,23 +412,23 @@ function SiteAnalytics() {
         </div>
 
         {/* Top Performing Content */}
-        <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 shadow-lg">
-          <AdminH2>🏆 Top Performing Content</AdminH2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className={card}>
+          <AdminH2>Top Performing Content</AdminH2>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             {/* Top Sequence */}
-            <div className="bg-white/5 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Star className="w-5 h-5 text-yellow-400" />
-                <AdminH3 className="mb-0">Most Voted Sequence</AdminH3>
+            <div className={insetBox}>
+              <div className="mb-2 flex items-center gap-2">
+                <Star className="h-4 w-4 text-adm-accent" aria-hidden="true" />
+                <p className={eyebrow}>Most Voted Sequence</p>
               </div>
               {data.topContent.sequences[0] ? (
                 <>
-                  <AdminText className="font-semibold text-white">
+                  <p className="font-semibold text-adm-text">
                     {data.topContent.sequences[0].name}
-                  </AdminText>
+                  </p>
                   <AdminTextSmall>
-                    {data.topContent.sequences[0].votes} votes • {data.topContent.sequences[0].rating.toFixed(1)}⭐
+                    {data.topContent.sequences[0].votes} votes • {data.topContent.sequences[0].rating.toFixed(1)} rating
                   </AdminTextSmall>
                 </>
               ) : (
@@ -480,16 +437,16 @@ function SiteAnalytics() {
             </div>
 
             {/* Top Playlist */}
-            <div className="bg-white/5 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Mail className="w-5 h-5 text-green-400" />
-                <AdminH3 className="mb-0">Most Popular Playlist</AdminH3>
+            <div className={insetBox}>
+              <div className="mb-2 flex items-center gap-2">
+                <ListMusic className="h-4 w-4 text-adm-accent" aria-hidden="true" />
+                <p className={eyebrow}>Most Popular Playlist</p>
               </div>
               {data.topContent.playlists[0] && data.topContent.playlists[0].name !== 'No data yet' ? (
                 <>
-                  <AdminText className="font-semibold text-white">
+                  <p className="font-semibold text-adm-text">
                     {data.topContent.playlists[0].name}
-                  </AdminText>
+                  </p>
                   <AdminTextSmall>
                     {data.topContent.playlists[0].plays} plays
                   </AdminTextSmall>
@@ -500,16 +457,16 @@ function SiteAnalytics() {
             </div>
 
             {/* Top Page */}
-            <div className="bg-white/5 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <FileText className="w-5 h-5 text-purple-400" />
-                <AdminH3 className="mb-0">Most Visited Page</AdminH3>
+            <div className={insetBox}>
+              <div className="mb-2 flex items-center gap-2">
+                <FileText className="h-4 w-4 text-adm-accent" aria-hidden="true" />
+                <p className={eyebrow}>Most Visited Page</p>
               </div>
               {data.topContent.pages[0] ? (
                 <>
-                  <AdminText className="font-semibold text-white">
+                  <p className="font-semibold text-adm-text">
                     {data.topContent.pages[0].name}
-                  </AdminText>
+                  </p>
                   <AdminTextSmall>
                     {data.topContent.pages[0].views.toLocaleString()} views
                   </AdminTextSmall>
@@ -522,89 +479,74 @@ function SiteAnalytics() {
         </div>
 
         {/* Top Sequences Bar Chart */}
-        <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 shadow-lg">
-          <div className="flex justify-between items-center mb-6">
-            <AdminH2 className="mb-0">🎵 Top Sequences by Votes</AdminH2>
-            <Star className="w-6 h-6 text-yellow-400" />
-          </div>
-          
+        <div className={card}>
+          <AdminH2>Top Sequences by Votes</AdminH2>
+
           <div className="h-80">
             {data.topContent.sequences.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={data.topContent.sequences.slice(0, 10)}
-                  margin={{ top: 5, right: 30, left: 20, bottom: 60 }}
+                  margin={{ top: 5, right: 16, left: 0, bottom: 60 }}
                 >
-                  <defs>
-                    <linearGradient id="colorVotes" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.9}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.7}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis 
-                    dataKey="name" 
-                    stroke="rgba(255,255,255,0.6)"
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+                  <XAxis
+                    dataKey="name"
+                    tick={axisTick}
+                    stroke={chartColors.grid}
                     angle={-45}
                     textAnchor="end"
                     height={100}
                     interval={0}
                   />
-                  <YAxis stroke="rgba(255,255,255,0.6)" />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'rgba(0,0,0,0.8)', 
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      borderRadius: '8px',
-                      color: '#fff'
-                    }}
+                  <YAxis tick={axisTick} stroke={chartColors.grid} />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    cursor={{ fill: 'rgba(255,255,255,0.04)' }}
                     formatter={(value: any, name: string | number | undefined) => {
                       if (name === 'votes') return [value, 'Votes'];
                       if (name === 'rating') return [Number(value).toFixed(1), 'Rating'];
                       return [value, name ?? ''];
                     }}
                   />
-                  <Legend wrapperStyle={{ color: 'rgba(255,255,255,0.8)' }} />
-                  <Bar 
-                    dataKey="votes" 
-                    fill="url(#colorVotes)" 
-                    radius={[8, 8, 0, 0]}
+                  <Legend wrapperStyle={legendStyle} />
+                  <Bar
+                    dataKey="votes"
+                    fill={chartColors.accent}
+                    radius={[6, 6, 0, 0]}
                   />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-full">
-                <AdminText className="text-white/60">No sequence data yet</AdminText>
+              <div className="flex h-full items-center justify-center">
+                <p className="text-sm text-adm-muted">No sequence data yet</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Santa Letters Insights */}
-        <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 shadow-lg">
-          <div className="flex items-center gap-3 mb-4">
-            <Mail className="w-6 h-6 text-red-400" />
-            <AdminH2 className="mb-0">🎅 Santa Letters Insights</AdminH2>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className={card}>
+          <AdminH2>Santa Letters Insights</AdminH2>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {/* Stats Grid */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-blue-500/20 rounded-lg p-4 border border-blue-500/30">
-                <AdminTextSmall>Total Letters</AdminTextSmall>
-                <AdminValue className="text-2xl">{data.santaLetters.total}</AdminValue>
+            <div className="grid grid-cols-2 gap-3">
+              <div className={insetBox}>
+                <p className={eyebrow}>Total Letters</p>
+                <p className="mt-1 text-2xl font-semibold text-adm-text">{data.santaLetters.total}</p>
               </div>
-              <div className="bg-amber-500/20 rounded-lg p-4 border border-amber-500/30">
-                <AdminTextSmall>Pending</AdminTextSmall>
-                <AdminValue className="text-2xl">{data.santaLetters.pending}</AdminValue>
+              <div className={insetBox}>
+                <p className={eyebrow}>Pending</p>
+                <p className="mt-1 text-2xl font-semibold text-adm-warn">{data.santaLetters.pending}</p>
               </div>
-              <div className="bg-green-500/20 rounded-lg p-4 border border-green-500/30">
-                <AdminTextSmall>Sent</AdminTextSmall>
-                <AdminValue className="text-2xl">{data.santaLetters.sent}</AdminValue>
+              <div className={insetBox}>
+                <p className={eyebrow}>Sent</p>
+                <p className="mt-1 text-2xl font-semibold text-adm-ok">{data.santaLetters.sent}</p>
               </div>
-              <div className="bg-red-500/20 rounded-lg p-4 border border-red-500/30">
-                <AdminTextSmall>Failed</AdminTextSmall>
-                <AdminValue className="text-2xl">{data.santaLetters.failed}</AdminValue>
+              <div className={insetBox}>
+                <p className={eyebrow}>Failed</p>
+                <p className={`mt-1 text-2xl font-semibold ${data.santaLetters.failed > 0 ? 'text-adm-danger' : 'text-adm-text'}`}>{data.santaLetters.failed}</p>
               </div>
             </div>
 
@@ -613,11 +555,7 @@ function SiteAnalytics() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={[
-                      { name: 'Pending', value: data.santaLetters.pending, color: '#f59e0b' },
-                      { name: 'Sent', value: data.santaLetters.sent, color: '#10b981' },
-                      { name: 'Failed', value: data.santaLetters.failed, color: '#ef4444' },
-                    ].filter(item => item.value > 0)}
+                    data={santaSlices}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
@@ -625,23 +563,13 @@ function SiteAnalytics() {
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="value"
+                    stroke="none"
                   >
-                    {[
-                      { name: 'Pending', value: data.santaLetters.pending, color: '#f59e0b' },
-                      { name: 'Sent', value: data.santaLetters.sent, color: '#10b981' },
-                      { name: 'Failed', value: data.santaLetters.failed, color: '#ef4444' },
-                    ].filter(item => item.value > 0).map((entry, index) => (
+                    {santaSlices.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'rgba(0,0,0,0.8)', 
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      borderRadius: '8px',
-                      color: '#fff'
-                    }}
-                  />
+                  <Tooltip contentStyle={tooltipStyle} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -649,76 +577,51 @@ function SiteAnalytics() {
         </div>
 
         {/* Detailed Breakdown Tabs */}
-        <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 shadow-lg">
-          <AdminH2>📊 Detailed Breakdown</AdminH2>
-          
+        <div className={card}>
+          <AdminH2>Detailed Breakdown</AdminH2>
+
           {/* Tabs */}
-          <div className="flex gap-2 mb-6 border-b border-white/10 pb-2">
-            <button
-              onClick={() => setActiveTab('sequences')}
-              className={`px-4 py-2 rounded-t-lg font-semibold transition-all ${
-                activeTab === 'sequences'
-                  ? 'bg-white/20 text-white border-b-2 border-blue-400'
-                  : 'text-white/60 hover:text-white/80'
-              }`}
-            >
-              Sequences
-            </button>
-            <button
-              onClick={() => setActiveTab('playlists')}
-              className={`px-4 py-2 rounded-t-lg font-semibold transition-all ${
-                activeTab === 'playlists'
-                  ? 'bg-white/20 text-white border-b-2 border-blue-400'
-                  : 'text-white/60 hover:text-white/80'
-              }`}
-            >
-              Playlists
-            </button>
-            <button
-              onClick={() => setActiveTab('pages')}
-              className={`px-4 py-2 rounded-t-lg font-semibold transition-all ${
-                activeTab === 'pages'
-                  ? 'bg-white/20 text-white border-b-2 border-blue-400'
-                  : 'text-white/60 hover:text-white/80'
-              }`}
-            >
-              Pages
-            </button>
-            <button
-              onClick={() => setActiveTab('santa')}
-              className={`px-4 py-2 rounded-t-lg font-semibold transition-all ${
-                activeTab === 'santa'
-                  ? 'bg-white/20 text-white border-b-2 border-blue-400'
-                  : 'text-white/60 hover:text-white/80'
-              }`}
-            >
-              Santa Letters
-            </button>
+          <div className="mb-4 flex gap-1 overflow-x-auto border-b border-adm-line">
+            {([
+              ['sequences', 'Sequences'],
+              ['playlists', 'Playlists'],
+              ['pages', 'Pages'],
+              ['santa', 'Santa Letters'],
+            ] as const).map(([tab, label]) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                aria-pressed={activeTab === tab}
+                className={tabClass(activeTab === tab)}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
           {/* Tab Content */}
           <div className="overflow-x-auto">
             {activeTab === 'sequences' && (
-              <table className="w-full min-w-[500px]">
+              <table className="w-full min-w-[420px]">
                 <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="text-left py-3 px-4 text-white font-semibold">Sequence</th>
-                    <th className="text-left py-3 px-4 text-white font-semibold">Votes</th>
-                    <th className="text-left py-3 px-4 text-white font-semibold">Rating</th>
+                  <tr className="border-b border-adm-line">
+                    <th scope="col" className={th}>Sequence</th>
+                    <th scope="col" className={th}>Votes</th>
+                    <th scope="col" className={th}>Rating</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-adm-line">
                   {data.topContent.sequences.length > 0 ? (
                     data.topContent.sequences.map((seq, index) => (
-                      <tr key={index} className="border-b border-white/5 hover:bg-white/5">
-                        <td className="py-3 px-4 text-white/80">{seq.name}</td>
-                        <td className="py-3 px-4 text-white/80">{seq.votes}</td>
-                        <td className="py-3 px-4 text-white/80">{seq.rating.toFixed(1)}⭐</td>
+                      <tr key={index} className="hover:bg-adm-hover">
+                        <td className={`${td} text-adm-text`}>{seq.name}</td>
+                        <td className={td}>{seq.votes}</td>
+                        <td className={td}>{seq.rating.toFixed(1)}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={3} className="py-8 text-center text-white/60">No sequence data yet</td>
+                      <td colSpan={3} className="py-8 text-center text-sm text-adm-muted">No sequence data yet</td>
                     </tr>
                   )}
                 </tbody>
@@ -726,24 +629,24 @@ function SiteAnalytics() {
             )}
 
             {activeTab === 'playlists' && (
-              <table className="w-full min-w-[500px]">
+              <table className="w-full min-w-[420px]">
                 <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="text-left py-3 px-4 text-white font-semibold">Playlist</th>
-                    <th className="text-left py-3 px-4 text-white font-semibold">Plays</th>
+                  <tr className="border-b border-adm-line">
+                    <th scope="col" className={th}>Playlist</th>
+                    <th scope="col" className={th}>Plays</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-adm-line">
                   {data.topContent.playlists.length > 0 && data.topContent.playlists[0].name !== 'No data yet' ? (
                     data.topContent.playlists.map((playlist, index) => (
-                      <tr key={index} className="border-b border-white/5 hover:bg-white/5">
-                        <td className="py-3 px-4 text-white/80">{playlist.name}</td>
-                        <td className="py-3 px-4 text-white/80">{playlist.plays}</td>
+                      <tr key={index} className="hover:bg-adm-hover">
+                        <td className={`${td} text-adm-text`}>{playlist.name}</td>
+                        <td className={td}>{playlist.plays}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={2} className="py-8 text-center text-white/60">No playlist data yet</td>
+                      <td colSpan={2} className="py-8 text-center text-sm text-adm-muted">No playlist data yet</td>
                     </tr>
                   )}
                 </tbody>
@@ -751,24 +654,24 @@ function SiteAnalytics() {
             )}
 
             {activeTab === 'pages' && (
-              <table className="w-full min-w-[500px]">
+              <table className="w-full min-w-[420px]">
                 <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="text-left py-3 px-4 text-white font-semibold">Page</th>
-                    <th className="text-left py-3 px-4 text-white font-semibold">Views</th>
+                  <tr className="border-b border-adm-line">
+                    <th scope="col" className={th}>Page</th>
+                    <th scope="col" className={th}>Views</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-adm-line">
                   {data.topContent.pages.length > 0 ? (
                     data.topContent.pages.map((page, index) => (
-                      <tr key={index} className="border-b border-white/5 hover:bg-white/5">
-                        <td className="py-3 px-4 text-white/80">{page.name}</td>
-                        <td className="py-3 px-4 text-white/80">{page.views.toLocaleString()}</td>
+                      <tr key={index} className="hover:bg-adm-hover">
+                        <td className={`${td} text-adm-text`}>{page.name}</td>
+                        <td className={td}>{page.views.toLocaleString()}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={2} className="py-8 text-center text-white/60">No page data yet</td>
+                      <td colSpan={2} className="py-8 text-center text-sm text-adm-muted">No page data yet</td>
                     </tr>
                   )}
                 </tbody>
@@ -776,45 +679,34 @@ function SiteAnalytics() {
             )}
 
             {activeTab === 'santa' && (
-              <div className="p-4 bg-blue-500/10 rounded-lg">
-                <AdminInfo>
-                  View detailed Santa letter information on the <a href="/santa-letters" className="underline hover:text-blue-300">Santa Letters page</a>
-                </AdminInfo>
-              </div>
+              <p className={notice.info}>
+                View detailed Santa letter information on the <Link href="/santa-letters" className="font-semibold text-adm-info underline hover:no-underline">Santa Letters page</Link>
+              </p>
             )}
           </div>
         </div>
 
         {/* Export Section */}
-        <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 shadow-lg">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className={card}>
+          <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
             <div>
-              <AdminH2 className="mb-2">💾 Export Data</AdminH2>
+              <AdminH2 className="mb-1">Export Data</AdminH2>
               <AdminTextSmall>
                 Download your analytics data in various formats for further analysis
               </AdminTextSmall>
             </div>
-            
-            <div className="flex gap-3">
-              <button
-                onClick={() => exportData('csv')}
-                className="px-6 py-3 bg-linear-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all font-semibold flex items-center gap-2"
-              >
-                <Download className="w-5 h-5" />
+
+            <div className="flex flex-wrap gap-2.5">
+              <button onClick={() => exportData('csv')} className={button}>
+                <Download className="h-4 w-4" aria-hidden="true" />
                 CSV
               </button>
-              <button
-                onClick={() => exportData('json')}
-                className="px-6 py-3 bg-linear-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:from-blue-600 hover:to-cyan-700 transition-all font-semibold flex items-center gap-2"
-              >
-                <Download className="w-5 h-5" />
+              <button onClick={() => exportData('json')} className={button}>
+                <Download className="h-4 w-4" aria-hidden="true" />
                 JSON
               </button>
-              <button
-                onClick={() => exportData('pdf')}
-                className="px-6 py-3 bg-linear-to-r from-purple-500 to-indigo-600 text-white rounded-lg hover:from-purple-600 hover:to-indigo-700 transition-all font-semibold flex items-center gap-2"
-              >
-                <Download className="w-5 h-5" />
+              <button onClick={() => exportData('pdf')} className={button}>
+                <Download className="h-4 w-4" aria-hidden="true" />
                 PDF Report
               </button>
             </div>

@@ -1,17 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { LocateFixed, MapPin, TriangleAlert } from 'lucide-react';
 import {
   AdminH2,
   AdminH3,
-  AdminH4,
   AdminTextMuted,
-  AdminTextSmall,
   AdminLabel,
-  AdminSuccess,
-  AdminError,
-  AdminInfo,
 } from '@/components/admin/Typography';
+import { card, button, accentButton, field, choiceCard, checkInput, notice } from '@/components/admin/ui-classes';
 
 export default function LocationRestrictions() {
   const [enabled, setEnabled] = useState(false);
@@ -114,109 +111,110 @@ export default function LocationRestrictions() {
 
   if (loading) {
     return (
-      <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
-        <AdminH2>📍 Location Restrictions</AdminH2>
+      <div className={card}>
+        <AdminH2>Location Restrictions</AdminH2>
         <AdminTextMuted>Loading...</AdminTextMuted>
       </div>
     );
   }
 
-  const mapsUrl = showLat && showLng 
-    ? `https://www.google.com/maps?q=${showLat},${showLng}` 
+  const mapsUrl = showLat && showLng
+    ? `https://www.google.com/maps?q=${showLat},${showLng}`
     : null;
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
-        <AdminH2>📍 Location Restrictions</AdminH2>
+    <div className="flex max-w-3xl flex-col gap-4">
+      <div className={card}>
+        <AdminH2 className="mb-1">Location Restrictions</AdminH2>
         <AdminTextMuted>
           Prevent remote users from disrupting your light show by restricting song requests to on-site visitors
         </AdminTextMuted>
 
-        {success && <AdminSuccess className="mt-4">{success}</AdminSuccess>}
-        {error && <AdminError className="mt-4">{error}</AdminError>}
+        {success && <p className={`${notice.ok} mt-4`}>{success}</p>}
+        {error && <p className={`${notice.danger} mt-4`}>{error}</p>}
 
         {/* Enable/Disable Section */}
-        <div className="mt-6 space-y-4">
-          <div className="flex items-center gap-4 p-4 bg-white/5 rounded-lg border border-white/20">
+        <div className="mt-6 space-y-3">
+          <label className={choiceCard}>
             <input
               type="checkbox"
-              id="locationEnabled"
               checked={enabled}
               onChange={(e) => setEnabled(e.target.checked)}
-              className="w-5 h-5 cursor-pointer"
+              className={checkInput}
             />
-            <label htmlFor="locationEnabled" className="flex-1 cursor-pointer">
-              <AdminLabel>Enable Location Restrictions</AdminLabel>
-              <AdminTextSmall className="text-white/60">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-adm-text">Enable Location Restrictions</p>
+              <p className="mt-0.5 text-[13px] text-adm-muted">
                 When enabled, only users within the specified distance can request songs
-              </AdminTextSmall>
-            </label>
-          </div>
+              </p>
+            </div>
+          </label>
 
           {enabled && (
-            <AdminInfo>
-              ⚠️ Make sure to configure your show location below before enabling
-            </AdminInfo>
+            <p className={notice.warn}>
+              Make sure to configure your show location below before enabling
+            </p>
           )}
         </div>
 
         {/* Show Location Section */}
-        <div className="mt-8 space-y-4">
-          <div>
-            <AdminH3>📍 Show Location</AdminH3>
-            <AdminTextMuted>
-              Set the GPS coordinates of your light show
-            </AdminTextMuted>
-          </div>
+        <section className="mt-6 border-t border-adm-line pt-5">
+          <AdminH3 className="mb-0.5">Show Location</AdminH3>
+          <AdminTextMuted>
+            Set the GPS coordinates of your light show
+          </AdminTextMuted>
 
-          <div className="space-y-4">
+          <div className="mt-4 space-y-4">
             <div>
-              <AdminLabel>Location Name (Optional)</AdminLabel>
+              <AdminLabel htmlFor="location-name">Location Name (Optional)</AdminLabel>
               <input
+                id="location-name"
                 type="text"
                 value={locationName}
                 onChange={(e) => setLocationName(e.target.value)}
                 placeholder="e.g., 123 Main Street, Anytown USA"
-                className="w-full mt-2 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-blue-400"
+                className={field}
               />
-              <AdminTextSmall className="text-white/60 mt-1">
+              <p className="mt-1 text-xs text-adm-muted">
                 Friendly name to help you remember this location
-              </AdminTextSmall>
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <AdminLabel>Latitude *</AdminLabel>
+                <AdminLabel htmlFor="location-lat">Latitude *</AdminLabel>
                 <input
+                  id="location-lat"
                   type="number"
                   step="0.000001"
                   value={showLat}
                   onChange={(e) => setShowLat(e.target.value)}
                   placeholder="40.712776"
-                  className="w-full mt-2 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-blue-400"
+                  className={field}
                 />
               </div>
 
               <div>
-                <AdminLabel>Longitude *</AdminLabel>
+                <AdminLabel htmlFor="location-lng">Longitude *</AdminLabel>
                 <input
+                  id="location-lng"
                   type="number"
                   step="0.000001"
                   value={showLng}
                   onChange={(e) => setShowLng(e.target.value)}
                   placeholder="-74.005974"
-                  className="w-full mt-2 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-blue-400"
+                  className={field}
                 />
               </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-2.5">
               <button
                 onClick={handleUseCurrentLocation}
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition-all shadow-lg"
+                className={button}
               >
-                📍 Use My Current Location
+                <LocateFixed className="h-4 w-4" aria-hidden="true" />
+                Use My Current Location
               </button>
 
               {mapsUrl && (
@@ -224,93 +222,82 @@ export default function LocationRestrictions() {
                   href={mapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg transition-all shadow-lg"
+                  className={button}
                 >
-                  🗺️ View on Google Maps
+                  <MapPin className="h-4 w-4" aria-hidden="true" />
+                  View on Google Maps
                 </a>
               )}
             </div>
           </div>
-        </div>
+        </section>
 
         {/* Distance Restriction Section */}
-        <div className="mt-8 space-y-4">
-          <div>
-            <AdminH3>🎯 Maximum Distance</AdminH3>
-            <AdminTextMuted>
-              How far from the show location can users request songs
-            </AdminTextMuted>
+        <section className="mt-6 border-t border-adm-line pt-5">
+          <AdminH3 className="mb-0.5">Maximum Distance</AdminH3>
+          <AdminTextMuted>
+            How far from the show location can users request songs
+          </AdminTextMuted>
+
+          <div className="mt-4 flex items-center gap-4">
+            <input
+              type="range"
+              min="0.1"
+              max="10"
+              step="0.1"
+              value={maxDistance}
+              onChange={(e) => setMaxDistance(parseFloat(e.target.value))}
+              aria-label="Maximum distance in miles"
+              className="h-7 flex-1 cursor-pointer accent-adm-accent"
+            />
+            <span className="w-24 text-center font-mono text-2xl font-semibold text-adm-text">
+              {maxDistance.toFixed(1)} <span className="text-sm text-adm-muted">mi</span>
+            </span>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <input
-                type="range"
-                min="0.1"
-                max="10"
-                step="0.1"
-                value={maxDistance}
-                onChange={(e) => setMaxDistance(parseFloat(e.target.value))}
-                className="flex-1 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider"
-                style={{
-                  background: `linear-gradient(to right, #10b981 0%, #10b981 ${((maxDistance - 0.1) / 9.9) * 100}%, rgba(255,255,255,0.2) ${((maxDistance - 0.1) / 9.9) * 100}%, rgba(255,255,255,0.2) 100%)`
-                }}
-              />
-              <div className="text-white font-bold text-2xl w-20 text-center">
-                {maxDistance.toFixed(1)}
-              </div>
-            </div>
-
-            <div className="flex justify-between text-sm text-white/60">
-              <span>0.1 mi (Very Close)</span>
-              <span>5 mi (Moderate)</span>
-              <span>10 mi (Wide Area)</span>
-            </div>
-
-            <AdminInfo>
-              Current setting: Users must be within <strong>{maxDistance.toFixed(1)} miles</strong> of the show location
-            </AdminInfo>
+          <div className="mt-1 flex justify-between text-xs">
+            <span className="text-adm-muted">0.1 mi (Very Close)</span>
+            <span className="text-adm-muted">5 mi (Moderate)</span>
+            <span className="text-adm-muted">10 mi (Wide Area)</span>
           </div>
-        </div>
+        </section>
 
         {/* Save Button */}
-        <div className="mt-8 flex gap-3">
+        <div className="mt-6 border-t border-adm-line pt-5">
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className={accentButton}
           >
-            {saving ? '⏳ Saving...' : '💾 Save Settings'}
+            {saving ? 'Saving...' : 'Save Settings'}
           </button>
         </div>
       </div>
 
       {/* Info Section */}
-      <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
-        <AdminH3>ℹ️ How It Works</AdminH3>
-        <ul className="space-y-2 mt-4">
-          <li><AdminTextSmall>• <strong>Geolocation:</strong> User's location is determined from their IP address when they request a song</AdminTextSmall></li>
-          <li><AdminTextSmall>• <strong>Distance Check:</strong> System calculates the distance between the user and your show location</AdminTextSmall></li>
-          <li><AdminTextSmall>• <strong>Blocking:</strong> Requests from users outside the radius are blocked with a friendly message</AdminTextSmall></li>
-          <li><AdminTextSmall>• <strong>Accuracy:</strong> IP-based geolocation is typically accurate to within 3-10 miles in urban areas</AdminTextSmall></li>
-          <li><AdminTextSmall>• <strong>Graceful Degradation:</strong> If location lookup fails, the request is allowed (don't punish users for API issues)</AdminTextSmall></li>
-          <li><AdminTextSmall>• <strong>Privacy:</strong> Location data is stored only for analytics and troubleshooting</AdminTextSmall></li>
+      <div className={card}>
+        <AdminH3>How It Works</AdminH3>
+        <ul className="list-disc space-y-1.5 pl-5 text-sm">
+          <li className="text-adm-soft"><strong className="text-adm-text">Geolocation:</strong> User&apos;s location is determined from their IP address when they request a song</li>
+          <li className="text-adm-soft"><strong className="text-adm-text">Distance Check:</strong> System calculates the distance between the user and your show location</li>
+          <li className="text-adm-soft"><strong className="text-adm-text">Blocking:</strong> Requests from users outside the radius are blocked with a friendly message</li>
+          <li className="text-adm-soft"><strong className="text-adm-text">Accuracy:</strong> IP-based geolocation is typically accurate to within 3-10 miles in urban areas</li>
+          <li className="text-adm-soft"><strong className="text-adm-text">Graceful Degradation:</strong> If location lookup fails, the request is allowed (don&apos;t punish users for API issues)</li>
+          <li className="text-adm-soft"><strong className="text-adm-text">Privacy:</strong> Location data is stored only for analytics and troubleshooting</li>
         </ul>
       </div>
 
       {/* Security Notice */}
-      <div className="bg-yellow-500/10 backdrop-blur-md rounded-xl p-6 border border-yellow-500/30">
-        <div className="flex items-start gap-3">
-          <span className="text-yellow-400 text-2xl">⚠️</span>
-          <div className="flex-1">
-            <AdminH4 className="text-yellow-200 mb-2">Important Notes</AdminH4>
-            <ul className="space-y-2">
-              <li><AdminTextSmall className="text-yellow-100">• <strong>VPN/Proxy Users:</strong> Users on VPNs or proxies may be blocked if their apparent location is outside the radius</AdminTextSmall></li>
-              <li><AdminTextSmall className="text-yellow-100">• <strong>Mobile Data:</strong> Cell phone IP addresses may show locations near cell towers, not the actual user location</AdminTextSmall></li>
-              <li><AdminTextSmall className="text-yellow-100">• <strong>Testing:</strong> Test with your own device first to ensure the radius is appropriate</AdminTextSmall></li>
-              <li><AdminTextSmall className="text-yellow-100">• <strong>Local Networks:</strong> Users on the same local network (192.168.x.x, 10.x.x.x) are not subject to location checks</AdminTextSmall></li>
-            </ul>
-          </div>
+      <div className={`${notice.warn} flex items-start gap-3`}>
+        <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+        <div className="flex-1">
+          <p className="mb-2 font-semibold text-adm-warn">Important Notes</p>
+          <ul className="list-disc space-y-1.5 pl-5">
+            <li className="text-adm-soft"><strong className="text-adm-warn">VPN/Proxy Users:</strong> Users on VPNs or proxies may be blocked if their apparent location is outside the radius</li>
+            <li className="text-adm-soft"><strong className="text-adm-warn">Mobile Data:</strong> Cell phone IP addresses may show locations near cell towers, not the actual user location</li>
+            <li className="text-adm-soft"><strong className="text-adm-warn">Testing:</strong> Test with your own device first to ensure the radius is appropriate</li>
+            <li className="text-adm-soft"><strong className="text-adm-warn">Local Networks:</strong> Users on the same local network (192.168.x.x, 10.x.x.x) are not subject to location checks</li>
+          </ul>
         </div>
       </div>
     </div>

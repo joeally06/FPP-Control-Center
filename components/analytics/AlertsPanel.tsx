@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { TIMING } from '@/lib/constants';
+import { RefreshCw, OctagonAlert, TriangleAlert, Info, CircleCheck } from 'lucide-react';
+import { card, insetBox, eyebrow, smallButton, notice } from '@/components/admin/ui-classes';
 
 interface Alert {
   type: 'critical' | 'warning' | 'info';
@@ -49,9 +51,9 @@ export default function AlertsPanel() {
 
   if (loading) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold mb-4">Queue Alerts</h2>
-        <p className="text-gray-500">Loading alerts...</p>
+      <div className={card}>
+        <h2 className="admin-h2">Queue Alerts</h2>
+        <p className="text-sm text-adm-muted">Loading alerts...</p>
       </div>
     );
   }
@@ -63,91 +65,89 @@ export default function AlertsPanel() {
   const getAlertColor = (type: string) => {
     switch (type) {
       case 'critical':
-        return 'bg-red-100 border-red-500 text-red-900';
+        return notice.danger;
       case 'warning':
-        return 'bg-yellow-100 border-yellow-500 text-yellow-900';
+        return notice.warn;
       case 'info':
-        return 'bg-blue-100 border-blue-500 text-blue-900';
+        return notice.info;
       default:
-        return 'bg-gray-100 border-gray-500 text-gray-900';
+        return `${insetBox} text-sm text-adm-soft`;
     }
   };
 
   const getAlertIcon = (type: string) => {
     switch (type) {
       case 'critical':
-        return '🚨';
+        return OctagonAlert;
       case 'warning':
-        return '⚠️';
-      case 'info':
-        return 'ℹ️';
+        return TriangleAlert;
       default:
-        return '📊';
+        return Info;
     }
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Queue Status & Alerts</h2>
+    <div className={card}>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="admin-h2 mb-0">Queue Status & Alerts</h2>
         <button
           onClick={fetchAlerts}
-          className="text-sm bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded"
+          className={smallButton}
         >
-          🔄 Refresh
+          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+          Refresh
         </button>
       </div>
 
       {/* Current Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-        <div className="bg-gray-50 p-3 rounded">
-          <p className="text-xs text-gray-600">Pending Requests</p>
-          <p className="text-2xl font-bold text-blue-600">{alertData.stats.total_pending}</p>
+      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className={insetBox}>
+          <p className={eyebrow}>Pending Requests</p>
+          <p className="mt-1 text-2xl font-semibold text-adm-text">{alertData.stats.total_pending}</p>
         </div>
-        <div className="bg-gray-50 p-3 rounded">
-          <p className="text-xs text-gray-600">Currently Playing</p>
-          <p className="text-2xl font-bold text-green-600">{alertData.stats.currently_playing}</p>
+        <div className={insetBox}>
+          <p className={eyebrow}>Currently Playing</p>
+          <p className="mt-1 text-2xl font-semibold text-adm-text">{alertData.stats.currently_playing}</p>
         </div>
-        <div className="bg-gray-50 p-3 rounded">
-          <p className="text-xs text-gray-600">Avg Wait Time</p>
-          <p className="text-2xl font-bold text-purple-600">
+        <div className={insetBox}>
+          <p className={eyebrow}>Avg Wait Time</p>
+          <p className="mt-1 text-2xl font-semibold text-adm-text">
             {alertData.stats.avg_wait_minutes ? `${alertData.stats.avg_wait_minutes}m` : 'N/A'}
           </p>
         </div>
-        <div className="bg-gray-50 p-3 rounded">
-          <p className="text-xs text-gray-600">Request Rate</p>
-          <p className="text-2xl font-bold text-orange-600">{alertData.stats.requests_per_minute}/min</p>
+        <div className={insetBox}>
+          <p className={eyebrow}>Request Rate</p>
+          <p className="mt-1 text-2xl font-semibold text-adm-text">{alertData.stats.requests_per_minute}/min</p>
         </div>
       </div>
 
       {/* Alerts */}
       {alertData.hasAlerts ? (
         <div className="space-y-2">
-          <h3 className="font-semibold text-sm text-gray-700 mb-2">Active Alerts:</h3>
-          {alertData.alerts.map((alert, index) => (
-            <div
-              key={index}
-              className={`border-l-4 p-3 rounded ${getAlertColor(alert.type)}`}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-xl">{getAlertIcon(alert.type)}</span>
+          <h3 className="mb-2 text-sm font-semibold text-adm-soft">Active Alerts:</h3>
+          {alertData.alerts.map((alert, index) => {
+            const Icon = getAlertIcon(alert.type);
+            return (
+              <div
+                key={index}
+                className={`flex items-start gap-2.5 ${getAlertColor(alert.type)}`}
+              >
+                <Icon className="mt-0.5 h-4.5 w-4.5 shrink-0" aria-hidden="true" />
                 <div className="flex-1">
-                  <p className="font-semibold text-sm">{alert.message}</p>
-                  <p className="text-xs opacity-75">
+                  <p className="font-semibold text-inherit">{alert.message}</p>
+                  <p className="text-xs text-inherit opacity-80">
                     Threshold: {alert.threshold} | Current: {alert.value}
                   </p>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
-        <div className="bg-green-50 border-l-4 border-green-500 p-3 rounded">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">✅</span>
-            <p className="text-green-900 font-semibold">All systems normal - No alerts</p>
-          </div>
-        </div>
+        <p className={`${notice.ok} flex items-center gap-2 font-semibold`}>
+          <CircleCheck className="h-4.5 w-4.5 shrink-0" aria-hidden="true" />
+          All systems normal - No alerts
+        </p>
       )}
     </div>
   );

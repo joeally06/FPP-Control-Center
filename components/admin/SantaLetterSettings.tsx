@@ -10,7 +10,7 @@ import {
   AdminLabel,
 } from '@/components/admin/Typography';
 import {
-  accentButton, button, card, checkInput, choiceCard, field, notice, smallButton,
+  accentButton, button, card, checkInput, choiceCard, field, notice, sizedField, smallButton,
 } from '@/components/admin/ui-classes';
 
 export default function SantaLetterSettings() {
@@ -255,7 +255,7 @@ export default function SantaLetterSettings() {
               }}
               min={1}
               max={10}
-              className={`${field} w-32`}
+              className={`${sizedField} w-32`}
             />
             <p className="text-sm text-adm-muted">letters per day</p>
           </div>
@@ -279,7 +279,7 @@ export default function SantaLetterSettings() {
               }}
               min={1}
               max={1000}
-              className={`${field} w-32`}
+              className={`${sizedField} w-32`}
             />
             <p className="text-sm text-adm-muted">letters per day</p>
           </div>

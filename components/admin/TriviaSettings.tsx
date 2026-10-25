@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { TriviaBroadcastState, TriviaQuestionRow, TriviaSessionRow } from '@/types/trivia';
+import { X, ChevronUp, ChevronDown, Play, Eye, SkipForward, Square } from 'lucide-react';
+import { insetBox, button, accentButton, dangerButton, smallButton, field, sizedField, textLink, notice, badge, tabClass } from '@/components/admin/ui-classes';
 
 type SubTab = 'bank' | 'sessions' | 'host';
 
@@ -222,56 +224,54 @@ export default function TriviaSettings() {
   }
 
   if (loading) {
-    return <p className="text-white/60">Loading trivia settings…</p>;
+    return <p className="text-sm text-adm-muted">Loading trivia settings…</p>;
   }
 
+  const panelTitle = 'mb-3 text-[15px] font-semibold text-adm-text';
+
   return (
-    <div className="space-y-6">
-      <div className="flex gap-2">
+    <div className="space-y-5">
+      <div className="flex gap-1 overflow-x-auto border-b border-adm-line">
         {(['bank', 'sessions', 'host'] as SubTab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setSubTab(tab)}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-              subTab === tab ? 'bg-white/20 text-white' : 'text-white/60 hover:bg-white/10'
-            }`}
+            aria-pressed={subTab === tab}
+            className={tabClass(subTab === tab)}
           >
-            {tab === 'bank' ? '📚 Question Bank' : tab === 'sessions' ? '🗂️ Sessions' : '🎙️ Host Controls'}
+            {tab === 'bank' ? 'Question Bank' : tab === 'sessions' ? 'Sessions' : 'Host Controls'}
           </button>
         ))}
       </div>
 
       {message && (
-        <div
-          className={`rounded-lg px-4 py-3 text-sm font-medium ${
-            message.type === 'success'
-              ? 'bg-green-500/20 border border-green-400/40 text-green-300'
-              : 'bg-red-500/20 border border-red-400/40 text-red-300'
-          }`}
-        >
+        <p className={message.type === 'success' ? notice.ok : notice.danger}>
           {message.text}
-        </div>
+        </p>
       )}
 
       {subTab === 'bank' && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="bg-white/5 rounded-xl p-4 border border-white/10 space-y-3">
-            <h3 className="text-white font-bold">{editingId ? 'Edit Question' : 'New Question'}</h3>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className={`${insetBox} space-y-3`}>
+            <h3 className={panelTitle}>{editingId ? 'Edit Question' : 'New Question'}</h3>
             <input
               type="text"
               value={form.category}
               onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
               placeholder="Category (e.g. Movies, Carols)"
-              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 text-sm"
+              aria-label="Category"
+              className={field}
             />
             <textarea
               value={form.questionText}
               onChange={(e) => setForm((f) => ({ ...f, questionText: e.target.value }))}
               placeholder="Question text"
+              aria-label="Question text"
               rows={2}
-              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 text-sm"
+              className={field}
             />
             <div className="space-y-2">
+              <p className="text-xs text-adm-muted">Choices (select the correct answer)</p>
               {form.choices.map((choice, idx) => (
                 <div key={idx} className="flex items-center gap-2">
                   <input
@@ -280,102 +280,115 @@ export default function TriviaSettings() {
                     checked={form.correctIndex === idx}
                     onChange={() => setForm((f) => ({ ...f, correctIndex: idx }))}
                     title="Correct answer"
+                    aria-label={`Choice ${idx + 1} is the correct answer`}
+                    className="h-4.5 w-4.5 shrink-0 accent-adm-accent"
                   />
                   <input
                     type="text"
                     value={choice}
                     onChange={(e) => updateChoice(idx, e.target.value)}
                     placeholder={`Choice ${idx + 1}`}
-                    className="flex-1 px-3 py-1.5 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 text-sm"
+                    aria-label={`Choice ${idx + 1}`}
+                    className={`${field} flex-1`}
                   />
                   {form.choices.length > 2 && (
-                    <button onClick={() => removeChoice(idx)} className="text-white/40 hover:text-red-300 px-1">✕</button>
+                    <button
+                      onClick={() => removeChoice(idx)}
+                      aria-label={`Remove choice ${idx + 1}`}
+                      className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-adm-muted hover:bg-adm-danger-bg hover:text-adm-danger"
+                    >
+                      <X className="h-4 w-4" aria-hidden="true" />
+                    </button>
                   )}
                 </div>
               ))}
               {form.choices.length < 6 && (
-                <button onClick={addChoice} className="text-white/60 hover:text-white text-sm">+ Add choice</button>
+                <button onClick={addChoice} className={textLink}>+ Add choice</button>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <label className="text-white/60 text-sm">Base points</label>
+            <div className="flex items-center gap-3">
+              <label htmlFor="trivia-points" className="text-sm text-adm-soft">Base points</label>
               <input
+                id="trivia-points"
                 type="number"
                 value={form.points}
                 onChange={(e) => setForm((f) => ({ ...f, points: Number(e.target.value) }))}
                 min={100}
                 max={5000}
                 step={50}
-                className="w-28 px-3 py-1.5 bg-white/10 border border-white/20 rounded-lg text-white text-sm"
+                className={`${sizedField} w-28`}
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2.5">
               <button
                 onClick={saveQuestion}
                 disabled={saving || !form.questionText.trim() || form.choices.some((c) => !c.trim())}
-                className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white rounded-lg font-semibold text-sm"
+                className={`${accentButton} flex-1`}
               >
                 {saving ? 'Saving…' : editingId ? 'Update Question' : 'Add Question'}
               </button>
               {editingId && (
-                <button onClick={resetForm} className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm">
+                <button onClick={resetForm} className={button}>
                   Cancel
                 </button>
               )}
             </div>
           </div>
 
-          <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-            <h3 className="text-white font-bold mb-3">Question Bank ({questions.length})</h3>
-            <div className="space-y-2 max-h-[28rem] overflow-y-auto">
+          <div className={insetBox}>
+            <h3 className={panelTitle}>Question Bank ({questions.length})</h3>
+            <div className="max-h-[28rem] space-y-2 overflow-y-auto">
               {questions.map((q) => (
-                <div key={q.id} className="bg-white/5 rounded-lg p-3 flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-white/50 text-xs">{q.category} · {q.points} pts</p>
-                    <p className="text-white text-sm font-medium">{q.questionText}</p>
+                <div key={q.id} className="flex items-start justify-between gap-2 rounded-lg border border-adm-line bg-adm-surface p-3">
+                  <div className="min-w-0">
+                    <p className="text-xs text-adm-muted">{q.category} · {q.points} pts</p>
+                    <p className="text-sm font-medium text-adm-text">{q.questionText}</p>
                   </div>
-                  <div className="flex gap-1 shrink-0">
-                    <button onClick={() => startEdit(q)} className="text-white/50 hover:text-white text-xs px-2 py-1">Edit</button>
-                    <button onClick={() => deleteQuestion(q.id)} className="text-white/50 hover:text-red-300 text-xs px-2 py-1">Delete</button>
+                  <div className="flex shrink-0 gap-1">
+                    <button onClick={() => startEdit(q)} className="min-h-9 rounded-lg px-2.5 text-xs font-medium text-adm-soft hover:bg-adm-hover hover:text-adm-text">Edit</button>
+                    <button onClick={() => deleteQuestion(q.id)} className="min-h-9 rounded-lg px-2.5 text-xs font-medium text-adm-soft hover:bg-adm-danger-bg hover:text-adm-danger">Delete</button>
                   </div>
                 </div>
               ))}
-              {questions.length === 0 && <p className="text-white/40 text-sm">No questions yet - add your first one.</p>}
+              {questions.length === 0 && <p className="text-sm text-adm-muted">No questions yet - add your first one.</p>}
             </div>
           </div>
         </div>
       )}
 
       {subTab === 'sessions' && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="bg-white/5 rounded-xl p-4 border border-white/10 space-y-3">
-            <h3 className="text-white font-bold">Build a Session</h3>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className={`${insetBox} space-y-3`}>
+            <h3 className={panelTitle}>Build a Session</h3>
             <input
               type="text"
               value={newSessionName}
               onChange={(e) => setNewSessionName(e.target.value)}
               placeholder="Session name (e.g. Christmas Eve Trivia)"
-              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 text-sm"
+              aria-label="Session name"
+              className={field}
             />
-            <div className="flex items-center gap-2">
-              <label className="text-white/60 text-sm">Seconds per question</label>
+            <div className="flex items-center gap-3">
+              <label htmlFor="trivia-seconds" className="text-sm text-adm-soft">Seconds per question</label>
               <input
+                id="trivia-seconds"
                 type="number"
                 value={secondsPerQuestion}
                 onChange={(e) => setSecondsPerQuestion(Number(e.target.value))}
                 min={5}
                 max={120}
-                className="w-24 px-3 py-1.5 bg-white/10 border border-white/20 rounded-lg text-white text-sm"
+                className={`${sizedField} w-24`}
               />
             </div>
-            <p className="text-white/60 text-sm">Select questions ({selectedQuestionIds.length} chosen), then reorder:</p>
-            <div className="space-y-1 max-h-48 overflow-y-auto">
+            <p className="text-sm text-adm-muted">Select questions ({selectedQuestionIds.length} chosen), then reorder:</p>
+            <div className="max-h-48 space-y-1 overflow-y-auto">
               {questions.map((q) => (
-                <label key={q.id} className="flex items-center gap-2 text-sm text-white/80">
+                <label key={q.id} className="flex min-h-9 cursor-pointer items-center gap-2.5 rounded-lg px-2 text-sm text-adm-soft hover:bg-adm-hover">
                   <input
                     type="checkbox"
                     checked={selectedQuestionIds.includes(q.id)}
                     onChange={() => toggleQuestionSelection(q.id)}
+                    className="h-4 w-4 shrink-0 accent-adm-accent"
                   />
                   {q.questionText}
                 </label>
@@ -386,11 +399,15 @@ export default function TriviaSettings() {
                 {selectedQuestionIds.map((id, i) => {
                   const q = questions.find((qq) => qq.id === id);
                   return (
-                    <div key={id} className="flex items-center justify-between bg-white/5 rounded px-2 py-1 text-sm text-white/80">
-                      <span>{i + 1}. {q?.questionText}</span>
-                      <div className="flex gap-1">
-                        <button onClick={() => moveSelected(id, -1)} className="text-white/50 hover:text-white">↑</button>
-                        <button onClick={() => moveSelected(id, 1)} className="text-white/50 hover:text-white">↓</button>
+                    <div key={id} className="flex items-center justify-between gap-2 rounded-lg border border-adm-line bg-adm-surface px-2.5 py-1 text-sm">
+                      <span className="text-adm-soft">{i + 1}. {q?.questionText}</span>
+                      <div className="flex shrink-0 gap-1">
+                        <button onClick={() => moveSelected(id, -1)} aria-label="Move up" className="grid h-8 w-8 place-items-center rounded-lg text-adm-muted hover:bg-adm-hover hover:text-adm-text">
+                          <ChevronUp className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                        <button onClick={() => moveSelected(id, 1)} aria-label="Move down" className="grid h-8 w-8 place-items-center rounded-lg text-adm-muted hover:bg-adm-hover hover:text-adm-text">
+                          <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                        </button>
                       </div>
                     </div>
                   );
@@ -400,57 +417,57 @@ export default function TriviaSettings() {
             <button
               onClick={createSession}
               disabled={creatingSession || !newSessionName.trim() || selectedQuestionIds.length === 0}
-              className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white rounded-lg font-semibold text-sm"
+              className={`${accentButton} w-full`}
             >
               {creatingSession ? 'Creating…' : 'Create Session'}
             </button>
           </div>
 
-          <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-            <h3 className="text-white font-bold mb-3">All Sessions</h3>
+          <div className={insetBox}>
+            <h3 className={panelTitle}>All Sessions</h3>
             <div className="space-y-2">
               {sessions.map((s) => (
-                <div key={s.id} className="bg-white/5 rounded-lg p-3 flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-white text-sm font-medium">{s.name}</p>
-                    <p className="text-white/50 text-xs">{s.questionIds.length} questions · {s.status}</p>
+                <div key={s.id} className="flex items-center justify-between gap-2 rounded-lg border border-adm-line bg-adm-surface p-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-adm-text">{s.name}</p>
+                    <p className="text-xs text-adm-muted">{s.questionIds.length} questions · {s.status}</p>
                   </div>
                   {s.status === 'draft' && (
                     <button
                       onClick={() => activateSession(s.id)}
-                      className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-semibold shrink-0"
+                      className={`${smallButton} shrink-0`}
                     >
                       Activate
                     </button>
                   )}
-                  {s.status === 'active' && <span className="text-green-300 text-xs font-semibold shrink-0">● Live</span>}
+                  {s.status === 'active' && <span className={`${badge.ok} shrink-0`}>Live</span>}
                 </div>
               ))}
-              {sessions.length === 0 && <p className="text-white/40 text-sm">No sessions yet.</p>}
+              {sessions.length === 0 && <p className="text-sm text-adm-muted">No sessions yet.</p>}
             </div>
           </div>
         </div>
       )}
 
       {subTab === 'host' && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="bg-white/5 rounded-xl p-4 border border-white/10 space-y-4">
-            <p className="text-white/50 text-xs">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className={`${insetBox} space-y-4`}>
+            <p className="text-xs text-adm-muted">
               Trivia runs itself once a session is activated - the first phone to tap Play Trivia starts the round,
               questions auto-advance on a timer, and it resets itself for the next group when it ends. The buttons
               below are just manual overrides if you need to step in.
             </p>
             {!activeSession ? (
-              <p className="text-white/60 text-sm">No session is active. Activate one from the Sessions tab to arm it.</p>
+              <p className="text-sm text-adm-soft">No session is active. Activate one from the Sessions tab to arm it.</p>
             ) : (
               <>
                 <div>
-                  <p className="text-white font-bold">{activeSession.name}</p>
-                  <p className="text-white/60 text-sm">
-                    Phase: <span className="font-semibold">{triviaLive?.phase ?? activeSession.phase}</span>
+                  <p className="font-semibold text-adm-text">{activeSession.name}</p>
+                  <p className="text-sm text-adm-muted">
+                    Phase: <span className="font-semibold text-adm-text">{triviaLive?.phase ?? activeSession.phase}</span>
                     {triviaLive?.questionNumber && ` · Question ${triviaLive.questionNumber}/${triviaLive.totalQuestions}`}
                   </p>
-                  <p className="text-white/60 text-sm">
+                  <p className="text-sm text-adm-muted">
                     {triviaLive?.playersJoined ?? 0} joined
                     {triviaLive?.phase === 'question' && ` · ${triviaLive.answeredCount} answered`}
                   </p>
@@ -459,37 +476,41 @@ export default function TriviaSettings() {
                   <button
                     onClick={() => hostAction('start')}
                     disabled={hostBusy || (triviaLive?.phase ?? activeSession.phase) !== 'lobby'}
-                    className="px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-600 disabled:opacity-50 text-white rounded-lg text-sm font-semibold"
+                    className={accentButton}
                   >
-                    ▶ Force Start
+                    <Play className="h-4 w-4" aria-hidden="true" />
+                    Force Start
                   </button>
                   <button
                     onClick={() => hostAction('reveal')}
                     disabled={hostBusy || (triviaLive?.phase ?? activeSession.phase) !== 'question'}
-                    className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-600 disabled:opacity-50 text-white rounded-lg text-sm font-semibold"
+                    className={button}
                   >
-                    👁 Reveal Now
+                    <Eye className="h-4 w-4" aria-hidden="true" />
+                    Reveal Now
                   </button>
                   <button
                     onClick={() => hostAction('next')}
                     disabled={hostBusy || (triviaLive?.phase ?? activeSession.phase) !== 'reveal'}
-                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 disabled:opacity-50 text-white rounded-lg text-sm font-semibold"
+                    className={button}
                   >
-                    ⏭ Next Question
+                    <SkipForward className="h-4 w-4" aria-hidden="true" />
+                    Next Question
                   </button>
                   <button
                     onClick={() => hostAction('end')}
                     disabled={hostBusy || (triviaLive?.phase ?? activeSession.phase) === 'ended'}
-                    className="px-4 py-2 bg-red-500 hover:bg-red-600 disabled:bg-gray-600 disabled:opacity-50 text-white rounded-lg text-sm font-semibold"
+                    className={dangerButton}
                   >
-                    ⏹ End &amp; Deactivate
+                    <Square className="h-4 w-4" aria-hidden="true" />
+                    End &amp; Deactivate
                   </button>
                 </div>
               </>
             )}
           </div>
 
-          <div className="rounded-xl overflow-hidden border border-white/20 bg-black" style={{ aspectRatio: '16/9', position: 'relative' }}>
+          <div className="overflow-hidden rounded-xl border border-adm-line bg-black" style={{ aspectRatio: '16/9', position: 'relative' }}>
             <iframe src="/display" className="absolute inset-0 w-full h-full border-0" title="TV display live preview" />
           </div>
         </div>

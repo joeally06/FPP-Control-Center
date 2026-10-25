@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { formatDateTime, getUtcNow } from '@/lib/time-utils';
-import { AdminH2, AdminH3, AdminH4, AdminText, AdminTextSmall } from './admin/Typography';
+import { RefreshCw, Check } from 'lucide-react';
+import { AdminH2, AdminH3, AdminH4, AdminTextSmall, AdminTextTiny } from './admin/Typography';
+import { insetBox, eyebrow, button, accentButton, notice } from './admin/ui-classes';
 import { TIMING } from '@/lib/constants';
 
 interface UpdateStatus {
@@ -425,34 +427,34 @@ export default function UpdateChecker() {
 
   // Get status display
   const getStatusDisplay = () => {
-    if (!status) return { color: 'gray', icon: '⏳', text: 'Loading...' };
-    
-    const displays: Record<string, { color: string; icon: string; text: string }> = {
-      'starting': { color: 'blue', icon: '🚀', text: 'Starting update...' },
-      'downloading': { color: 'blue', icon: '📥', text: 'Downloading...' },
-      'backing_up': { color: 'yellow', icon: '💾', text: 'Backing up...' },
-      'stopping': { color: 'yellow', icon: '⏹️', text: 'Stopping services...' },
-      'updating': { color: 'blue', icon: '🔄', text: 'Updating code...' },
-      'installing': { color: 'yellow', icon: '📦', text: 'Installing deps...' },
-      'building': { color: 'yellow', icon: '🔨', text: 'Building...' },
-      'restarting': { color: 'yellow', icon: '♻️', text: 'Restarting...' },
-      'verifying': { color: 'blue', icon: '✔️', text: 'Verifying...' },
-      'completed': { color: 'green', icon: '✅', text: 'Complete!' },
-      'up_to_date': { color: 'green', icon: '✅', text: 'Up to date' },
-      'error': { color: 'red', icon: '❌', text: 'Failed' },
-      'idle': { color: 'gray', icon: '⏸️', text: 'Idle' },
+    if (!status) return { color: 'gray', text: 'Loading...' };
+
+    const displays: Record<string, { color: string; text: string }> = {
+      'starting': { color: 'blue', text: 'Starting update...' },
+      'downloading': { color: 'blue', text: 'Downloading...' },
+      'backing_up': { color: 'yellow', text: 'Backing up...' },
+      'stopping': { color: 'yellow', text: 'Stopping services...' },
+      'updating': { color: 'blue', text: 'Updating code...' },
+      'installing': { color: 'yellow', text: 'Installing deps...' },
+      'building': { color: 'yellow', text: 'Building...' },
+      'restarting': { color: 'yellow', text: 'Restarting...' },
+      'verifying': { color: 'blue', text: 'Verifying...' },
+      'completed': { color: 'green', text: 'Complete!' },
+      'up_to_date': { color: 'green', text: 'Up to date' },
+      'error': { color: 'red', text: 'Failed' },
+      'idle': { color: 'gray', text: 'Idle' },
     };
-    
-    return displays[status.status] || { color: 'gray', icon: '⏸️', text: 'Idle' };
+
+    return displays[status.status] || { color: 'gray', text: 'Idle' };
   };
 
   const statusDisplay = getStatusDisplay();
   const isUpdating = ['starting', 'downloading', 'backing_up', 'stopping', 'updating', 'installing', 'building', 'restarting', 'verifying'].includes(status?.status || '');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <AdminH2>🔄 System Updates</AdminH2>
+        <AdminH2 className="mb-1">System Updates</AdminH2>
         <AdminTextSmall>
           Keep your FPP Control Center up to date with the latest features and fixes
         </AdminTextSmall>
@@ -460,53 +462,49 @@ export default function UpdateChecker() {
 
       {/* Update Available Banner */}
       {hasUpdates && !isUpdating && !installing && (
-        <div className="p-6 bg-linear-to-r from-yellow-500/20 to-orange-500/20 rounded-xl border-2 border-yellow-500/50">
-          <div className="flex items-center gap-4">
-            <span className="text-5xl">🚀</span>
-            <div className="flex-1">
-              <AdminH3 className="text-yellow-300 mb-1">
-                Update Available!
-              </AdminH3>
-              <AdminTextSmall className="text-white/90">
-                {commitsAhead} new update{commitsAhead > 1 ? 's' : ''} ready to install.
-              </AdminTextSmall>
-            </div>
-            <button
-              onClick={installUpdate}
-              disabled={installing}
-              className="px-8 py-4 bg-linear-to-r from-green-500 to-emerald-600 text-white text-xl font-bold rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all shadow-2xl hover:shadow-green-500/50 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Install Now →
-            </button>
+        <div className="flex flex-col gap-4 rounded-xl border border-adm-warn-line bg-adm-warn-bg p-4 sm:flex-row sm:items-center">
+          <div className="flex-1">
+            <p className="mb-0.5 text-[15px] font-semibold text-adm-warn">
+              Update Available!
+            </p>
+            <AdminTextSmall>
+              {commitsAhead} new update{commitsAhead > 1 ? 's' : ''} ready to install.
+            </AdminTextSmall>
           </div>
+          <button
+            onClick={installUpdate}
+            disabled={installing}
+            className={accentButton}
+          >
+            Install Now →
+          </button>
         </div>
       )}
 
       {/* Auto-reload Countdown */}
       {autoReloadCountdown !== null && (
-        <div className="p-6 bg-linear-to-r from-green-500/30 to-emerald-500/30 rounded-xl border-2 border-green-500/50 text-center">
-          <span className="text-4xl">✅</span>
-          <AdminH3 className="text-green-300 mt-2">Update Complete!</AdminH3>
-          <AdminText className="text-white mt-2">
-            Page will reload in <span className="font-bold text-2xl text-green-400">{autoReloadCountdown}</span> seconds...
-          </AdminText>
+        <div className={`${notice.ok} text-center`}>
+          <p className="text-[15px] font-semibold text-adm-ok">Update Complete!</p>
+          <p className="mt-1 text-sm text-adm-soft">
+            Page will reload in <span className="text-xl font-semibold text-adm-ok">{autoReloadCountdown}</span> seconds...
+          </p>
         </div>
       )}
 
       {/* Reconnecting Banner */}
       {reconnecting && (
-        <div className="p-6 bg-linear-to-r from-blue-500/30 to-cyan-500/30 rounded-xl border-2 border-blue-500/50 text-center">
-          <span className="text-4xl animate-spin inline-block">🔄</span>
-          <AdminH3 className="text-blue-300 mt-2">Server Restarting...</AdminH3>
-          <AdminText className="text-white mt-2">
+        <div className={`${notice.info} text-center`}>
+          <RefreshCw className="mx-auto h-7 w-7 animate-spin" aria-hidden="true" />
+          <p className="mt-2 text-[15px] font-semibold text-adm-info">Server Restarting...</p>
+          <p className="mt-1 text-sm text-adm-soft">
             Reconnecting to server (attempt {reconnectAttempt}/30)...
-          </AdminText>
-          <AdminTextSmall className="text-white/60 mt-2">
+          </p>
+          <p className="mt-1 text-[13px] text-adm-muted">
             The update is completing. This page will refresh automatically when ready.
-          </AdminTextSmall>
+          </p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-4 px-6 py-2 bg-blue-500/50 hover:bg-blue-500/70 text-white rounded-lg transition-all"
+            className={`${button} mt-4`}
           >
             Refresh Now
           </button>
@@ -514,38 +512,44 @@ export default function UpdateChecker() {
       )}
 
       {/* Current Status Card */}
-      <div className={`p-6 rounded-xl border-2 ${
-        statusDisplay.color === 'green' ? 'bg-green-500/20 border-green-500/50' :
-        statusDisplay.color === 'yellow' ? 'bg-yellow-500/20 border-yellow-500/50' :
-        statusDisplay.color === 'blue' ? 'bg-blue-500/20 border-blue-500/50' :
-        statusDisplay.color === 'red' ? 'bg-red-500/20 border-red-500/50' :
-        'bg-white/10 border-white/20'
+      <div className={`rounded-xl border bg-adm-side p-4 ${
+        statusDisplay.color === 'green' ? 'border-adm-ok-line' :
+        statusDisplay.color === 'yellow' ? 'border-adm-warn-line' :
+        statusDisplay.color === 'blue' ? 'border-adm-info-line' :
+        statusDisplay.color === 'red' ? 'border-adm-danger-line' :
+        'border-adm-line'
       }`}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <span className="text-4xl">{statusDisplay.icon}</span>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${
+              statusDisplay.color === 'green' ? 'bg-adm-ok' :
+              statusDisplay.color === 'yellow' ? 'bg-adm-warn' :
+              statusDisplay.color === 'blue' ? 'bg-adm-info' :
+              statusDisplay.color === 'red' ? 'bg-adm-danger' :
+              'bg-adm-faint'
+            }`} aria-hidden="true" />
             <div>
-              <AdminH3 className="mb-1">{statusDisplay.text}</AdminH3>
-              <AdminTextSmall className="text-white/80">
+              <AdminH3 className="mb-0.5">{statusDisplay.text}</AdminH3>
+              <AdminTextSmall>
                 {status?.message || 'No status available'}
               </AdminTextSmall>
             </div>
           </div>
-          
+
           {status?.lastCheck && (
-            <AdminTextSmall className="text-white/60">
+            <AdminTextTiny className="sm:shrink-0">
               Last checked: {formatDateTime(status.lastCheck, 'short')}
-            </AdminTextSmall>
+            </AdminTextTiny>
           )}
         </div>
 
         {/* Progress indicator */}
         {isUpdating && (
           <div className="mt-4">
-            <div className="w-full bg-white/20 rounded-full h-2 overflow-hidden">
-              <div className="bg-linear-to-r from-blue-500 to-cyan-500 h-full rounded-full animate-pulse" style={{ width: '100%' }} />
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-adm-line">
+              <div className="h-full rounded-full bg-adm-info animate-pulse" style={{ width: '100%' }} />
             </div>
-            <AdminTextSmall className="mt-2 text-center text-white/80">
+            <AdminTextSmall className="mt-2 text-center">
               Please wait... Do not close this page.
             </AdminTextSmall>
           </div>
@@ -553,16 +557,16 @@ export default function UpdateChecker() {
 
         {/* Commit info */}
         {status?.currentCommit && status?.availableCommit && (
-          <div className="mt-4 grid grid-cols-2 gap-4">
-            <div className="p-3 bg-white/5 rounded-lg">
-              <AdminTextSmall className="text-white/60 mb-1">Current</AdminTextSmall>
-              <code className="text-white font-mono text-sm">
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="rounded-lg border border-adm-line bg-adm-surface p-3">
+              <p className={eyebrow}>Current</p>
+              <code className="font-mono text-sm text-adm-text">
                 {status.currentCommit.substring(0, 7)}
               </code>
             </div>
-            <div className="p-3 bg-white/5 rounded-lg">
-              <AdminTextSmall className="text-white/60 mb-1">Latest</AdminTextSmall>
-              <code className="text-white font-mono text-sm">
+            <div className="rounded-lg border border-adm-line bg-adm-surface p-3">
+              <p className={eyebrow}>Latest</p>
+              <code className="font-mono text-sm text-adm-text">
                 {status.availableCommit.substring(0, 7)}
               </code>
             </div>
@@ -572,110 +576,100 @@ export default function UpdateChecker() {
 
       {/* Live Terminal Output */}
       {(showTerminal || logOutput.length > 0) && (
-        <div className="rounded-xl border-2 border-white/20 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 bg-black/50 border-b border-white/10">
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-              </div>
-              <span className="text-white/70 text-sm font-mono ml-2">update.log</span>
-            </div>
+        <div className="overflow-hidden rounded-xl border border-adm-line">
+          <div className="flex items-center justify-between border-b border-adm-line bg-adm-side px-4 py-2.5">
+            <span className="font-mono text-sm text-adm-muted">update.log</span>
             {!isUpdating && (
               <button
                 onClick={() => {
                   setShowTerminal(false);
                   setLogOutput([]);
                 }}
-                className="text-white/50 hover:text-white/80 text-sm"
+                className="text-sm text-adm-muted hover:text-adm-text"
               >
                 Clear
               </button>
             )}
           </div>
-          <div 
+          <div
             ref={logContainerRef}
-            className="bg-black/70 p-4 h-64 overflow-y-auto font-mono text-sm"
+            className="h-64 overflow-y-auto bg-adm-field p-4 font-mono text-[13px]"
           >
             {logOutput.map((line, idx) => (
-              <div 
-                key={idx} 
+              <div
+                key={idx}
                 className={`${
-                  line.includes('✅') || line.includes('SUCCESS') ? 'text-green-400' :
-                  line.includes('❌') || line.includes('ERROR') || line.includes('FAILED') ? 'text-red-400' :
-                  line.includes('⚠️') || line.includes('WARNING') ? 'text-yellow-400' :
-                  line.includes('🚀') || line.includes('🔄') ? 'text-blue-400' :
-                  'text-green-400/80'
+                  line.includes('✅') || line.includes('SUCCESS') ? 'text-adm-ok' :
+                  line.includes('❌') || line.includes('ERROR') || line.includes('FAILED') ? 'text-adm-danger' :
+                  line.includes('⚠️') || line.includes('WARNING') ? 'text-adm-warn' :
+                  line.includes('🚀') || line.includes('🔄') ? 'text-adm-info' :
+                  'text-adm-soft'
                 }`}
-                style={{ textShadow: '0 0 5px rgba(34, 197, 94, 0.3)' }}
               >
-                {line || '\u00A0'}
+                {line || ' '}
               </div>
             ))}
             {isUpdating && (
-              <div className="text-green-400 animate-pulse">▊</div>
+              <div className="text-adm-accent animate-pulse">▊</div>
             )}
           </div>
         </div>
       )}
 
       {/* Action Buttons */}
-      <div className="flex gap-3">
+      <div className="flex flex-col gap-2.5 sm:flex-row">
         <button
           onClick={checkForUpdates}
           disabled={checking || isUpdating}
-          className="flex-1 px-6 py-3 bg-blue-500/80 hover:bg-blue-600 text-white rounded-lg transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+          className={`${button} sm:flex-1`}
         >
-          {checking ? '🔄 Checking...' : '🔍 Check for Updates'}
+          <RefreshCw className={`h-4 w-4 ${checking ? 'animate-spin' : ''}`} aria-hidden="true" />
+          {checking ? 'Checking...' : 'Check for Updates'}
         </button>
-        
+
         {hasUpdates && !isUpdating && (
           <button
             onClick={installUpdate}
             disabled={installing}
-            className="flex-1 px-6 py-3 bg-linear-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+            className={`${accentButton} sm:flex-1`}
           >
-            {installing ? '⏳ Starting...' : '🚀 Install Update'}
+            {installing ? 'Starting...' : 'Install Update'}
           </button>
         )}
       </div>
 
-      {/* Update Process Info */}
-      <div className="p-4 bg-purple-500/20 rounded-lg border border-purple-500/30">
-        <AdminH4 className="flex items-center gap-2 mb-3">
-          <span>📋</span> Update Process
-        </AdminH4>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-          {['Check', 'Download', 'Install', 'Build', 'Restart'].map((step, idx) => (
-            <div key={step} className="flex items-center gap-1 text-purple-100/80">
-              <span className="text-purple-300">{idx + 1}.</span>
-              <AdminTextSmall>{step}</AdminTextSmall>
-            </div>
-          ))}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {/* Update Process Info */}
+        <div className={insetBox}>
+          <AdminH4 className="mb-2">Update Process</AdminH4>
+          <ol className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            {['Check', 'Download', 'Install', 'Build', 'Restart'].map((step, idx) => (
+              <li key={step} className="text-adm-soft">
+                <span className="text-adm-faint">{idx + 1}.</span> {step}
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        {/* Safety Info */}
+        <div className={insetBox}>
+          <AdminH4 className="mb-2">Update Safety</AdminH4>
+          <ul className="grid grid-cols-2 gap-1 text-sm">
+            {['Database preserved', 'Settings unchanged', 'Auto-rollback on failure', '~2-3 min downtime'].map((item) => (
+              <li key={item} className="flex items-center gap-1.5 text-adm-soft">
+                <Check className="h-3.5 w-3.5 shrink-0 text-adm-ok" aria-hidden="true" />
+                {item}
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
 
-      {/* Safety Info */}
-      <div className="p-4 bg-amber-500/20 rounded-lg border border-amber-500/30">
-        <AdminH4 className="flex items-center gap-2 mb-2">
-          <span>🛡️</span> Update Safety
-        </AdminH4>
-        <ul className="grid grid-cols-1 md:grid-cols-2 gap-1">
-          <li><AdminTextSmall className="text-amber-100">✅ Database preserved</AdminTextSmall></li>
-          <li><AdminTextSmall className="text-amber-100">✅ Settings unchanged</AdminTextSmall></li>
-          <li><AdminTextSmall className="text-amber-100">✅ Auto-rollback on failure</AdminTextSmall></li>
-          <li><AdminTextSmall className="text-amber-100">✅ ~2-3 min downtime</AdminTextSmall></li>
-        </ul>
-      </div>
-
       {/* Manual fallback */}
-      <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-        <AdminText className="text-white/80 text-sm">
-          <strong>💡 Manual Update:</strong> SSH to server and run{' '}
-          <code className="px-2 py-1 bg-black/30 rounded font-mono">./scripts/update-daemon.sh</code>
-        </AdminText>
-      </div>
+      <p className="text-[13px] text-adm-muted">
+        <strong className="text-adm-soft">Manual Update:</strong> SSH to server and run{' '}
+        <code className="rounded bg-adm-field px-1.5 py-0.5 font-mono text-adm-text">./scripts/update-daemon.sh</code>
+      </p>
     </div>
   );
 }

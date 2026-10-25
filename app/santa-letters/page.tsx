@@ -10,8 +10,7 @@ import { formatDateTime, parseDbTimestamp } from '@/lib/time-utils';
 import { 
   AdminH1, 
   AdminH3,
-  AdminText, 
-  AdminTextTiny,
+  AdminText,
   AdminLabel,
   AdminValue,
   AdminSuccess,
@@ -311,7 +310,7 @@ export default function SantaLettersPage() {
         </div>
 
         {/* Filters and Actions */}
-        <div className={`${card} mb-4 flex flex-wrap items-end justify-between gap-3 p-4`}>
+        <div className={`${card} mb-4 flex flex-wrap items-end justify-between gap-3`}>
           <div className="w-full sm:w-56">
             <AdminLabel htmlFor="letter-filter">Filter</AdminLabel>
             <select
@@ -341,7 +340,7 @@ export default function SantaLettersPage() {
         </div>
 
         {/* Letters */}
-        <div className={`${card} overflow-hidden p-0`}>
+        <div className="overflow-hidden rounded-2xl border border-adm-line bg-adm-surface">
           {filteredLetters.length > 0 ? (
             <>
               {/* Phones: one card per letter */}
@@ -393,9 +392,9 @@ export default function SantaLettersPage() {
                           <div className="flex flex-col items-start gap-1">
                             {queueBadge(letter)}
                             {letter.retry_count > 0 && (
-                              <AdminTextTiny className="text-adm-danger">
+                              <p className="text-xs text-adm-danger">
                                 Retries: {letter.retry_count}
-                              </AdminTextTiny>
+                              </p>
                             )}
                           </div>
                         </td>

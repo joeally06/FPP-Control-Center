@@ -21,6 +21,8 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { TIMING } from '@/lib/constants';
+import { CircleCheck, CircleX, RefreshCw, Wrench } from 'lucide-react';
+import { card, insetBox, eyebrow, accentButton, notice } from '@/components/admin/ui-classes';
 
 interface CircuitBreakerStats {
   circuit: {
@@ -121,9 +123,9 @@ export default function CircuitBreakerWidget() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h3 className="text-lg font-semibold mb-4">Circuit Breaker Status</h3>
-        <p className="text-gray-500">Loading...</p>
+      <div className={card}>
+        <h3 className="admin-h2">Circuit Breaker Status</h3>
+        <p className="text-sm text-adm-muted">Loading...</p>
       </div>
     );
   }
@@ -134,87 +136,85 @@ export default function CircuitBreakerWidget() {
 
   // Determine status color and icon
   const getStatusColor = () => {
-    if (stats.circuit.isFPPOnline) return 'bg-green-500';
-    if (stats.circuit.isTestingRecovery) return 'bg-yellow-500';
-    return 'bg-red-500';
+    if (stats.circuit.isFPPOnline) return 'bg-adm-ok';
+    if (stats.circuit.isTestingRecovery) return 'bg-adm-warn';
+    return 'bg-adm-danger';
   };
 
   const getStatusIcon = () => {
-    if (stats.circuit.isFPPOnline) return '✅';
-    if (stats.circuit.isTestingRecovery) return '🔄';
-    return '🔴';
+    if (stats.circuit.isFPPOnline) return <CircleCheck className="h-7 w-7 text-adm-ok" aria-hidden="true" />;
+    if (stats.circuit.isTestingRecovery) return <RefreshCw className="h-7 w-7 text-adm-warn" aria-hidden="true" />;
+    return <CircleX className="h-7 w-7 text-adm-danger" aria-hidden="true" />;
   };
 
   const statusColor = getStatusColor();
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className={card}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">FPP Circuit Breaker</h3>
-        <div className={`${statusColor} w-3 h-3 rounded-full animate-pulse`}></div>
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="admin-h2 mb-0">FPP Circuit Breaker</h3>
+        <div className={`${statusColor} h-2.5 w-2.5 rounded-full`}></div>
       </div>
 
       {/* Current State */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <span className="text-3xl">{getStatusIcon()}</span>
-          <div>
-            <p className="text-xl font-bold">{stats.circuit.state}</p>
-            <p className="text-sm text-gray-600">{stats.circuit.stateLabel}</p>
-          </div>
+      <div className="mb-5 flex items-center gap-3">
+        {getStatusIcon()}
+        <div>
+          <p className="text-xl font-semibold text-adm-text">{stats.circuit.state}</p>
+          <p className="text-sm text-adm-muted">{stats.circuit.stateLabel}</p>
         </div>
       </div>
 
       {/* Health Metrics */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-gray-50 p-3 rounded">
-          <p className="text-xs text-gray-600 mb-1">Uptime</p>
-          <p className="text-lg font-semibold">{stats.health.uptimePercentage.toFixed(1)}%</p>
+      <div className="mb-5 grid grid-cols-2 gap-3">
+        <div className={insetBox}>
+          <p className={eyebrow}>Uptime</p>
+          <p className="mt-1 text-lg font-semibold text-adm-text">{stats.health.uptimePercentage.toFixed(1)}%</p>
         </div>
-        <div className="bg-gray-50 p-3 rounded">
-          <p className="text-xs text-gray-600 mb-1">Total Polls</p>
-          <p className="text-lg font-semibold">{stats.health.totalPolls}</p>
+        <div className={insetBox}>
+          <p className={eyebrow}>Total Polls</p>
+          <p className="mt-1 text-lg font-semibold text-adm-text">{stats.health.totalPolls}</p>
         </div>
-        <div className="bg-gray-50 p-3 rounded">
-          <p className="text-xs text-gray-600 mb-1">Successful</p>
-          <p className="text-lg font-semibold text-green-600">{stats.health.successfulPolls}</p>
+        <div className={insetBox}>
+          <p className={eyebrow}>Successful</p>
+          <p className="mt-1 text-lg font-semibold text-adm-ok">{stats.health.successfulPolls}</p>
         </div>
-        <div className="bg-gray-50 p-3 rounded">
-          <p className="text-xs text-gray-600 mb-1">Failed</p>
-          <p className="text-lg font-semibold text-red-600">{stats.health.failedPolls}</p>
+        <div className={insetBox}>
+          <p className={eyebrow}>Failed</p>
+          <p className="mt-1 text-lg font-semibold text-adm-danger">{stats.health.failedPolls}</p>
         </div>
       </div>
 
       {/* Statistics */}
-      <div className="mb-6 space-y-2 text-sm">
-        <div className="flex justify-between">
-          <span className="text-gray-600">Failures:</span>
-          <span className="font-semibold">{stats.statistics.currentFailureCount}</span>
+      <dl className="mb-5 space-y-2 text-sm">
+        <div className="flex justify-between gap-3">
+          <dt className="text-adm-muted">Failures:</dt>
+          <dd className="font-semibold text-adm-text">{stats.statistics.currentFailureCount}</dd>
         </div>
-        <div className="flex justify-between">
-          <span className="text-gray-600">State Changes:</span>
-          <span className="font-semibold">{stats.statistics.totalTransitions}</span>
+        <div className="flex justify-between gap-3">
+          <dt className="text-adm-muted">State Changes:</dt>
+          <dd className="font-semibold text-adm-text">{stats.statistics.totalTransitions}</dd>
         </div>
-        <div className="flex justify-between">
-          <span className="text-gray-600">Since State Change:</span>
-          <span className="font-semibold">{stats.statistics.timeSinceStateChange}</span>
+        <div className="flex justify-between gap-3">
+          <dt className="text-adm-muted">Since State Change:</dt>
+          <dd className="font-semibold text-adm-text">{stats.statistics.timeSinceStateChange}</dd>
         </div>
         {stats.statistics.nextRetryIn && (
-          <div className="flex justify-between">
-            <span className="text-gray-600">Next Retry:</span>
-            <span className="font-semibold text-orange-600">{stats.statistics.nextRetryIn}</span>
+          <div className="flex justify-between gap-3">
+            <dt className="text-adm-muted">Next Retry:</dt>
+            <dd className="font-semibold text-adm-warn">{stats.statistics.nextRetryIn}</dd>
           </div>
         )}
-      </div>
+      </dl>
 
       {/* Recommendations */}
       {stats.recommendations.length > 0 && (
-        <div className="mb-6 p-3 bg-blue-50 rounded border border-blue-200">
-          <p className="text-xs font-semibold text-blue-800 mb-2">Recommendations:</p>
-          <ul className="text-xs text-blue-700 space-y-1">
+        <div className={`${notice.info} mb-5`}>
+          <p className="mb-2 text-xs font-semibold text-adm-info">Recommendations:</p>
+          <ul className="space-y-1 text-xs">
             {stats.recommendations.map((rec, index) => (
-              <li key={index}>{rec}</li>
+              <li key={index} className="text-adm-info">{rec}</li>
             ))}
           </ul>
         </div>
@@ -225,25 +225,22 @@ export default function CircuitBreakerWidget() {
         <button
           onClick={handleReset}
           disabled={resetting}
-          className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400 text-white font-semibold py-2 px-4 rounded transition-colors"
+          className={`${accentButton} w-full`}
         >
-          {resetting ? 'Resetting...' : '🔧 Manual Reset'}
+          <Wrench className="h-4 w-4" aria-hidden="true" />
+          {resetting ? 'Resetting...' : 'Manual Reset'}
         </button>
       )}
 
       {/* Message */}
       {message && (
-        <div className={`mt-4 p-3 rounded ${message.startsWith('✅') ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-          <p className="text-sm">{message}</p>
-        </div>
+        <p className={`mt-4 ${message.startsWith('✅') ? notice.ok : notice.danger}`}>{message}</p>
       )}
 
       {/* Footer */}
-      <div className="mt-4 pt-4 border-t border-gray-200">
-        <p className="text-xs text-gray-500 text-center">
-          Auto-refreshes every 5 seconds
-        </p>
-      </div>
+      <p className="mt-4 border-t border-adm-line pt-4 text-center text-xs text-adm-faint">
+        Auto-refreshes every 5 seconds
+      </p>
     </div>
   );
 }

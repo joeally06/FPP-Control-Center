@@ -15,6 +15,9 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
+import { ThumbsUp, ThumbsDown } from 'lucide-react';
+import { card, insetBox } from '@/components/admin/ui-classes';
+import { chartColors, axisTick, legendStyle, tooltipStyle } from '@/components/analytics/chart-theme';
 
 interface VotingTrendData {
   date: string;
@@ -40,39 +43,40 @@ const COLORS = ['#10b981', '#ef4444', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899'
 
 export function VotingTrendChart({ data }: { data: VotingTrendData[] }) {
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md">
-      <h2 className="text-xl font-semibold mb-4">Voting Activity Trend (Last 30 Days)</h2>
+    <div className={card}>
+      <h2 className="admin-h2">Voting Activity Trend (Last 30 Days)</h2>
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis 
-            dataKey="date" 
-            tick={{ fontSize: 12 }}
+          <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+          <XAxis
+            dataKey="date"
+            tick={axisTick}
+            stroke={chartColors.grid}
             angle={-45}
             textAnchor="end"
             height={80}
           />
-          <YAxis />
-          <Tooltip />
-          <Legend />
-          <Line 
-            type="monotone" 
-            dataKey="upvotes" 
-            stroke="#10b981" 
+          <YAxis tick={axisTick} stroke={chartColors.grid} />
+          <Tooltip contentStyle={tooltipStyle} />
+          <Legend wrapperStyle={legendStyle} />
+          <Line
+            type="monotone"
+            dataKey="upvotes"
+            stroke={chartColors.ok}
             name="Upvotes"
             strokeWidth={2}
           />
-          <Line 
-            type="monotone" 
-            dataKey="downvotes" 
-            stroke="#ef4444" 
+          <Line
+            type="monotone"
+            dataKey="downvotes"
+            stroke={chartColors.danger}
             name="Downvotes"
             strokeWidth={2}
           />
-          <Line 
-            type="monotone" 
-            dataKey="vote_count" 
-            stroke="#3b82f6" 
+          <Line
+            type="monotone"
+            dataKey="vote_count"
+            stroke={chartColors.info}
             name="Total Votes"
             strokeWidth={2}
           />
@@ -84,20 +88,22 @@ export function VotingTrendChart({ data }: { data: VotingTrendData[] }) {
 
 export function VotingByHourChart({ data }: { data: VotingByHourData[] }) {
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md">
-      <h2 className="text-xl font-semibold mb-4">Voting Activity by Hour</h2>
+    <div className={card}>
+      <h2 className="admin-h2">Voting Activity by Hour</h2>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis 
-            dataKey="hour" 
-            label={{ value: 'Hour of Day', position: 'insideBottom', offset: -5 }}
+          <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+          <XAxis
+            dataKey="hour"
+            tick={axisTick}
+            stroke={chartColors.grid}
+            label={{ value: 'Hour of Day', position: 'insideBottom', offset: -5, fill: chartColors.axis }}
           />
-          <YAxis label={{ value: 'Votes', angle: -90, position: 'insideLeft' }} />
-          <Tooltip />
-          <Legend />
-          <Bar dataKey="upvotes" stackId="a" fill="#10b981" name="Upvotes" />
-          <Bar dataKey="downvotes" stackId="a" fill="#ef4444" name="Downvotes" />
+          <YAxis tick={axisTick} stroke={chartColors.grid} label={{ value: 'Votes', angle: -90, position: 'insideLeft', fill: chartColors.axis }} />
+          <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+          <Legend wrapperStyle={legendStyle} />
+          <Bar dataKey="upvotes" stackId="a" fill={chartColors.ok} name="Upvotes" />
+          <Bar dataKey="downvotes" stackId="a" fill={chartColors.danger} name="Downvotes" />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -106,13 +112,13 @@ export function VotingByHourChart({ data }: { data: VotingByHourData[] }) {
 
 export function VoteRatioPieChart({ song }: { song: VoteRatioData }) {
   const data = [
-    { name: 'Upvotes', value: song.upvotes, color: '#10b981' },
-    { name: 'Downvotes', value: song.downvotes, color: '#ef4444' }
+    { name: 'Upvotes', value: song.upvotes, color: chartColors.ok },
+    { name: 'Downvotes', value: song.downvotes, color: chartColors.danger }
   ];
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-md">
-      <h3 className="text-sm font-semibold mb-2 text-center truncate">{song.sequence_name}</h3>
+    <div className={insetBox}>
+      <h3 className="mb-2 truncate text-center text-sm font-semibold text-adm-text">{song.sequence_name}</h3>
       <ResponsiveContainer width="100%" height={200}>
         <PieChart>
           <Pie
@@ -124,28 +130,33 @@ export function VoteRatioPieChart({ song }: { song: VoteRatioData }) {
             outerRadius={60}
             fill="#8884d8"
             dataKey="value"
+            stroke="none"
           >
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.color} />
             ))}
           </Pie>
-          <Tooltip />
+          <Tooltip contentStyle={tooltipStyle} />
         </PieChart>
       </ResponsiveContainer>
-      <div className="text-center text-xs text-gray-600 mt-2">
-        <span className="text-green-600 font-semibold">👍 {song.upvotes}</span>
-        {' vs '}
-        <span className="text-red-600 font-semibold">👎 {song.downvotes}</span>
-      </div>
+      <p className="mt-2 flex items-center justify-center gap-2 text-xs text-adm-muted">
+        <span className="inline-flex items-center gap-1 font-semibold text-adm-ok">
+          <ThumbsUp className="h-3.5 w-3.5" aria-label="Upvotes" /> {song.upvotes}
+        </span>
+        vs
+        <span className="inline-flex items-center gap-1 font-semibold text-adm-danger">
+          <ThumbsDown className="h-3.5 w-3.5" aria-label="Downvotes" /> {song.downvotes}
+        </span>
+      </p>
     </div>
   );
 }
 
 export function TopSongsVoteDistribution({ songs }: { songs: VoteRatioData[] }) {
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md">
-      <h2 className="text-xl font-semibold mb-4">Vote Distribution - Top 6 Songs</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className={card}>
+      <h2 className="admin-h2">Vote Distribution - Top 6 Songs</h2>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {songs.slice(0, 6).map((song, index) => (
           <VoteRatioPieChart key={index} song={song} />
         ))}

@@ -1,5 +1,7 @@
 // Shared Tailwind class sets for admin page content (colours are the adm-* tokens in app/globals.css).
 // Inside .admin-content unclassed text is painted white, so text elements set their colour explicitly.
+// A utility appended to one of these sets can't reliably override a utility for the same property already in it
+// (the stylesheet's order decides, not the class string), so sets that need resizing have a variant below.
 
 export const card = 'rounded-2xl border border-adm-line bg-adm-surface p-5';
 /** A box inside a card: stat tiles, list rows, letter text */
@@ -21,8 +23,11 @@ export const smallButton = `${buttonBase} ${small} ${neutral}`;
 export const smallDangerButton = `${buttonBase} ${small} ${danger}`;
 export const roundButton = 'grid h-11 w-11 place-items-center rounded-full border border-adm-control-line bg-adm-control text-adm-text transition-colors hover:bg-adm-line disabled:cursor-not-allowed disabled:opacity-50';
 
+const fieldBase = 'min-h-11 rounded-xl border border-adm-control-line bg-adm-field px-3 py-2.5 text-sm text-adm-text placeholder:text-adm-faint focus:outline-2 focus:outline-offset-1 focus:outline-adm-accent disabled:opacity-50';
 /** Text inputs, selects and textareas */
-export const field = 'min-h-11 w-full rounded-xl border border-adm-control-line bg-adm-field px-3 py-2.5 text-sm text-adm-text placeholder:text-adm-faint focus:outline-2 focus:outline-offset-1 focus:outline-adm-accent disabled:opacity-50';
+export const field = `${fieldBase} w-full`;
+/** `field` without the full width, for controls given their own w-* class */
+export const sizedField = fieldBase;
 export const textLink = 'text-[13px] font-medium text-adm-accent hover:underline';
 
 /** A <label> wrapping a radio or checkbox plus its text; highlighted while checked */

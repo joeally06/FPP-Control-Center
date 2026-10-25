@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import CircuitBreakerWidget from '@/components/CircuitBreakerWidget';
 import { VotingTrendChart, VotingByHourChart, TopSongsVoteDistribution } from '@/components/analytics/VotingCharts';
 import AlertsPanel from '@/components/analytics/AlertsPanel';
 import { exportRequestAnalytics, exportVoteAnalytics } from '@/lib/csv-export';
+import { Users, Download, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { card, insetBox, eyebrow, button, badge } from '@/components/admin/ui-classes';
 
 interface RequestAnalytics {
   mostRequested: Array<{
@@ -129,8 +131,8 @@ export default function RequestVoteAnalytics() {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent mx-auto mb-4"></div>
-          <p className="text-white/80">Loading analytics...</p>
+          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-adm-line border-t-adm-accent"></div>
+          <p className="text-sm text-adm-muted">Loading analytics...</p>
         </div>
       </div>
     );
@@ -140,31 +142,34 @@ export default function RequestVoteAnalytics() {
   const completedCount = requestData?.successRate.find(s => s.status === 'completed')?.count || 0;
   const successPercentage = totalRequests > 0 ? ((completedCount / totalRequests) * 100).toFixed(1) : '0';
 
+  const th = 'px-3 py-2.5 text-xs font-semibold uppercase tracking-[0.06em] text-adm-muted';
+  const td = 'px-3 py-3 text-sm text-adm-soft';
+
   return (
-    <>
+    <div className="flex flex-col gap-4">
       {/* Action Buttons */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex flex-wrap gap-2.5">
         <button
           onClick={() => router.push('/engagement')}
-          className="backdrop-blur-sm bg-indigo-500/80 hover:bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+          className={button}
         >
-          <span>👥</span>
+          <Users className="h-4 w-4" aria-hidden="true" />
           User Engagement
         </button>
         <button
           onClick={() => requestData && exportRequestAnalytics(requestData)}
-          className="backdrop-blur-sm bg-green-500/80 hover:bg-green-600 disabled:bg-gray-500/50 text-white px-6 py-3 rounded-lg font-semibold transition-all shadow-lg hover:shadow-xl disabled:cursor-not-allowed flex items-center gap-2"
+          className={button}
           disabled={!requestData}
         >
-          <span>📊</span>
+          <Download className="h-4 w-4" aria-hidden="true" />
           Export Request Data
         </button>
         <button
           onClick={() => voteData && exportVoteAnalytics(voteData)}
-          className="backdrop-blur-sm bg-purple-500/80 hover:bg-purple-600 disabled:bg-gray-500/50 text-white px-6 py-3 rounded-lg font-semibold transition-all shadow-lg hover:shadow-xl disabled:cursor-not-allowed flex items-center gap-2"
+          className={button}
           disabled={!voteData}
         >
-          <span>📈</span>
+          <Download className="h-4 w-4" aria-hidden="true" />
           Export Vote Data
         </button>
       </div>
@@ -173,94 +178,52 @@ export default function RequestVoteAnalytics() {
       <AlertsPanel />
 
       {/* Circuit Breaker Widget */}
-      <div className="mb-8">
-        <CircuitBreakerWidget />
-      </div>
+      <CircuitBreakerWidget />
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-        <div className="backdrop-blur-md bg-linear-to-br from-blue-500/80 to-blue-600/80 rounded-xl p-6 shadow-2xl border border-white/20 transform transition-all hover:scale-105">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-              <span className="text-2xl">🎵</span>
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-white/80 mb-1">Total Requests</h3>
-              <p className="text-3xl font-bold text-white">{totalRequests}</p>
-            </div>
-          </div>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className={card}>
+          <p className={eyebrow}>Total Requests</p>
+          <p className="mt-1 text-3xl font-semibold text-adm-text">{totalRequests}</p>
         </div>
-
-        <div className="backdrop-blur-md bg-linear-to-br from-green-500/80 to-emerald-600/80 rounded-xl p-6 shadow-2xl border border-white/20 transform transition-all hover:scale-105">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-              <span className="text-2xl">✅</span>
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-white/80 mb-1">Success Rate</h3>
-              <p className="text-3xl font-bold text-white">{successPercentage}%</p>
-            </div>
-          </div>
+        <div className={card}>
+          <p className={eyebrow}>Success Rate</p>
+          <p className="mt-1 text-3xl font-semibold text-adm-text">{successPercentage}%</p>
         </div>
-
-        <div className="backdrop-blur-md bg-linear-to-br from-purple-500/80 to-purple-600/80 rounded-xl p-6 shadow-2xl border border-white/20 transform transition-all hover:scale-105">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-              <span className="text-2xl">⏱️</span>
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-white/80 mb-1">Avg Wait Time</h3>
-              <p className="text-3xl font-bold text-white">
-                {formatWaitTime(requestData?.avgWaitTime.avg_wait_seconds || null)}
-              </p>
-            </div>
-          </div>
+        <div className={card}>
+          <p className={eyebrow}>Avg Wait Time</p>
+          <p className="mt-1 text-3xl font-semibold text-adm-text">
+            {formatWaitTime(requestData?.avgWaitTime.avg_wait_seconds || null)}
+          </p>
         </div>
-
-        <div className="backdrop-blur-md bg-linear-to-br from-orange-500/80 to-amber-600/80 rounded-xl p-6 shadow-2xl border border-white/20 transform transition-all hover:scale-105">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-              <span className="text-2xl">🗳️</span>
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-white/80 mb-1">Total Votes</h3>
-              <p className="text-3xl font-bold text-white">{voteData?.totalStats.total_votes || 0}</p>
-            </div>
-          </div>
+        <div className={card}>
+          <p className={eyebrow}>Total Votes</p>
+          <p className="mt-1 text-3xl font-semibold text-adm-text">{voteData?.totalStats.total_votes || 0}</p>
         </div>
       </div>
 
-        {/* Voting Analytics Charts */}
+        {/* Voting Analytics Charts (each chart is its own card) */}
         {voteData && voteData.votingTrend.length > 0 && (
-          <div className="backdrop-blur-md bg-white/10 rounded-xl p-6 shadow-2xl border border-white/20 mb-8">
-            <VotingTrendChart data={voteData.votingTrend} />
-          </div>
+          <VotingTrendChart data={voteData.votingTrend} />
         )}
 
         {voteData && voteData.votingByHour.length > 0 && (
-          <div className="backdrop-blur-md bg-white/10 rounded-xl p-6 shadow-2xl border border-white/20 mb-8">
-            <VotingByHourChart data={voteData.votingByHour} />
-          </div>
+          <VotingByHourChart data={voteData.votingByHour} />
         )}
 
         {voteData && voteData.topVoted.length > 0 && (
-          <div className="backdrop-blur-md bg-white/10 rounded-xl p-6 shadow-2xl border border-white/20 mb-8">
-            <TopSongsVoteDistribution songs={voteData.topVoted} />
-          </div>
+          <TopSongsVoteDistribution songs={voteData.topVoted} />
         )}
 
         {/* Request Status Breakdown */}
-        <div className="backdrop-blur-md bg-white/10 rounded-xl p-6 shadow-2xl border border-white/20 mb-8">
-          <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-            <span>📈</span>
-            Request Status
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className={card}>
+          <h2 className="admin-h2">Request Status</h2>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {requestData?.successRate.map((status) => (
-              <div key={status.status} className="text-center p-6 bg-white/10 rounded-lg backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all">
-                <p className="text-sm text-white/70 capitalize mb-2">{status.status}</p>
-                <p className="text-3xl font-bold text-white mb-1">{status.count}</p>
-                <p className="text-xs text-white/60">
+              <div key={status.status} className={`${insetBox} text-center`}>
+                <p className="mb-1 text-sm capitalize text-adm-muted">{status.status}</p>
+                <p className="mb-0.5 text-3xl font-semibold text-adm-text">{status.count}</p>
+                <p className="text-xs text-adm-faint">
                   {totalRequests > 0 ? ((status.count / totalRequests) * 100).toFixed(1) : '0'}%
                 </p>
               </div>
@@ -268,27 +231,24 @@ export default function RequestVoteAnalytics() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {/* Requests by Hour */}
-          <div className="backdrop-blur-md bg-white/10 rounded-xl p-6 shadow-2xl border border-white/20">
-            <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-              <span>🕐</span>
-              Requests by Hour
-            </h2>
+          <div className={card}>
+            <h2 className="admin-h2">Requests by Hour</h2>
             <div className="space-y-2">
               {requestData?.requestsByHour.map((hourData) => {
                 const maxCount = Math.max(...(requestData?.requestsByHour.map(h => h.request_count) || [1]));
                 const percentage = (hourData.request_count / maxCount) * 100;
                 return (
-                  <div key={hourData.hour} className="flex items-center gap-2">
-                    <span className="text-sm w-12 text-white/80 font-semibold">{hourData.hour}:00</span>
-                    <div className="flex-1 bg-white/10 rounded-full h-6 relative border border-white/20">
+                  <div key={hourData.hour} className="flex items-center gap-3">
+                    <span className="w-12 text-sm font-medium text-adm-soft">{hourData.hour}:00</span>
+                    <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-adm-side">
                       <div
-                        className="bg-linear-to-r from-blue-500 to-cyan-500 h-6 rounded-full transition-all"
+                        className="h-full rounded-full bg-adm-info transition-all"
                         style={{ width: `${percentage}%` }}
                       ></div>
-                      <span className="absolute right-2 top-0.5 text-xs font-semibold text-white">{hourData.request_count}</span>
                     </div>
+                    <span className="w-10 text-right text-sm font-semibold text-adm-text">{hourData.request_count}</span>
                   </div>
                 );
               })}
@@ -296,25 +256,22 @@ export default function RequestVoteAnalytics() {
           </div>
 
           {/* Requests by Day */}
-          <div className="backdrop-blur-md bg-white/10 rounded-xl p-6 shadow-2xl border border-white/20">
-            <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-              <span>📅</span>
-              Requests by Day of Week
-            </h2>
+          <div className={card}>
+            <h2 className="admin-h2">Requests by Day of Week</h2>
             <div className="space-y-3">
               {requestData?.requestsByDay.map((dayData) => {
                 const maxCount = Math.max(...(requestData?.requestsByDay.map(d => d.request_count) || [1]));
                 const percentage = (dayData.request_count / maxCount) * 100;
                 return (
-                  <div key={dayData.day} className="flex items-center gap-2">
-                    <span className="text-sm w-24 text-white/80 font-semibold">{DAY_NAMES[dayData.day]}</span>
-                    <div className="flex-1 bg-white/10 rounded-full h-7 relative border border-white/20">
+                  <div key={dayData.day} className="flex items-center gap-3">
+                    <span className="w-24 text-sm font-medium text-adm-soft">{DAY_NAMES[dayData.day]}</span>
+                    <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-adm-side">
                       <div
-                        className="bg-linear-to-r from-green-500 to-emerald-500 h-7 rounded-full transition-all"
+                        className="h-full rounded-full bg-adm-accent transition-all"
                         style={{ width: `${percentage}%` }}
                       ></div>
-                      <span className="absolute right-2 top-1 text-sm font-semibold text-white">{dayData.request_count}</span>
                     </div>
+                    <span className="w-10 text-right text-sm font-semibold text-adm-text">{dayData.request_count}</span>
                   </div>
                 );
               })}
@@ -323,43 +280,31 @@ export default function RequestVoteAnalytics() {
         </div>
 
         {/* Most Requested Songs */}
-        <div className="backdrop-blur-md bg-white/10 rounded-xl p-6 shadow-2xl border border-white/20 mb-8">
-          <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-            <span>🏆</span>
-            Most Requested Songs
-          </h2>
+        <div className={card}>
+          <h2 className="admin-h2">Most Requested Songs</h2>
           <div className="overflow-x-auto">
-            <table className="w-full table-auto">
+            <table className="w-full min-w-[640px] table-auto">
               <thead>
-                <tr className="border-b border-white/20">
-                  <th className="px-4 py-3 text-left text-white/80 font-semibold">Rank</th>
-                  <th className="px-4 py-3 text-left text-white/80 font-semibold">Song Name</th>
-                  <th className="px-4 py-3 text-center text-white/80 font-semibold">Requests</th>
-                  <th className="px-4 py-3 text-center text-white/80 font-semibold">Completed</th>
-                  <th className="px-4 py-3 text-center text-white/80 font-semibold">Skipped</th>
-                  <th className="px-4 py-3 text-center text-white/80 font-semibold">Last Requested</th>
+                <tr className="border-b border-adm-line">
+                  <th scope="col" className={`${th} text-left`}>Rank</th>
+                  <th scope="col" className={`${th} text-left`}>Song Name</th>
+                  <th scope="col" className={`${th} text-center`}>Requests</th>
+                  <th scope="col" className={`${th} text-center`}>Completed</th>
+                  <th scope="col" className={`${th} text-center`}>Skipped</th>
+                  <th scope="col" className={`${th} text-center`}>Last Requested</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-adm-line">
                 {requestData?.mostRequested.slice(0, 10).map((song, index) => (
-                  <tr key={song.sequence_name} className="border-t border-white/10 hover:bg-white/5">
-                    <td className="px-4 py-3">
-                      <span className={`font-bold ${
-                        index === 0 ? 'text-yellow-400 text-lg' :
-                        index === 1 ? 'text-gray-300 text-lg' :
-                        index === 2 ? 'text-orange-400 text-lg' :
-                        'text-white/60'
-                      }`}>#{index + 1}</span>
+                  <tr key={song.sequence_name} className="hover:bg-adm-hover">
+                    <td className={td}>
+                      <span className={`font-semibold ${index < 3 ? 'text-adm-accent' : 'text-adm-muted'}`}>#{index + 1}</span>
                     </td>
-                    <td className="px-4 py-3 font-medium text-white">{song.sequence_name}</td>
-                    <td className="px-4 py-3 text-center text-white font-semibold">{song.request_count}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="text-green-400 font-semibold">{song.completed_count}</span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="text-red-400 font-semibold">{song.skipped_count}</span>
-                    </td>
-                    <td className="px-4 py-3 text-center text-sm text-white/70">
+                    <td className={`${td} font-medium text-adm-text`}>{song.sequence_name}</td>
+                    <td className={`${td} text-center font-semibold text-adm-text`}>{song.request_count}</td>
+                    <td className={`${td} text-center font-semibold text-adm-ok`}>{song.completed_count}</td>
+                    <td className={`${td} text-center font-semibold text-adm-danger`}>{song.skipped_count}</td>
+                    <td className={`${td} text-center`}>
                       {new Date(song.last_requested).toLocaleDateString()}
                     </td>
                   </tr>
@@ -369,95 +314,78 @@ export default function RequestVoteAnalytics() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {/* Top Voted Songs */}
-          <div className="backdrop-blur-md bg-white/10 rounded-xl p-6 shadow-2xl border border-white/20">
-            <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-              <span>⭐</span>
-              Top Voted Songs
-            </h2>
-            <div className="space-y-3">
+          <div className={card}>
+            <h2 className="admin-h2">Top Voted Songs</h2>
+            <ul className="space-y-2">
               {voteData?.topVoted.slice(0, 10).map((song, index) => (
-                <div key={song.sequence_name} className="flex items-center gap-2 p-4 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-all">
-                  <span className={`font-bold w-8 ${
-                    index < 3 ? 'text-yellow-400 text-lg' : 'text-white/60'
-                  }`}>#{index + 1}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate text-white">{song.sequence_name}</p>
-                    <div className="flex gap-4 text-sm mt-1">
-                      <span className="text-green-400">👍 {song.upvotes}</span>
-                      <span className="text-red-400">👎 {song.downvotes}</span>
-                      <span className="text-white/70">Score: {song.net_votes > 0 ? '+' : ''}{song.net_votes}</span>
-                    </div>
+                <li key={song.sequence_name} className={`${insetBox} flex items-center gap-3`}>
+                  <span className={`w-8 font-semibold ${index < 3 ? 'text-adm-accent' : 'text-adm-muted'}`}>#{index + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-adm-text">{song.sequence_name}</p>
+                    <VoteCounts upvotes={song.upvotes} downvotes={song.downvotes}>
+                      Score: {song.net_votes > 0 ? '+' : ''}{song.net_votes}
+                    </VoteCounts>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-blue-400">{song.approval_rating.toFixed(0)}%</p>
-                  </div>
-                </div>
+                  <p className="text-sm font-semibold text-adm-info">{song.approval_rating.toFixed(0)}%</p>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
 
           {/* Most Controversial Songs */}
-          <div className="backdrop-blur-md bg-white/10 rounded-xl p-6 shadow-2xl border border-white/20">
-            <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-              <span>⚡</span>
-              Most Controversial Songs
-            </h2>
-            <div className="space-y-3">
+          <div className={card}>
+            <h2 className="admin-h2">Most Controversial Songs</h2>
+            <ul className="space-y-2">
               {voteData?.controversial.slice(0, 10).map((song, index) => (
-                <div key={song.sequence_name} className="flex items-center gap-2 p-4 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-all">
-                  <span className="font-bold text-white/60 w-8">#{index + 1}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate text-white">{song.sequence_name}</p>
-                    <div className="flex gap-4 text-sm mt-1">
-                      <span className="text-green-400">👍 {song.upvotes}</span>
-                      <span className="text-red-400">👎 {song.downvotes}</span>
-                      <span className="text-white/70">Split: {song.approval_rating.toFixed(0)}%/{(100 - song.approval_rating).toFixed(0)}%</span>
-                    </div>
+                <li key={song.sequence_name} className={`${insetBox} flex items-center gap-3`}>
+                  <span className="w-8 font-semibold text-adm-muted">#{index + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-adm-text">{song.sequence_name}</p>
+                    <VoteCounts upvotes={song.upvotes} downvotes={song.downvotes}>
+                      Split: {song.approval_rating.toFixed(0)}%/{(100 - song.approval_rating).toFixed(0)}%
+                    </VoteCounts>
                   </div>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         </div>
 
         {/* Recent Activity */}
-        <div className="backdrop-blur-md bg-white/10 rounded-xl p-6 shadow-2xl border border-white/20">
-          <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-            <span>📋</span>
-            Recent Activity
-          </h2>
+        <div className={card}>
+          <h2 className="admin-h2">Recent Activity</h2>
           <div className="overflow-x-auto">
-            <table className="w-full table-auto">
+            <table className="w-full min-w-[640px] table-auto">
               <thead>
-                <tr className="border-b border-white/20">
-                  <th className="px-4 py-3 text-left text-white/80 font-semibold">Song Name</th>
-                  <th className="px-4 py-3 text-left text-white/80 font-semibold">Requester</th>
-                  <th className="px-4 py-3 text-center text-white/80 font-semibold">Status</th>
-                  <th className="px-4 py-3 text-center text-white/80 font-semibold">Requested</th>
-                  <th className="px-4 py-3 text-center text-white/80 font-semibold">Played</th>
+                <tr className="border-b border-adm-line">
+                  <th scope="col" className={`${th} text-left`}>Song Name</th>
+                  <th scope="col" className={`${th} text-left`}>Requester</th>
+                  <th scope="col" className={`${th} text-center`}>Status</th>
+                  <th scope="col" className={`${th} text-center`}>Requested</th>
+                  <th scope="col" className={`${th} text-center`}>Played</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-adm-line">
                 {requestData?.recentActivity.slice(0, 20).map((activity) => (
-                  <tr key={activity.id} className="border-t border-white/10 hover:bg-white/5">
-                    <td className="px-4 py-3 font-medium text-white">{activity.sequence_name}</td>
-                    <td className="px-4 py-3 text-white/80">{activity.requester_name || 'Anonymous'}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        activity.status === 'completed' ? 'bg-green-500/80 text-white' :
-                        activity.status === 'playing' ? 'bg-blue-500/80 text-white' :
-                        activity.status === 'skipped' ? 'bg-red-500/80 text-white' :
-                        'bg-gray-500/80 text-white'
-                      }`}>
+                  <tr key={activity.id} className="hover:bg-adm-hover">
+                    <td className={`${td} font-medium text-adm-text`}>{activity.sequence_name}</td>
+                    <td className={td}>{activity.requester_name || 'Anonymous'}</td>
+                    <td className={`${td} text-center`}>
+                      <span className={
+                        activity.status === 'completed' ? badge.ok :
+                        activity.status === 'playing' ? badge.info :
+                        activity.status === 'skipped' ? badge.danger :
+                        badge.neutral
+                      }>
                         {activity.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-center text-sm text-white/70">
+                    <td className={`${td} text-center`}>
                       {formatDate(activity.created_at)}
                     </td>
-                    <td className="px-4 py-3 text-center text-sm text-white/70">
+                    <td className={`${td} text-center`}>
                       {activity.played_at ? formatDate(activity.played_at) : '-'}
                     </td>
                   </tr>
@@ -466,6 +394,21 @@ export default function RequestVoteAnalytics() {
             </table>
           </div>
         </div>
-    </>
+    </div>
+  );
+}
+
+// Up/down vote counts under a song name, plus a trailing note (score or split)
+function VoteCounts({ upvotes, downvotes, children }: { upvotes: number; downvotes: number; children: ReactNode }) {
+  return (
+    <div className="mt-1 flex gap-4 text-sm">
+      <span className="inline-flex items-center gap-1 text-adm-ok">
+        <ThumbsUp className="h-3.5 w-3.5" aria-label="Upvotes" /> {upvotes}
+      </span>
+      <span className="inline-flex items-center gap-1 text-adm-danger">
+        <ThumbsDown className="h-3.5 w-3.5" aria-label="Downvotes" /> {downvotes}
+      </span>
+      <span className="text-adm-muted">{children}</span>
+    </div>
   );
 }

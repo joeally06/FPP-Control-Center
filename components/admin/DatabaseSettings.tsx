@@ -1,15 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { RefreshCw, CircleCheck } from 'lucide-react';
 import {
   AdminH2,
   AdminH3,
-  AdminH4,
   AdminTextMuted,
-  AdminTextSmall,
-  AdminValue,
-  AdminInfo,
 } from '@/components/admin/Typography';
+import { card, insetBox, eyebrow, smallButton, smallDangerButton, notice } from '@/components/admin/ui-classes';
 
 export default function DatabaseSettings() {
   const [stats, setStats] = useState<any>(null);
@@ -73,162 +71,96 @@ export default function DatabaseSettings() {
   }, []);
 
   return (
-    <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
-      <AdminH2>💾 Database Management</AdminH2>
+    <div className={`${card} max-w-3xl`}>
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <AdminH2 className="mb-0">Database Management</AdminH2>
+        <button
+          onClick={fetchStats}
+          disabled={loading}
+          className={smallButton}
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+          Refresh Statistics
+        </button>
+      </div>
       
       {message && (
-        <div className="mb-6 p-4 bg-blue-500/20 rounded-lg border border-blue-500/30">
-          <AdminInfo>{message}</AdminInfo>
-        </div>
+        <p className={`${notice.info} mb-6`}>{message}</p>
       )}
 
       <div className="space-y-6">
         {/* Database Statistics */}
-        <div>
-          <AdminH3>📊 Database Statistics</AdminH3>
+        <section>
+          <AdminH3>Database Statistics</AdminH3>
           {loading && !stats ? (
-            <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+            <div className={insetBox}>
               <AdminTextMuted>Loading statistics...</AdminTextMuted>
             </div>
           ) : stats ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-                <AdminTextSmall className="mb-1">Database Size</AdminTextSmall>
-                <AdminValue>
-                  {stats.approximateSizeMB?.toFixed(2) || '0'} MB
-                </AdminValue>
-              </div>
-              
-              <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-                <AdminTextSmall className="mb-1">Journal Mode</AdminTextSmall>
-                <AdminValue>{stats.journalMode || 'Unknown'}</AdminValue>
-              </div>
-              
-              <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-                <AdminTextSmall className="mb-1">Page Views</AdminTextSmall>
-                <AdminValue>{stats.pageViews?.count?.toLocaleString() || '0'}</AdminValue>
-              </div>
-              
-              <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-                <AdminTextSmall className="mb-1">Visitors</AdminTextSmall>
-                <AdminValue>{stats.visitors?.count?.toLocaleString() || '0'}</AdminValue>
-              </div>
-              
-              <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-                <AdminTextSmall className="mb-1">Song Requests</AdminTextSmall>
-                <AdminValue>{stats.jukeboxQueue?.count?.toLocaleString() || '0'}</AdminValue>
-              </div>
-              
-              <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-                <AdminTextSmall className="mb-1">Santa Letters</AdminTextSmall>
-                <AdminValue>{stats.santaLetters?.count?.toLocaleString() || '0'}</AdminValue>
-              </div>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+              {([
+                ['Database Size', `${stats.approximateSizeMB?.toFixed(2) || '0'} MB`],
+                ['Journal Mode', stats.journalMode || 'Unknown'],
+                ['Page Views', stats.pageViews?.count?.toLocaleString() || '0'],
+                ['Visitors', stats.visitors?.count?.toLocaleString() || '0'],
+                ['Song Requests', stats.jukeboxQueue?.count?.toLocaleString() || '0'],
+                ['Santa Letters', stats.santaLetters?.count?.toLocaleString() || '0'],
+              ] as const).map(([label, value]) => (
+                <div key={label} className={insetBox}>
+                  <p className={eyebrow}>{label}</p>
+                  <p className="mt-1 text-xl font-semibold text-adm-text sm:text-2xl">{value}</p>
+                </div>
+              ))}
             </div>
           ) : (
-            <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+            <div className={insetBox}>
               <AdminTextMuted>No statistics available</AdminTextMuted>
             </div>
           )}
-        </div>
+        </section>
 
         {/* Maintenance Actions */}
-        <div>
-          <AdminH3>🔧 Maintenance Operations</AdminH3>
-          <div className="space-y-3">
-            <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-              <div className="flex items-start justify-between">
+        <section className="border-t border-adm-line pt-5">
+          <AdminH3>Maintenance Operations</AdminH3>
+          <ul className="space-y-2.5">
+            {([
+              ['quick', 'Quick Maintenance', 'Analyze database statistics for query optimization (fast, ~1 second)', 'Run Quick'],
+              ['full', 'Full Maintenance', 'ANALYZE, REINDEX, and VACUUM database (slow, ~30-60 seconds)', 'Run Full'],
+              ['archive', 'Archive Old Data', 'Remove page views older than 1 year and device status older than 90 days', 'Archive'],
+              ['integrity', 'Integrity Check', 'Verify database integrity and check for corruption', 'Check'],
+            ] as const).map(([action, title, description, label]) => (
+              <li key={action} className={`${insetBox} flex flex-col gap-3 sm:flex-row sm:items-center`}>
                 <div className="flex-1">
-                  <AdminH4>Quick Maintenance</AdminH4>
-                  <AdminTextSmall>
-                    Analyze database statistics for query optimization (fast, ~1 second)
-                  </AdminTextSmall>
+                  <p className="text-sm font-medium text-adm-text">{title}</p>
+                  <p className="mt-0.5 text-[13px] text-adm-muted">{description}</p>
                 </div>
                 <button
-                  onClick={() => runMaintenance('quick')}
+                  onClick={() => runMaintenance(action)}
                   disabled={loading}
-                  className="ml-4 px-4 py-2 bg-blue-500/80 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className={`${action === 'archive' ? smallDangerButton : smallButton} self-start sm:self-auto`}
                 >
-                  Run Quick
+                  {label}
                 </button>
-              </div>
-            </div>
-
-            <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <AdminH4>Full Maintenance</AdminH4>
-                  <AdminTextSmall>
-                    ANALYZE, REINDEX, and VACUUM database (slow, ~30-60 seconds)
-                  </AdminTextSmall>
-                </div>
-                <button
-                  onClick={() => runMaintenance('full')}
-                  disabled={loading}
-                  className="ml-4 px-4 py-2 bg-purple-500/80 hover:bg-purple-600 text-white rounded-lg text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  Run Full
-                </button>
-              </div>
-            </div>
-
-            <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <AdminH4>Archive Old Data</AdminH4>
-                  <AdminTextSmall>
-                    Remove page views older than 1 year and device status older than 90 days
-                  </AdminTextSmall>
-                </div>
-                <button
-                  onClick={() => runMaintenance('archive')}
-                  disabled={loading}
-                  className="ml-4 px-4 py-2 bg-orange-500/80 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  Archive
-                </button>
-              </div>
-            </div>
-
-            <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <AdminH4>Integrity Check</AdminH4>
-                  <AdminTextSmall>
-                    Verify database integrity and check for corruption
-                  </AdminTextSmall>
-                </div>
-                <button
-                  onClick={() => runMaintenance('integrity')}
-                  disabled={loading}
-                  className="ml-4 px-4 py-2 bg-green-500/80 hover:bg-green-600 text-white rounded-lg text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  Check
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         {/* Automated Maintenance Info */}
-        <div className="p-4 bg-green-500/20 rounded-lg border border-green-500/30">
-          <AdminH4>✅ Automated Maintenance Active</AdminH4>
-          <ul className="space-y-1">
-            <li><AdminTextSmall>• Quick maintenance runs daily (every 24 hours)</AdminTextSmall></li>
-            <li><AdminTextSmall>• Full maintenance runs weekly (every 7 days)</AdminTextSmall></li>
-            <li><AdminTextSmall>• Data archival is MANUAL ONLY (use button above)</AdminTextSmall></li>
-            <li><AdminTextSmall>• WAL mode enabled for better performance</AdminTextSmall></li>
-            <li><AdminTextSmall>• 64MB cache size for faster queries</AdminTextSmall></li>
-            <li><AdminTextSmall>• 30+ indexes created for optimal performance</AdminTextSmall></li>
+        <div className={notice.ok}>
+          <p className="mb-1.5 flex items-center gap-2 font-semibold text-adm-ok">
+            <CircleCheck className="h-4.5 w-4.5 shrink-0" aria-hidden="true" />
+            Automated Maintenance Active
+          </p>
+          <ul className="list-disc space-y-1 pl-5 text-[13px] text-adm-soft">
+            <li className="text-adm-soft">Quick maintenance runs daily (every 24 hours)</li>
+            <li className="text-adm-soft">Full maintenance runs weekly (every 7 days)</li>
+            <li className="text-adm-soft">Data archival is MANUAL ONLY (use button above)</li>
+            <li className="text-adm-soft">WAL mode enabled for better performance</li>
+            <li className="text-adm-soft">64MB cache size for faster queries</li>
+            <li className="text-adm-soft">30+ indexes created for optimal performance</li>
           </ul>
         </div>
-
-        <button
-          onClick={fetchStats}
-          disabled={loading}
-          className="w-full px-6 py-3 bg-linear-to-r from-cyan-500 to-blue-600 text-white rounded-lg hover:from-cyan-600 hover:to-blue-700 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          🔄 Refresh Statistics
-        </button>
       </div>
     </div>
   );
