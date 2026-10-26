@@ -9,6 +9,7 @@ import { useVisitorTracking } from '@/hooks/useVisitorTracking';
 import { useTheme } from '@/lib/themes/theme-context';
 import ThemedJukeboxWrapper from '@/components/ThemedJukeboxWrapper';
 import LetterToSantaModal from '@/components/LetterToSantaModal';
+import TriviaModal from '@/components/trivia/TriviaModal';
 import LocationPermissionModal, {
   getCachedLocation,
   getStoredPermissionStatus,
@@ -120,6 +121,7 @@ export default function JukeboxPage() {
   const [message, setMessage] = useState('');
   const [loadingSequences, setLoadingSequences] = useState(true);
   const [showSantaModal, setShowSantaModal] = useState(false);
+  const [showTriviaModal, setShowTriviaModal] = useState(false);
   const isChristmasTheme = theme.id === 'christmas';
   const [youtubeVideos, setYoutubeVideos] = useState<YouTubeVideo[]>([]);
   const [selectedYouTubeVideo, setSelectedYouTubeVideo] = useState<YouTubeVideo | null>(null);
@@ -1288,12 +1290,12 @@ export default function JukeboxPage() {
                     <h2 id="trivia-heading" className="sp-display sp-h2">Christmas trivia</h2>
                     <p className="sp-muted mt-1 text-sm">Test your holiday know-how while the lights play.</p>
                   </div>
-                  <a
-                    href="/trivia"
+                  <button
+                    onClick={() => setShowTriviaModal(true)}
                     className="sp-btn-outline inline-flex min-h-12 items-center justify-center rounded-full px-6 font-extrabold transition"
                   >
                     Play Christmas trivia
-                  </a>
+                  </button>
                 </section>
               )}
 
@@ -1361,6 +1363,9 @@ export default function JukeboxPage() {
 
       {/* Letter to Santa Modal */}
       <LetterToSantaModal isOpen={showSantaModal} onClose={() => setShowSantaModal(false)} />
+
+      {/* Trivia Modal */}
+      {showTriviaModal && <TriviaModal onClose={() => setShowTriviaModal(false)} />}
 
       {/* Footer - inside themed wrapper for seamless background */}
       <Footer siteName={siteName || 'Light Show Jukebox'} />

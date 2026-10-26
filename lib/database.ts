@@ -264,6 +264,26 @@ db.exec(`
   );
 `);
 
+// Solo trivia games played on visitors' phones (also migration 024)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS trivia_games (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token TEXT NOT NULL UNIQUE,
+    display_name TEXT NOT NULL,
+    question_ids TEXT NOT NULL,
+    seconds_per_question INTEGER NOT NULL,
+    current_index INTEGER NOT NULL DEFAULT 0,
+    question_started_at TEXT,
+    score INTEGER NOT NULL DEFAULT 0,
+    correct_count INTEGER NOT NULL DEFAULT 0,
+    finished_at TEXT,
+    ip_address TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_trivia_games_ip ON trivia_games(ip_address, created_at);
+  CREATE INDEX IF NOT EXISTS idx_trivia_games_finished ON trivia_games(finished_at, score);
+`);
+
 // Create sequence metadata table
 db.exec(`
   CREATE TABLE IF NOT EXISTS sequence_metadata (

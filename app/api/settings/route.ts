@@ -4,6 +4,7 @@ import { toErrorMessage } from '@/lib/api-errors';
 import { getSettings, getSettingsDetailed, updateSettings } from '@/lib/settings';
 import { VISITOR_BOOLEAN_SETTINGS, VISITOR_SETTING_LIMITS } from '@/lib/jukebox-display';
 import { parseSantaDailyCap, SANTA_DAILY_CAP_MAX } from '@/lib/santa-confirmation';
+import { parseTriviaSetting, TRIVIA_SETTING_LIMITS, type TriviaSettingKey } from '@/lib/trivia-logic';
 
 /**
  * GET /api/settings
@@ -96,6 +97,15 @@ export async function PUT(request: NextRequest) {
         { error: `santa_daily_cap must be a whole number from 1 to ${SANTA_DAILY_CAP_MAX}` },
         { status: 400 }
       );
+    }
+
+    for (const [key, { min, max }] of Object.entries(TRIVIA_SETTING_LIMITS)) {
+      if (key in settings && parseTriviaSetting(key as TriviaSettingKey, String(settings[key])) === null) {
+        return NextResponse.json(
+          { error: `${key} must be a whole number from ${min} to ${max}` },
+          { status: 400 }
+        );
+      }
     }
 
     // Validate visitor-page display settings

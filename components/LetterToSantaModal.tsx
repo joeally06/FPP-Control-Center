@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, FormEvent } from 'react';
+import { X } from 'lucide-react';
 
 interface LetterToSantaModalProps {
   isOpen: boolean;
@@ -167,66 +168,57 @@ export default function LetterToSantaModal({ isOpen, onClose }: LetterToSantaMod
 
   if (!isOpen) return null;
 
+  const inputClass = 'sp-input mt-1.5 w-full rounded-xl px-3 py-2.5';
+  const required = <span className="sp-highlight" aria-hidden="true">*</span>;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-linear-to-br from-red-50 via-white to-green-50 rounded-2xl shadow-2xl border-4 border-red-600">
-        {/* Snowflakes decoration */}
-        <div className="absolute top-4 left-4 text-4xl animate-pulse">❄️</div>
-        <div className="absolute top-4 right-4 text-4xl animate-pulse" style={{ animationDelay: '0.5s' }}>❄️</div>
-        
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-6 right-6 text-gray-600 hover:text-gray-900 text-3xl font-bold z-10"
-          aria-label="Close"
-        >
-          ×
-        </button>
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/70 p-4 sm:items-center">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="santa-dialog-title"
+        className="sp-modal w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-[1.25rem] p-5 shadow-2xl"
+      >
+        <div className="-mr-2 -mt-2 flex justify-end">
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="sp-muted grid h-10 w-10 place-items-center rounded-full hover:bg-white/10"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
 
         {/* Header */}
-        <div className="bg-linear-to-r from-red-600 to-green-600 text-white p-8 text-center border-b-4 border-yellow-400">
-          <h2 className="text-4xl font-bold mb-2" style={{ fontFamily: 'cursive' }}>
-            🎅 Write to Santa! 🎄
-          </h2>
-          <p className="text-lg">Send your Christmas wishes to the North Pole!</p>
-          
+        <div>
+          <span className="sp-eyebrow">North Pole mail</span>
+          <h2 id="santa-dialog-title" className="sp-display sp-h2">Write to Santa</h2>
+          <p className="sp-muted mt-1 text-sm">Send your Christmas wishes to the North Pole!</p>
+
           {/* Letter Count Display */}
           {!loadingLimit && parentEmail && parentEmail.includes('@') && (
-            <div className="mt-4 inline-block bg-white/20 backdrop-blur-sm px-6 py-2 rounded-full">
-              <span className="text-sm font-semibold">
-                Letters today: {' '}
-                <span className={letterCount >= dailyLimit ? 'text-yellow-300' : 'text-green-200'}>
-                  {letterCount}/{dailyLimit}
-                </span>
-                {letterCount < dailyLimit && (
-                  <span className="ml-2 text-green-200">
-                    ({dailyLimit - letterCount} remaining)
-                  </span>
-                )}
-              </span>
-            </div>
+            <p className="sp-chip mt-3 inline-block rounded-full px-3 py-1 text-xs font-semibold">
+              Letters today: <span className="sp-highlight">{letterCount}/{dailyLimit}</span>
+              {letterCount < dailyLimit && <span> ({dailyLimit - letterCount} remaining)</span>}
+            </p>
           )}
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           {/* Success/Error Message */}
           {submitStatus.type && (
-            <div
-              className={`p-4 rounded-lg border-2 ${
-                submitStatus.type === 'success'
-                  ? 'bg-green-100 border-green-500 text-green-800'
-                  : 'bg-red-100 border-red-500 text-red-800'
-              }`}
-            >
-              <p className="font-semibold text-center">{submitStatus.message}</p>
+            <div className="sp-row p-3" role={submitStatus.type === 'error' ? 'alert' : 'status'}>
+              <p className={`whitespace-pre-line text-center font-semibold ${submitStatus.type === 'success' ? 'sp-soft' : 'text-red-300'}`}>
+                {submitStatus.message}
+              </p>
             </div>
           )}
 
           {/* Child Name */}
           <div>
-            <label htmlFor="childName" className="block text-lg font-semibold text-gray-800 mb-2">
-              Child's Name <span className="text-red-600">*</span>
+            <label htmlFor="childName" className="block text-sm font-semibold">
+              Child&apos;s Name {required}
             </label>
             <input
               type="text"
@@ -235,7 +227,7 @@ export default function LetterToSantaModal({ isOpen, onClose }: LetterToSantaMod
               onChange={(e) => setChildName(e.target.value)}
               required
               maxLength={100}
-              className="w-full px-4 py-3 border-2 border-red-300 rounded-lg focus:outline-none focus:border-red-500 bg-white text-gray-900"
+              className={inputClass}
               placeholder="Enter child's name"
               disabled={isSubmitting}
             />
@@ -243,8 +235,8 @@ export default function LetterToSantaModal({ isOpen, onClose }: LetterToSantaMod
 
           {/* Child Age */}
           <div>
-            <label htmlFor="childAge" className="block text-lg font-semibold text-gray-800 mb-2">
-              Child's Age (optional)
+            <label htmlFor="childAge" className="block text-sm font-semibold">
+              Child&apos;s Age <span className="sp-muted font-normal">(optional)</span>
             </label>
             <input
               type="number"
@@ -253,7 +245,7 @@ export default function LetterToSantaModal({ isOpen, onClose }: LetterToSantaMod
               onChange={(e) => setChildAge(e.target.value)}
               min="1"
               max="18"
-              className="w-full px-4 py-3 border-2 border-red-300 rounded-lg focus:outline-none focus:border-red-500 bg-white text-gray-900"
+              className={inputClass}
               placeholder="Enter child's age"
               disabled={isSubmitting}
             />
@@ -261,8 +253,8 @@ export default function LetterToSantaModal({ isOpen, onClose }: LetterToSantaMod
 
           {/* Parent Email */}
           <div>
-            <label htmlFor="parentEmail" className="block text-lg font-semibold text-gray-800 mb-2">
-              Parent's Email <span className="text-red-600">*</span>
+            <label htmlFor="parentEmail" className="block text-sm font-semibold">
+              Parent&apos;s Email {required}
             </label>
             <input
               type="email"
@@ -270,19 +262,19 @@ export default function LetterToSantaModal({ isOpen, onClose }: LetterToSantaMod
               value={parentEmail}
               onChange={(e) => setParentEmail(e.target.value)}
               required
-              className="w-full px-4 py-3 border-2 border-red-300 rounded-lg focus:outline-none focus:border-red-500 bg-white text-gray-900"
+              className={inputClass}
               placeholder="Santa will send a reply here!"
               disabled={isSubmitting}
             />
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="sp-muted mt-1 text-xs">
               We&apos;ll email you a link to confirm first, then Santa&apos;s magical reply comes here! 📧✨
             </p>
           </div>
 
           {/* Letter Content */}
           <div>
-            <label htmlFor="letterContent" className="block text-lg font-semibold text-gray-800 mb-2">
-              Your Letter to Santa <span className="text-red-600">*</span>
+            <label htmlFor="letterContent" className="block text-sm font-semibold">
+              Your Letter to Santa {required}
             </label>
             <textarea
               id="letterContent"
@@ -291,54 +283,52 @@ export default function LetterToSantaModal({ isOpen, onClose }: LetterToSantaMod
               required
               maxLength={2000}
               rows={8}
-              className="w-full px-4 py-3 border-2 border-red-300 rounded-lg focus:outline-none focus:border-red-500 bg-white text-gray-900 resize-none"
+              className={`${inputClass} resize-none`}
               placeholder="Dear Santa,&#10;&#10;This year I have been very good! I would like to tell you about..."
               disabled={isSubmitting}
             />
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="sp-muted mt-1 text-xs tabular-nums">
               {letterContent.length} / 2000 characters
             </p>
           </div>
 
           {/* Submit Button */}
-          <div className="flex justify-center pt-4">
-            <button
-              type="submit"
-              disabled={isSubmitting || letterCount >= dailyLimit}
-              className="px-8 py-4 bg-linear-to-r from-red-600 to-green-600 text-white text-xl font-bold rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-            >
-              {isSubmitting ? (
-                <span className="flex items-center gap-2">
-                  <svg className="animate-spin h-6 w-6" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Sending to the North Pole...
-                </span>
-              ) : letterCount >= dailyLimit ? (
-                '🎄 Daily Limit Reached 🎄'
-              ) : (
-                '🎁 Send to Santa! 🎁'
-              )}
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={isSubmitting || letterCount >= dailyLimit}
+            className="sp-btn-accent flex min-h-12 w-full items-center justify-center rounded-full px-6 font-extrabold transition disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isSubmitting ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Sending to the North Pole...
+              </span>
+            ) : letterCount >= dailyLimit ? (
+              '🎄 Daily Limit Reached 🎄'
+            ) : (
+              '🎁 Send to Santa! 🎁'
+            )}
+          </button>
 
           {/* Footer note */}
-          <div className="text-center text-sm text-gray-600 pt-4 border-t-2 border-red-200">
-            <p className="mb-1">
+          <div className="sp-row sp-muted space-y-1.5 p-3 text-center text-xs">
+            <p className="text-sm">
               {submitStatus.type === 'success' ? (
                 letterCount < dailyLimit ? (
-                  <span className="text-green-600 font-semibold">
+                  <span className="sp-soft font-semibold">
                     🎄 Thank you! You can send {dailyLimit - letterCount} more letter{(dailyLimit - letterCount) > 1 ? 's' : ''} today. 🎄
                   </span>
                 ) : (
-                  <span className="text-orange-600 font-semibold">
-                    🎄 You've sent {dailyLimit} letter{dailyLimit > 1 ? 's' : ''} today. Come back tomorrow for more! 🎄
+                  <span className="sp-highlight font-semibold">
+                    🎄 You&apos;ve sent {dailyLimit} letter{dailyLimit > 1 ? 's' : ''} today. Come back tomorrow for more! 🎄
                   </span>
                 )
               ) : letterCount >= dailyLimit ? (
-                <span className="text-orange-600 font-semibold">
-                  🎄 You've sent {dailyLimit} letter{dailyLimit > 1 ? 's' : ''} today. Come back tomorrow for more! 🎄
+                <span className="sp-highlight font-semibold">
+                  🎄 You&apos;ve sent {dailyLimit} letter{dailyLimit > 1 ? 's' : ''} today. Come back tomorrow for more! 🎄
                 </span>
               ) : (
                 <span>
@@ -347,19 +337,18 @@ export default function LetterToSantaModal({ isOpen, onClose }: LetterToSantaMod
                 </span>
               )}
             </p>
-            <p className="text-xs">
-              ✉️ Click the link in the confirmation email and your letter goes to Santa's workshop. He'll send a personalized reply soon after!
+            <p>
+              ✉️ Click the link in the confirmation email and your letter goes to Santa&apos;s workshop. He&apos;ll send a personalized reply soon after!
             </p>
-            <p className="text-xs text-gray-500 mt-2">
+            <p>
               🔒 We track letters by both email address and location to ensure fair access for all children.
             </p>
           </div>
         </form>
 
-        {/* Decorative footer */}
-        <div className="bg-linear-to-r from-red-600 to-green-600 p-4 text-center text-white text-sm">
-          ✨ Magical delivery powered by Santa's elves at the North Pole! ✨
-        </div>
+        <p className="sp-muted mt-4 text-center text-xs">
+          ✨ Magical delivery powered by Santa&apos;s elves at the North Pole! ✨
+        </p>
       </div>
     </div>
   );

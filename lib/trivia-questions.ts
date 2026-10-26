@@ -1,3 +1,4 @@
+import type BetterSqlite3 from 'better-sqlite3';
 import type { TriviaQuestionRow } from '@/types/trivia';
 
 export interface TriviaQuestionRawRow {
@@ -22,6 +23,11 @@ export function mapQuestionRow(row: TriviaQuestionRawRow): TriviaQuestionRow {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+export function getQuestionById(db: BetterSqlite3.Database, id: number): TriviaQuestionRow | null {
+  const row = db.prepare('SELECT * FROM trivia_questions WHERE id = ?').get(id) as TriviaQuestionRawRow | undefined;
+  return row ? mapQuestionRow(row) : null;
 }
 
 export interface ValidatedQuestion {

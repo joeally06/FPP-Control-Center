@@ -1,11 +1,14 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import type { TriviaBroadcastState, TriviaQuestionRow, TriviaSessionRow } from '@/types/trivia';
-import { X, ChevronUp, ChevronDown, Play, Eye, SkipForward, Square } from 'lucide-react';
-import { insetBox, button, accentButton, dangerButton, smallButton, field, sizedField, textLink, notice, badge, tabClass } from '@/components/admin/ui-classes';
+import { useEffect, useState } from 'react';
+import type { TriviaQuestionRow } from '@/types/trivia';
+import { X } from 'lucide-react';
+import { insetBox, button, accentButton, field, sizedField, textLink, notice, tabClass } from '@/components/admin/ui-classes';
+import { TRIVIA_SETTING_LIMITS } from '@/lib/trivia-logic';
 
-type SubTab = 'bank' | 'sessions' | 'host';
+type SubTab = 'bank' | 'game';
+
+const { trivia_questions_per_game: QUESTIONS_LIMITS, trivia_seconds_per_question: SECONDS_LIMITS } = TRIVIA_SETTING_LIMITS;
 
 const EMPTY_FORM = {
   category: 'General',
@@ -18,7 +21,6 @@ const EMPTY_FORM = {
 export default function TriviaSettings() {
   const [subTab, setSubTab] = useState<SubTab>('bank');
   const [questions, setQuestions] = useState<TriviaQuestionRow[]>([]);
-  const [sessions, setSessions] = useState<TriviaSessionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -26,30 +28,13 @@ export default function TriviaSettings() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const [newSessionName, setNewSessionName] = useState('');
-  const [secondsPerQuestion, setSecondsPerQuestion] = useState(20);
-  const [selectedQuestionIds, setSelectedQuestionIds] = useState<number[]>([]);
-  const [creatingSession, setCreatingSession] = useState(false);
-
-  const [triviaLive, setTriviaLive] = useState<TriviaBroadcastState | null>(null);
-  const [hostBusy, setHostBusy] = useState(false);
+  const [questionsPerGame, setQuestionsPerGame] = useState<number>(QUESTIONS_LIMITS.default);
+  const [secondsPerQuestion, setSecondsPerQuestion] = useState<number>(SECONDS_LIMITS.default);
+  const [savingGame, setSavingGame] = useState(false);
 
   useEffect(() => {
     void refreshAll();
   }, []);
-
-  useEffect(() => {
-    if (subTab !== 'host') return;
-    const es = new EventSource('/api/trivia/stream');
-    es.onmessage = (event) => {
-      try {
-        setTriviaLive(JSON.parse(event.data as string));
-      } catch {
-        // ignore malformed frames
-      }
-    };
-    return () => es.close();
-  }, [subTab]);
 
   function flash(type: 'success' | 'error', text: string) {
     setMessage({ type, text });
@@ -59,17 +44,17 @@ export default function TriviaSettings() {
   async function refreshAll() {
     setLoading(true);
     try {
-      const [qRes, sRes] = await Promise.all([fetch('/api/trivia/questions'), fetch('/api/trivia/sessions')]);
+      const [qRes, sRes] = await Promise.all([fetch('/api/trivia/questions'), fetch('/api/settings')]);
       setQuestions(qRes.ok ? await qRes.json() : []);
-      setSessions(sRes.ok ? await sRes.json() : []);
+      const settings: Record<string, string> = sRes.ok ? (await sRes.json()).settings ?? {} : {};
+      setQuestionsPerGame(parseInt(settings.trivia_questions_per_game || String(QUESTIONS_LIMITS.default), 10));
+      setSecondsPerQuestion(parseInt(settings.trivia_seconds_per_question || String(SECONDS_LIMITS.default), 10));
     } catch {
       flash('error', 'Failed to load trivia data');
     } finally {
       setLoading(false);
     }
   }
-
-  const activeSession = useMemo(() => sessions.find((s) => s.status === 'active') ?? null, [sessions]);
 
   // ─── Question bank ─────────────────────────────────────────────────────
 
@@ -140,86 +125,37 @@ export default function TriviaSettings() {
         flash('error', data.error || 'Failed to delete question');
         return;
       }
-      setSelectedQuestionIds((ids) => ids.filter((i) => i !== id));
       await refreshAll();
     } catch {
       flash('error', 'Failed to delete question');
     }
   }
 
-  // ─── Sessions ───────────────────────────────────────────────────────────
+  // ─── Game settings ─────────────────────────────────────────────────────
 
-  function toggleQuestionSelection(id: number) {
-    setSelectedQuestionIds((ids) => (ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id]));
-  }
-
-  function moveSelected(id: number, dir: -1 | 1) {
-    setSelectedQuestionIds((ids) => {
-      const idx = ids.indexOf(id);
-      const newIdx = idx + dir;
-      if (idx < 0 || newIdx < 0 || newIdx >= ids.length) return ids;
-      const copy = [...ids];
-      [copy[idx], copy[newIdx]] = [copy[newIdx], copy[idx]];
-      return copy;
-    });
-  }
-
-  async function createSession() {
-    if (!newSessionName.trim() || selectedQuestionIds.length === 0) return;
-    setCreatingSession(true);
+  async function saveGameSettings() {
+    setSavingGame(true);
     try {
-      const res = await fetch('/api/trivia/sessions', {
-        method: 'POST',
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newSessionName.trim(), questionIds: selectedQuestionIds, secondsPerQuestion }),
+        body: JSON.stringify({
+          settings: {
+            trivia_questions_per_game: String(questionsPerGame),
+            trivia_seconds_per_question: String(secondsPerQuestion),
+          },
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
-        flash('error', data.error || 'Failed to create session');
+        flash('error', data.error || 'Failed to save game settings');
         return;
       }
-      flash('success', 'Session created');
-      setNewSessionName('');
-      setSelectedQuestionIds([]);
-      await refreshAll();
+      flash('success', 'Game settings saved');
     } catch {
-      flash('error', 'Failed to create session');
+      flash('error', 'Failed to save game settings');
     } finally {
-      setCreatingSession(false);
-    }
-  }
-
-  async function activateSession(id: number) {
-    try {
-      const res = await fetch(`/api/trivia/sessions/${id}/activate`, { method: 'POST' });
-      if (!res.ok) {
-        const data = await res.json();
-        flash('error', data.error || 'Failed to activate session');
-        return;
-      }
-      flash('success', 'Session activated - it will start itself as soon as someone taps Play Trivia on their phone');
-      setSubTab('host');
-      await refreshAll();
-    } catch {
-      flash('error', 'Failed to activate session');
-    }
-  }
-
-  // ─── Host controls ──────────────────────────────────────────────────────
-
-  async function hostAction(action: 'start' | 'reveal' | 'next' | 'end') {
-    setHostBusy(true);
-    try {
-      const res = await fetch(`/api/trivia/host/${action}`, { method: 'POST' });
-      if (!res.ok) {
-        const data = await res.json();
-        flash('error', data.error || `Failed to ${action}`);
-      }
-      await refreshAll();
-    } catch {
-      flash('error', `Failed to ${action}`);
-    } finally {
-      setHostBusy(false);
+      setSavingGame(false);
     }
   }
 
@@ -232,14 +168,14 @@ export default function TriviaSettings() {
   return (
     <div className="space-y-5">
       <div className="flex gap-1 overflow-x-auto border-b border-adm-line">
-        {(['bank', 'sessions', 'host'] as SubTab[]).map((tab) => (
+        {(['bank', 'game'] as SubTab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setSubTab(tab)}
             aria-pressed={subTab === tab}
             className={tabClass(subTab === tab)}
           >
-            {tab === 'bank' ? 'Question Bank' : tab === 'sessions' ? 'Sessions' : 'Host Controls'}
+            {tab === 'bank' ? 'Question Bank' : 'Game'}
           </button>
         ))}
       </div>
@@ -356,163 +292,45 @@ export default function TriviaSettings() {
         </div>
       )}
 
-      {subTab === 'sessions' && (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className={`${insetBox} space-y-3`}>
-            <h3 className={panelTitle}>Build a Session</h3>
+      {subTab === 'game' && (
+        <div className={`${insetBox} max-w-xl space-y-4`}>
+          <p className="text-sm text-adm-soft">
+            Visitors play on their own phone from the Christmas trivia card on the jukebox page (or directly at{' '}
+            <a href="/trivia" target="_blank" rel="noopener noreferrer" className={textLink}>/trivia</a>), whenever they like. Each game draws random questions from the bank, gives a timer for each one, and shows
+            right or wrong straight away. The end screen shows tonight&apos;s top 10 scores.
+          </p>
+          <div className="flex items-center gap-3">
+            <label htmlFor="trivia-questions-per-game" className="text-sm text-adm-soft">Questions per game</label>
             <input
-              type="text"
-              value={newSessionName}
-              onChange={(e) => setNewSessionName(e.target.value)}
-              placeholder="Session name (e.g. Christmas Eve Trivia)"
-              aria-label="Session name"
-              className={field}
+              id="trivia-questions-per-game"
+              type="number"
+              value={questionsPerGame}
+              onChange={(e) => setQuestionsPerGame(Number(e.target.value))}
+              min={QUESTIONS_LIMITS.min}
+              max={QUESTIONS_LIMITS.max}
+              className={`${sizedField} w-24`}
             />
-            <div className="flex items-center gap-3">
-              <label htmlFor="trivia-seconds" className="text-sm text-adm-soft">Seconds per question</label>
-              <input
-                id="trivia-seconds"
-                type="number"
-                value={secondsPerQuestion}
-                onChange={(e) => setSecondsPerQuestion(Number(e.target.value))}
-                min={5}
-                max={120}
-                className={`${sizedField} w-24`}
-              />
-            </div>
-            <p className="text-sm text-adm-muted">Select questions ({selectedQuestionIds.length} chosen), then reorder:</p>
-            <div className="max-h-48 space-y-1 overflow-y-auto">
-              {questions.map((q) => (
-                <label key={q.id} className="flex min-h-9 cursor-pointer items-center gap-2.5 rounded-lg px-2 text-sm text-adm-soft hover:bg-adm-hover">
-                  <input
-                    type="checkbox"
-                    checked={selectedQuestionIds.includes(q.id)}
-                    onChange={() => toggleQuestionSelection(q.id)}
-                    className="h-4 w-4 shrink-0 accent-adm-accent"
-                  />
-                  {q.questionText}
-                </label>
-              ))}
-            </div>
-            {selectedQuestionIds.length > 0 && (
-              <div className="space-y-1">
-                {selectedQuestionIds.map((id, i) => {
-                  const q = questions.find((qq) => qq.id === id);
-                  return (
-                    <div key={id} className="flex items-center justify-between gap-2 rounded-lg border border-adm-line bg-adm-surface px-2.5 py-1 text-sm">
-                      <span className="text-adm-soft">{i + 1}. {q?.questionText}</span>
-                      <div className="flex shrink-0 gap-1">
-                        <button onClick={() => moveSelected(id, -1)} aria-label="Move up" className="grid h-8 w-8 place-items-center rounded-lg text-adm-muted hover:bg-adm-hover hover:text-adm-text">
-                          <ChevronUp className="h-4 w-4" aria-hidden="true" />
-                        </button>
-                        <button onClick={() => moveSelected(id, 1)} aria-label="Move down" className="grid h-8 w-8 place-items-center rounded-lg text-adm-muted hover:bg-adm-hover hover:text-adm-text">
-                          <ChevronDown className="h-4 w-4" aria-hidden="true" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            <button
-              onClick={createSession}
-              disabled={creatingSession || !newSessionName.trim() || selectedQuestionIds.length === 0}
-              className={`${accentButton} w-full`}
-            >
-              {creatingSession ? 'Creating…' : 'Create Session'}
-            </button>
           </div>
-
-          <div className={insetBox}>
-            <h3 className={panelTitle}>All Sessions</h3>
-            <div className="space-y-2">
-              {sessions.map((s) => (
-                <div key={s.id} className="flex items-center justify-between gap-2 rounded-lg border border-adm-line bg-adm-surface p-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-adm-text">{s.name}</p>
-                    <p className="text-xs text-adm-muted">{s.questionIds.length} questions · {s.status}</p>
-                  </div>
-                  {s.status === 'draft' && (
-                    <button
-                      onClick={() => activateSession(s.id)}
-                      className={`${smallButton} shrink-0`}
-                    >
-                      Activate
-                    </button>
-                  )}
-                  {s.status === 'active' && <span className={`${badge.ok} shrink-0`}>Live</span>}
-                </div>
-              ))}
-              {sessions.length === 0 && <p className="text-sm text-adm-muted">No sessions yet.</p>}
-            </div>
+          <div className="flex items-center gap-3">
+            <label htmlFor="trivia-seconds" className="text-sm text-adm-soft">Seconds per question</label>
+            <input
+              id="trivia-seconds"
+              type="number"
+              value={secondsPerQuestion}
+              onChange={(e) => setSecondsPerQuestion(Number(e.target.value))}
+              min={SECONDS_LIMITS.min}
+              max={SECONDS_LIMITS.max}
+              className={`${sizedField} w-24`}
+            />
           </div>
-        </div>
-      )}
-
-      {subTab === 'host' && (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className={`${insetBox} space-y-4`}>
+          {questions.length < questionsPerGame && (
             <p className="text-xs text-adm-muted">
-              Trivia runs itself once a session is activated - the first phone to tap Play Trivia starts the round,
-              questions auto-advance on a timer, and it resets itself for the next group when it ends. The buttons
-              below are just manual overrides if you need to step in.
+              The bank has {questions.length} question{questions.length === 1 ? '' : 's'}, so games will use all of them.
             </p>
-            {!activeSession ? (
-              <p className="text-sm text-adm-soft">No session is active. Activate one from the Sessions tab to arm it.</p>
-            ) : (
-              <>
-                <div>
-                  <p className="font-semibold text-adm-text">{activeSession.name}</p>
-                  <p className="text-sm text-adm-muted">
-                    Phase: <span className="font-semibold text-adm-text">{triviaLive?.phase ?? activeSession.phase}</span>
-                    {triviaLive?.questionNumber && ` · Question ${triviaLive.questionNumber}/${triviaLive.totalQuestions}`}
-                  </p>
-                  <p className="text-sm text-adm-muted">
-                    {triviaLive?.playersJoined ?? 0} joined
-                    {triviaLive?.phase === 'question' && ` · ${triviaLive.answeredCount} answered`}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => hostAction('start')}
-                    disabled={hostBusy || (triviaLive?.phase ?? activeSession.phase) !== 'lobby'}
-                    className={accentButton}
-                  >
-                    <Play className="h-4 w-4" aria-hidden="true" />
-                    Force Start
-                  </button>
-                  <button
-                    onClick={() => hostAction('reveal')}
-                    disabled={hostBusy || (triviaLive?.phase ?? activeSession.phase) !== 'question'}
-                    className={button}
-                  >
-                    <Eye className="h-4 w-4" aria-hidden="true" />
-                    Reveal Now
-                  </button>
-                  <button
-                    onClick={() => hostAction('next')}
-                    disabled={hostBusy || (triviaLive?.phase ?? activeSession.phase) !== 'reveal'}
-                    className={button}
-                  >
-                    <SkipForward className="h-4 w-4" aria-hidden="true" />
-                    Next Question
-                  </button>
-                  <button
-                    onClick={() => hostAction('end')}
-                    disabled={hostBusy || (triviaLive?.phase ?? activeSession.phase) === 'ended'}
-                    className={dangerButton}
-                  >
-                    <Square className="h-4 w-4" aria-hidden="true" />
-                    End &amp; Deactivate
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-
-          <div className="overflow-hidden rounded-xl border border-adm-line bg-black" style={{ aspectRatio: '16/9', position: 'relative' }}>
-            <iframe src="/display" className="absolute inset-0 w-full h-full border-0" title="TV display live preview" />
-          </div>
+          )}
+          <button onClick={saveGameSettings} disabled={savingGame} className={accentButton}>
+            {savingGame ? 'Saving…' : 'Save'}
+          </button>
         </div>
       )}
     </div>
