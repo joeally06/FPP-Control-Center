@@ -1,8 +1,38 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-helpers';
-import { clearCachedSequences, insertCachedSequence, upsertSongDuration } from '@/lib/database';
+import db, { clearCachedSequences, insertCachedSequence, upsertSongDuration } from '@/lib/database';
 import { getFppUrl } from '@/lib/fpp-config';
 import { toSongDuration } from '@/lib/jukebox-display';
+import { playlistDetails, syncJukeboxPlaylists, type FppPlaylistJson, type PlaylistDetails } from '@/lib/jukebox-playlists';
+
+// GET with a 5 second timeout; null when FPP doesn't answer or answers with an error
+async function fetchFppJson(path: string): Promise<unknown> {
+  try {
+    const response = await fetch(`${getFppUrl()}${path}`, { signal: AbortSignal.timeout(5000), cache: 'no-store' });
+    return response.ok ? await response.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Update the list of playlists visitors can be offered (Settings → Jukebox → Playlists).
+ * `loaded` holds playlists already fetched for the song cache. Returns how many FPP has,
+ * or null when FPP's playlist list couldn't be read (the stored list is then left alone).
+ */
+async function refreshPlaylists(loaded: Map<string, FppPlaylistJson>): Promise<number | null> {
+  const names = await fetchFppJson('/api/playlists');
+  if (!Array.isArray(names)) return null;
+
+  const playlistNames = names.filter((name): name is string => typeof name === 'string' && name.trim() !== '');
+  const details = new Map<string, PlaylistDetails>();
+  for (const name of playlistNames) {
+    const playlist = loaded.get(name) ?? await fetchFppJson(`/api/playlist/${encodeURIComponent(name)}`);
+    if (playlist && typeof playlist === 'object') details.set(name, playlistDetails(playlist as FppPlaylistJson));
+  }
+  syncJukeboxPlaylists(db, playlistNames, details);
+  return playlistNames.length;
+}
 
 /**
  * POST /api/jukebox/refresh-cache
@@ -101,6 +131,7 @@ export async function POST() {
     // Use an array to preserve playlist order
     const sequenceList: { name: string; order: number; duration: number | null }[] = [];
     const seenSequences = new Set<string>();
+    const loadedPlaylists = new Map<string, FppPlaylistJson>();
     let orderIndex = 0;
     
     for (const playlistName of playlistNames) {
@@ -116,6 +147,7 @@ export async function POST() {
         
         if (playlistResponse.ok) {
           const playlist = await playlistResponse.json();
+          loadedPlaylists.set(playlistName, playlist);
           
           // Helper function to add sequences with order
           const addSequence = (item: any) => {
@@ -162,9 +194,12 @@ export async function POST() {
       }
     }
 
+    const playlistsCached = await refreshPlaylists(loadedPlaylists);
+
     return NextResponse.json({
       success: true,
       sequencesCached: sequenceList.length,
+      playlistsCached,
       sequences: sequenceList.map(s => s.name)
     });
   } catch (error: any) {

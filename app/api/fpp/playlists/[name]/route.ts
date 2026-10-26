@@ -36,9 +36,12 @@ export async function GET(
     if (cached?.raw_data) {
       try {
         const data = JSON.parse(cached.raw_data);
-        console.log(`[Playlist Details] Returning cached data for: ${playlistName}`);
-        db.close();
-        return NextResponse.json(data);
+        // Older versions cached FPP's "" for names that aren't playlists; ignore those rows
+        if (data && typeof data === 'object' && !Array.isArray(data)) {
+          console.log(`[Playlist Details] Returning cached data for: ${playlistName}`);
+          db.close();
+          return NextResponse.json(data);
+        }
       } catch (parseError) {
         console.warn(`[Playlist Details] Failed to parse cached data for ${playlistName}`);
         // Continue to fetch from FPP
@@ -65,6 +68,12 @@ export async function GET(
     }
 
     const data = await response.json();
+
+    // A jukebox song plays as a one-song "playlist" named after its .fseq; FPP answers "" for
+    // that name. Only a JSON object is a playlist - don't cache or return anything else.
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      return NextResponse.json({ error: 'Playlist not found' }, { status: 404 });
+    }
 
     // Cache the result in database
     try {

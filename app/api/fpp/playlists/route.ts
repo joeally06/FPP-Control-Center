@@ -31,10 +31,12 @@ export async function GET() {
     if (cachedPlaylists.length > 0) {
       console.log(`[FPP Playlists] Returning ${cachedPlaylists.length} playlists from cache`);
       
-      // Parse raw_data JSON for each playlist
-      const parsedPlaylists = cachedPlaylists.map((playlist: any) => {
+      // Parse raw_data JSON for each playlist; rows that aren't a playlist object
+      // (FPP's "" cached for a jukebox song's .fseq name) are left out
+      const parsedPlaylists = cachedPlaylists.flatMap((playlist: any) => {
         try {
-          return JSON.parse(playlist.raw_data);
+          const parsed = JSON.parse(playlist.raw_data);
+          return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? [parsed] : [];
         } catch {
           // Fallback to basic structure if JSON parse fails
           return {

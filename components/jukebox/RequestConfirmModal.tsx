@@ -14,6 +14,8 @@ interface RequestConfirmModalProps {
   onRequesterNameChange: (name: string) => void;
   onConfirm: () => void;
   onCancel: () => void;
+  /** Dialog heading; defaults to "Request this song?" */
+  heading?: string;
 }
 
 function waitText(position: number, currentRemainingSec: number | null, waitSec: number | null): string {
@@ -35,6 +37,7 @@ export default function RequestConfirmModal({
   onRequesterNameChange,
   onConfirm,
   onCancel,
+  heading = 'Request this song?',
 }: RequestConfirmModalProps) {
   const details = songDetailsLine(song);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -67,7 +70,7 @@ export default function RequestConfirmModal({
         className="sp-modal w-full max-w-md rounded-[1.25rem] p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="request-dialog-title" className="sp-eyebrow">Request this song?</h2>
+        <h2 id="request-dialog-title" className="sp-eyebrow">{heading}</h2>
         <p className="sp-display sp-title mt-2 text-2xl leading-tight">{song.title || song.name}</p>
         {details && <p className="sp-muted text-sm">{details}</p>}
         <p className="mt-2 text-sm">{waitText(position, currentRemainingSec, waitSec)}</p>

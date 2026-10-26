@@ -26,6 +26,7 @@ import CourtesyCard from '@/components/jukebox/CourtesyCard';
 import NowPlayingCard, { type NowPlayingInfo } from '@/components/jukebox/NowPlayingCard';
 import UpNextList from '@/components/jukebox/UpNextList';
 import SongCatalog from '@/components/jukebox/SongCatalog';
+import PlaylistPicker from '@/components/jukebox/PlaylistPicker';
 import RequestConfirmModal from '@/components/jukebox/RequestConfirmModal';
 import ShowSpecsCard from '@/components/jukebox/ShowSpecsCard';
 import { formatDateTime } from '@/lib/time-utils';
@@ -35,6 +36,7 @@ import {
   estimateWaits,
   msUntilSongChange,
   nextPlaybackAnchor,
+  playlistDetailsLine,
   sampleTimeFromAge,
   showStatus,
   stripFseq,
@@ -42,6 +44,7 @@ import {
   type PlaybackAnchor,
   type PublicQueueItem,
   type ShowSpec,
+  type VisitorPlaylist,
 } from '@/lib/jukebox-display';
 import { TIMING } from '@/lib/constants';
 
@@ -53,6 +56,7 @@ interface CurrentlyPlaying {
   played_at?: string | null;
   cached?: boolean; // Whether data is from cache or direct FPP query
   cache_age_seconds?: number; // Age of cached data in seconds
+  playlist_name?: string; // Set while a visitor-requested playlist is playing
 }
 
 interface SequenceMetadata {
@@ -133,6 +137,8 @@ export default function JukeboxPage() {
   const [listening, setListening] = useState(false);
   const playerRef = useRef<HTMLDivElement>(null);
   const [confirmSong, setConfirmSong] = useState<CatalogSong | null>(null);
+  const [playlists, setPlaylists] = useState<VisitorPlaylist[]>([]);
+  const [confirmPlaylist, setConfirmPlaylist] = useState<VisitorPlaylist | null>(null);
   // Playback position reported by the FPP poller cache (/api/fpp/cached-status)
   const [fppProgress, setFppProgress] = useState<PlaybackAnchor | null>(null);
   const fetchDataRef = useRef<(() => Promise<void>) | null>(null);
@@ -445,6 +451,7 @@ export default function JukeboxPage() {
 
   useEffect(() => {
     fetchAvailableSequences();
+    fetchPlaylists();
     fetchData();
     fetchYouTubeVideos();
     fetchScheduleStatus(); // Check schedule status
@@ -748,6 +755,19 @@ export default function JukeboxPage() {
     }
   };
 
+  // Playlists tagged with the active theme (re-read on page load)
+  const fetchPlaylists = async () => {
+    try {
+      const response = await fetch('/api/jukebox/playlists');
+      if (response.ok) {
+        const data = await response.json();
+        setPlaylists(Array.isArray(data.playlists) ? data.playlists : []);
+      }
+    } catch (error) {
+      console.error('[Jukebox] Error fetching playlists:', error);
+    }
+  };
+
   const refreshSequenceCache = async () => {
     if (!isAdmin) {
       setMessage('⚠️ Only admins can refresh the song cache.');
@@ -789,7 +809,7 @@ export default function JukeboxPage() {
 
   // Helper function to submit a request (can be called directly or as pending action)
   // locationOverride is passed when called from handleLocationGranted (before state updates)
-  const submitRequest = async (sequenceName: string, requesterNameValue: string, locationOverride?: UserLocation) => {
+  const submitRequest = async (sequenceName: string, requesterNameValue: string, locationOverride?: UserLocation, isPlaylist = false) => {
     setLoading(true);
     setMessage('');
     setLocationError(null);
@@ -805,7 +825,7 @@ export default function JukeboxPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          sequence_name: sequenceName,
+          [isPlaylist ? 'playlist_name' : 'sequence_name']: sequenceName,
           requester_name: requesterNameValue || undefined,
           userLocation: locationToUse
         }),
@@ -857,6 +877,19 @@ export default function JukeboxPage() {
     }
 
     await submitRequest(capturedSong, capturedName);
+  };
+
+  // Same flow for a whole playlist
+  const confirmPlaylistRequest = async () => {
+    if (!confirmPlaylist) return;
+    const capturedPlaylist = confirmPlaylist.name;
+    const capturedName = requesterName.trim();
+    setConfirmPlaylist(null);
+
+    const hasLocation = await ensureLocationPermission((location?: UserLocation) => submitRequest(capturedPlaylist, capturedName, location, true));
+    if (!hasLocation) return;
+
+    await submitRequest(capturedPlaylist, capturedName, undefined, true);
   };
 
   const updateStatus = async (id: number, status: string) => {
@@ -972,9 +1005,15 @@ export default function JukeboxPage() {
 
   // Queue titles and wait estimates from the catalog (lengths are known after the admin refreshes the song cache)
   const songByName = new Map(availableSongs.map((song) => [song.name, song]));
-  const queueSongs = queue.map((item) => songByName.get(stripFseq(item.sequence_name)));
-  const queueTitles = queue.map((item, i) => queueSongs[i]?.title || item.sequence_name);
-  const queueDurations = queueSongs.map((song) => song?.durationSeconds ?? null);
+  const playlistByName = new Map(playlists.map((playlist) => [playlist.name, playlist]));
+  const queueSongs = queue.map((item) => (item.request_kind === 'playlist' ? undefined : songByName.get(stripFseq(item.sequence_name))));
+  const queueTitles = queue.map((item, i) =>
+    item.request_kind === 'playlist' ? `${item.sequence_name} (playlist)` : queueSongs[i]?.title || item.sequence_name
+  );
+  const queueDurations = queue.map((item, i) =>
+    item.request_kind === 'playlist' ? playlistByName.get(item.sequence_name)?.durationSeconds ?? null : queueSongs[i]?.durationSeconds ?? null
+  );
+  const queuedPlaylists = queue.filter((item) => item.request_kind === 'playlist').map((item) => item.sequence_name);
   const queueWaits = estimateWaits(currentRemainingSec, queueDurations);
   // A new request joins the end of the queue: its wait is one step past the last queued song
   const newRequestWait = estimateWaits(currentRemainingSec, [...queueDurations, null])[queue.length];
@@ -1018,6 +1057,26 @@ export default function JukeboxPage() {
           onRequesterNameChange={setRequesterName}
           onConfirm={confirmRequest}
           onCancel={() => setConfirmSong(null)}
+        />
+      )}
+
+      {confirmPlaylist && (
+        <RequestConfirmModal
+          song={{
+            name: confirmPlaylist.name,
+            title: confirmPlaylist.name,
+            artist: playlistDetailsLine({ itemCount: confirmPlaylist.itemCount, durationSeconds: null }),
+            durationSeconds: confirmPlaylist.durationSeconds,
+            category: null,
+          }}
+          heading="Request this playlist?"
+          position={queue.length + 1}
+          currentRemainingSec={currentRemainingSec}
+          waitSec={newRequestWait}
+          requesterName={requesterName}
+          onRequesterNameChange={setRequesterName}
+          onConfirm={confirmPlaylistRequest}
+          onCancel={() => setConfirmPlaylist(null)}
         />
       )}
 
@@ -1168,7 +1227,7 @@ export default function JukeboxPage() {
                 loading={loadingSequences}
                 message={checkingLocation ? '📍 Getting your location…' : message}
                 currentSequence={currentSequenceName}
-                queuedNames={queue.map((item) => item.sequence_name)}
+                queuedNames={queue.filter((item) => item.request_kind !== 'playlist').map((item) => item.sequence_name)}
                 requestsRemaining={requestsRemaining}
                 rateLimit={jukeboxRateLimit}
                 busy={loading || checkingLocation}
@@ -1188,6 +1247,16 @@ export default function JukeboxPage() {
 
             {/* Side column; a row of cards when requests are closed */}
             <div className={`grid content-start gap-5 ${showInteractiveFeatures ? '' : 'md:grid-cols-2 lg:grid-cols-3'}`}>
+              {showInteractiveFeatures && playlists.length > 0 && (
+                <PlaylistPicker
+                  playlists={playlists}
+                  playingPlaylist={currentlyPlaying?.playlist_name ?? null}
+                  queuedPlaylists={queuedPlaylists}
+                  requestsRemaining={requestsRemaining}
+                  busy={loading || checkingLocation}
+                  onRequest={setConfirmPlaylist}
+                />
+              )}
               {/* Write to Santa (Christmas theme only) */}
               {isChristmasTheme && (
                 <section aria-labelledby="santa-heading" className="sp-panel sp-santa grid gap-3.5">

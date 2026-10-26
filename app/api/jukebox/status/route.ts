@@ -12,7 +12,20 @@ export async function GET() {
 
     if (currentlyPlaying) {
       // Public endpoint: never expose requester IPs or locations
-      return NextResponse.json(toPublicQueueItem(currentlyPlaying));
+      const item = toPublicQueueItem(currentlyPlaying);
+      if (item.request_kind === 'playlist') {
+        // Show the song FPP is playing from the requested playlist, credited to the requester
+        const fppState = getFPPState.get() as { current_sequence?: string | null } | undefined;
+        const playlist = { ...item, playlist_name: item.sequence_name };
+        return NextResponse.json(fppState?.current_sequence
+          ? {
+              ...playlist,
+              sequence_name: fppState.current_sequence,
+              media_name: fppState.current_sequence.replace('.fseq', '.mp3'),
+            }
+          : playlist);
+      }
+      return NextResponse.json(item);
     }
 
     // NEW: Use cached FPP state instead of direct polling

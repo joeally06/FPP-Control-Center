@@ -10,6 +10,7 @@ import {
   updateProcessorState,
   resetProcessorState
 } from '@/lib/database';
+import { insertStartDeadline, queueItemProgress } from '@/lib/jukebox-queue';
 import Database from 'better-sqlite3';
 import path from 'path';
 
@@ -26,6 +27,7 @@ interface QueueItem {
   was_resumed?: boolean;
   started_at?: string;
   duration_ms?: number;
+  request_kind?: string | null;
 }
 
 interface FppStatus {
@@ -46,6 +48,7 @@ interface ProcessorState {
   processing_state: 'IDLE' | 'MONITORING_SEQUENCE';
   sequence_start_time: number | null;
   current_queue_item_id: number | null;
+  start_deadline: number | null;
   last_updated: string;
 }
 
@@ -98,6 +101,18 @@ function getFppCommand(insertMode: string): string {
   return commandMap[insertMode] || commandMap['after_current'];
 }
 
+// Playlist length from the cache filled on song-cache refresh, for the playing-too-long safety cap
+function getPlaylistDuration(name: string): number | null {
+  const dbPath = path.join(process.cwd(), 'votes.db');
+  const db = new Database(dbPath, { readonly: true });
+  try {
+    const row = db.prepare('SELECT duration_seconds FROM jukebox_playlists WHERE name = ?').get(name) as { duration_seconds: number | null } | undefined;
+    return row?.duration_seconds ?? null;
+  } finally {
+    db.close();
+  }
+}
+
 // Helper to make FPP API calls
 async function makeFppCall(endpoint: string, method: string = 'GET', body?: any): Promise<any> {
   const fppUrl = getFppUrl();
@@ -138,18 +153,20 @@ async function makeFppCall(endpoint: string, method: string = 'GET', body?: any)
   }
 }
 
-// Insert playlist based on admin settings
-async function insertPlaylistImmediate(sequenceName: string): Promise<boolean> {
-  const fullSequenceName = sequenceName.endsWith('.fseq') 
+// Insert a song based on admin settings; a visitor's playlist always waits for the current song
+async function insertPlaylistImmediate(item: QueueItem): Promise<string | null> {
+  const isPlaylist = item.request_kind === 'playlist';
+  const sequenceName = item.sequence_name;
+  const fullSequenceName = isPlaylist || sequenceName.endsWith('.fseq')
     ? sequenceName
     : `${sequenceName}.fseq`;
 
   // Get insert mode from settings (admin-configurable)
-  const insertMode = getInsertMode();
+  const insertMode = isPlaylist ? 'after_current' : getInsertMode();
   const command = getFppCommand(insertMode);
   
   console.log(`[Queue] Inserting playlist with mode: ${insertMode} (${command})`);
-  console.log(`[Queue] Sequence: ${fullSequenceName}`);
+  console.log(`[Queue] ${isPlaylist ? 'Playlist' : 'Sequence'}: ${fullSequenceName}`);
 
   // Use the command determined by settings
   // Args: [name, startItem, endItem, ifNotRunning]
@@ -161,11 +178,11 @@ async function insertPlaylistImmediate(sequenceName: string): Promise<boolean> {
 
   if (!result) {
     console.error(`[Queue] Failed to insert playlist: ${fullSequenceName}`);
-    return false;
+    return null;
   }
 
   console.log(`[Queue] Insert response: ${result.response || 'success'}`);
-  return true;
+  return command;
 }
 
 // Simplified state machine processing with Insert Playlist Immediate
@@ -189,17 +206,30 @@ async function processQueueStateMachine(fppStatus: FppStatus): Promise<void> {
       }
 
       console.log(`[Queue] Processing queue item: ${pendingItem.sequence_name}`);
+
+      // FPP can't tell an inserted copy of the running playlist from the playlist itself
+      if (pendingItem.request_kind === 'playlist' && fppStatus.current_playlist?.playlist === pendingItem.sequence_name) {
+        console.log('[Queue] Requested playlist is already running - skipping');
+        updateQueueStatus.run('skipped', pendingItem.id);
+        return;
+      }
       
       // Use Insert Playlist Immediate - FPP handles pause/resume automatically
-      const inserted = await insertPlaylistImmediate(pendingItem.sequence_name);
+      const command = await insertPlaylistImmediate(pendingItem);
       
-      if (inserted) {
+      if (command) {
         // DON'T mark as 'playing' yet - wait until FPP confirms it's playing
         // Keep as 'pending' and transition to MONITORING_SEQUENCE
         const startTime = Date.now();
+        const isPlaying = fppStatus.status_name === 'playing';
+        const startDeadline = insertStartDeadline(
+          startTime,
+          isPlaying && command === 'Insert Playlist After Current',
+          fppStatus.seconds_remaining
+        );
         
         // ✅ Update state in database atomically
-        updateProcessorState.run('MONITORING_SEQUENCE', startTime, pendingItem.id);
+        updateProcessorState.run('MONITORING_SEQUENCE', startTime, pendingItem.id, startDeadline);
         
         // Record start time
         const defaultDurationMs = 5 * 60 * 1000; // 5 minutes default
@@ -230,51 +260,33 @@ async function processQueueStateMachine(fppStatus: FppStatus): Promise<void> {
         return;
       }
 
-      const expectedSeq = currentItem.sequence_name.endsWith('.fseq')
-        ? currentItem.sequence_name
-        : `${currentItem.sequence_name}.fseq`;
+      // Pending: FPP holds only one pending insert, so wait for it to start before sending anything else
+      const isPlaylist = currentItem.request_kind === 'playlist';
+      const progress = queueItemProgress(
+        {
+          kind: isPlaylist ? 'playlist' : 'song',
+          name: currentItem.sequence_name,
+          status: currentItem.status,
+          startDeadline: state.start_deadline ?? 0,
+          startedAt: currentItem.status === 'playing' ? sequenceStartTime : null,
+          durationSec: isPlaylist ? getPlaylistDuration(currentItem.sequence_name) : null,
+        },
+        { currentSequence: fppStatus.current_sequence, currentPlaylist: fppStatus.current_playlist?.playlist },
+        Date.now()
+      );
 
-      // Check if FPP is now playing our sequence
-      const fppIsPlayingOurSequence = fppStatus.current_sequence === expectedSeq;
-      
-      // If FPP is playing our sequence and item is still 'pending', mark as 'playing' now
-      if (fppIsPlayingOurSequence && currentItem.status === 'pending') {
-        console.log(`[Queue] FPP confirmed playing: ${expectedSeq}`);
+      if (progress === 'started') {
+        console.log(`[Queue] FPP confirmed playing: ${currentItem.sequence_name}`);
         updateQueueStatus.run('playing', currentQueueItemId);
-        return; // Continue monitoring on next cycle
-      }
-
-      // Check if sequence finished (FPP no longer playing it)
-      const sequenceFinished = !fppStatus.current_sequence || 
-                              fppStatus.current_sequence !== expectedSeq;
-
-      // Also check minimum play time (at least 10 seconds since insert)
-      const minPlayTime = sequenceStartTime && (Date.now() - sequenceStartTime) > 10000;
-
-      if (sequenceFinished && minPlayTime) {
-        console.log('[Queue] Sequence finished, FPP will auto-resume original playlist');
-        
-        // Mark as completed - FPP handles resume automatically
+        // From here sequence_start_time is when FPP started playing it
+        updateProcessorState.run('MONITORING_SEQUENCE', Date.now(), currentQueueItemId, state.start_deadline);
+      } else if (progress === 'finished') {
+        console.log('[Queue] Request finished, FPP will auto-resume original playlist');
         updateQueueStatus.run('completed', currentQueueItemId);
-        
-        // ✅ Reset state in database
         resetProcessorState.run();
-      } else if (sequenceFinished && !minPlayTime && currentItem.status === 'pending') {
-        // Sequence hasn't started yet and hasn't been too long - keep waiting
-        const waitTime = sequenceStartTime ? (Date.now() - sequenceStartTime) / 1000 : 0;
-        console.log(`[Queue] Waiting for sequence to start... (${waitTime.toFixed(1)}s)`);
-        
-        // If we've waited more than 30 seconds and FPP never started our sequence, mark as failed
-        if (waitTime > 30) {
-          console.log('[Queue] Timed out waiting for FPP to play sequence');
-          updateQueueStatus.run('completed', currentQueueItemId);
-          resetProcessorState.run();
-        }
-      } else if (sequenceFinished && !minPlayTime && currentItem.status === 'playing') {
-        console.log('[Queue] Sequence ended too quickly - treating as finished');
-        updateQueueStatus.run('completed', currentQueueItemId);
-        
-        // ✅ Reset state in database
+      } else if (progress === 'gave_up') {
+        console.log('[Queue] Timed out waiting for FPP to play the request');
+        updateQueueStatus.run('skipped', currentQueueItemId);
         resetProcessorState.run();
       } else {
         console.log(`[Queue] Monitoring... Current: ${fppStatus.current_sequence}, Status: ${currentItem.status}`);

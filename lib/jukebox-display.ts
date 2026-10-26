@@ -3,6 +3,7 @@
 /** Queue row fields that are safe to send to any visitor (no IP, no location). */
 export interface PublicQueueItem {
   id: number;
+  /** For a playlist request, the playlist name */
   sequence_name: string;
   media_name: string | null;
   requester_name: string | null;
@@ -10,7 +11,10 @@ export interface PublicQueueItem {
   priority: number;
   created_at: string;
   played_at: string | null;
+  request_kind: RequestKind;
 }
+
+export type RequestKind = 'song' | 'playlist';
 
 interface QueueRowLike {
   id: number;
@@ -21,6 +25,7 @@ interface QueueRowLike {
   priority?: number | null;
   created_at: string;
   played_at?: string | null;
+  request_kind?: string | null;
 }
 
 export function toPublicQueueItem(row: QueueRowLike): PublicQueueItem {
@@ -33,7 +38,15 @@ export function toPublicQueueItem(row: QueueRowLike): PublicQueueItem {
     priority: row.priority ?? 0,
     created_at: row.created_at,
     played_at: row.played_at ?? null,
+    request_kind: row.request_kind === 'playlist' ? 'playlist' : 'song',
   };
+}
+
+/** An FPP playlist a visitor can request (tagged with the active theme by the admin). */
+export interface VisitorPlaylist {
+  name: string;
+  itemCount: number;
+  durationSeconds: number | null;
 }
 
 /** FPP reports "Song.fseq"; the jukebox stores "Song". */
@@ -139,6 +152,24 @@ export function requestButtonState(input: {
 }): RequestButtonState {
   if (input.currentSequence && stripFseq(input.currentSequence) === input.name) return 'playing';
   if (input.queuedNames.includes(input.name)) return 'queued';
+  if (input.requestsRemaining === 0) return 'limit';
+  return 'available';
+}
+
+/** Like a song's button, plus 'blocked': another playlist is playing or in line (one at a time). */
+export type PlaylistButtonState = RequestButtonState | 'blocked';
+
+export function playlistButtonState(input: {
+  name: string;
+  /** Playlist a visitor requested that is playing now, if any */
+  playingPlaylist: string | null;
+  /** Playlist requests waiting in line */
+  queuedPlaylists: string[];
+  requestsRemaining: number | null;
+}): PlaylistButtonState {
+  if (input.playingPlaylist === input.name) return 'playing';
+  if (input.queuedPlaylists.includes(input.name)) return 'queued';
+  if (input.playingPlaylist !== null || input.queuedPlaylists.length > 0) return 'blocked';
   if (input.requestsRemaining === 0) return 'limit';
   return 'available';
 }
@@ -272,6 +303,14 @@ export function toSongDuration(value: unknown): number | null {
 /** "Artist · 3:15" - each part only when known; '' when neither is. */
 export function songDetailsLine(song: Pick<CatalogSong, 'artist' | 'durationSeconds'>): string {
   return [song.artist, song.durationSeconds != null ? formatClock(song.durationSeconds) : null].filter(Boolean).join(' · ');
+}
+
+/** "12 songs · 41:30" - the length only when known. */
+export function playlistDetailsLine(playlist: Pick<VisitorPlaylist, 'itemCount' | 'durationSeconds'>): string {
+  return [
+    `${playlist.itemCount} ${playlist.itemCount === 1 ? 'song' : 'songs'}`,
+    playlist.durationSeconds != null ? formatClock(playlist.durationSeconds) : null,
+  ].filter(Boolean).join(' · ');
 }
 
 /** Distinct categories in use, sorted for the filter pills. */

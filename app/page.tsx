@@ -189,7 +189,8 @@ export default function Home() {
           const data = await response.json();
           console.log('Playlist details:', data);
           setPlaylistDetails(prev => new Map(prev).set(selectedPlaylist, data));
-        } else {
+        } else if (response.status !== 404) {
+          // 404: a jukebox song playing as a one-song ".fseq" playlist - there are no details to show
           console.error('Failed to fetch playlist details:', response.status);
         }
       } catch (err) {

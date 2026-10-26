@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { addToQueue, getQueue, incrementSequenceRequests, getMediaNameForSequence } from '@/lib/database';
+import { addToQueue, getQueue, incrementSequenceRequests, getMediaNameForSequence, getActiveTheme, getFPPState } from '@/lib/database';
 import { addToQueueTransactional, countRecentRequests } from '@/lib/jukebox-queue';
 import { getClientIP, getSongRequestRateLimit } from '@/lib/rate-limit';
 import { getUtcNow, getUtcOffset } from '@/lib/time-utils';
@@ -8,6 +8,8 @@ import db from '@/lib/database';
 import { getFppUrl } from '@/lib/fpp-config';
 import { getDistanceInMiles } from '@/lib/location-utils';
 import { toPublicQueueItem } from '@/lib/jukebox-display';
+import { listVisitorPlaylists } from '@/lib/jukebox-playlists';
+import { normalizeThemeId } from '@/lib/themes/theme-config';
 
 export async function GET() {
   try {
@@ -23,11 +25,33 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { sequence_name, requester_name, userLocation } = body;
+    const { requester_name, userLocation, playlist_name } = body;
+    let { sequence_name } = body;
     const requester_ip = getClientIP(request);
 
     // Get current rate limit from settings
     const rateLimit = getSongRequestRateLimit();
+
+    // A playlist request names an FPP playlist the admin tagged for the active theme instead of a song
+    const isPlaylist = playlist_name !== undefined && playlist_name !== null;
+    if (isPlaylist) {
+      if (sequence_name !== undefined && sequence_name !== null) {
+        return NextResponse.json({ error: 'Request a song or a playlist, not both' }, { status: 400 });
+      }
+      if (typeof playlist_name !== 'string' || playlist_name.length < 1 || playlist_name.length > 200) {
+        return NextResponse.json({ error: 'Playlist name must be 1-200 characters' }, { status: 400 });
+      }
+      const themeId = normalizeThemeId((getActiveTheme.get() as { active_theme_id?: string } | undefined)?.active_theme_id);
+      if (!listVisitorPlaylists(db, themeId).some((playlist) => playlist.name === playlist_name)) {
+        return NextResponse.json({ error: "That playlist isn't available right now" }, { status: 404 });
+      }
+      const fppState = getFPPState.get() as { current_playlist?: string | null } | undefined;
+      if (fppState?.current_playlist === playlist_name) {
+        return NextResponse.json({ error: 'That playlist is playing right now' }, { status: 409 });
+      }
+      // Stored like a song name from here on; validated against the admin's list above
+      sequence_name = playlist_name;
+    }
 
     // SECURITY: Validate sequence_name input
     if (!sequence_name) {
@@ -44,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     // Allow alphanumeric, spaces, hyphens, underscores, dots, apostrophes
     // This prevents SQL injection and path traversal attacks
-    if (!/^[a-zA-Z0-9_\-. ']+$/.test(sequence_name)) {
+    if (!isPlaylist && !/^[a-zA-Z0-9_\-. ']+$/.test(sequence_name)) {
       return NextResponse.json({ 
         error: 'Invalid characters in sequence name' 
       }, { status: 400 });
@@ -132,9 +156,9 @@ export async function POST(request: NextRequest) {
     // Add .fseq extension back to get the full sequence name
     const fullSequenceName = sequence_name + '.fseq';
 
-    // Look up the media name from FPP playlists
+    // Look up the media name from FPP playlists (songs only)
     let media_name = null;
-    try {
+    if (!isPlaylist) try {
       // Get scheduled playlists
       const scheduleResponse = await fetch(`${getFppUrl()}/api/schedule`);
       if (scheduleResponse.ok) {
@@ -196,7 +220,8 @@ export async function POST(request: NextRequest) {
         city: null,
         region: null,
         countryCode: null,
-        distanceFromShow: distanceFromShow
+        distanceFromShow: distanceFromShow,
+        request_kind: isPlaylist ? 'playlist' : 'song'
       });
     } catch (txError: any) {
       if (txError.code === 'RATE_LIMIT_EXCEEDED') {
@@ -209,16 +234,21 @@ export async function POST(request: NextRequest) {
           requestsRemaining: 0
         }, { status: 429 });
       }
+      if (txError.code === 'PLAYLIST_ACTIVE') {
+        return NextResponse.json({
+          error: 'Another playlist is already in line. Try again when it finishes.'
+        }, { status: 409 });
+      }
       if (txError.code === 'DUPLICATE_REQUEST') {
         console.warn(`[SECURITY] Duplicate request detected from ${requester_ip} for ${sequence_name}`);
         return NextResponse.json({ 
-          error: 'You already requested this song recently. Please wait a few minutes.' 
+          error: `You already requested this ${isPlaylist ? 'playlist' : 'song'} recently. Please wait a few minutes.` 
         }, { status: 429 });
       }
       throw txError; // let outer catch handle other errors
     }
 
-    incrementSequenceRequests.run(sequence_name);
+    if (!isPlaylist) incrementSequenceRequests.run(sequence_name);
     const result = { lastInsertRowid: transactionResult.id } as any;
 
     // Calculate how many requests the user has used in the last hour
@@ -246,6 +276,7 @@ export async function POST(request: NextRequest) {
     // Same rule the rate-limit check uses (last hour, after any admin clear)
     const requestsUsed = countRecentRequests(db, requester_ip);
     const requestsRemaining = Math.max(0, rateLimit - requestsUsed);
+    const requested = isPlaylist ? 'Playlist requested!' : 'Song requested!';
 
     debugLog(`[Queue POST - AFTER INSERT] IP: ${requester_ip} | Rate Limit: ${rateLimit} | Used: ${requestsUsed} | Remaining: ${requestsRemaining}`);
 
@@ -253,8 +284,8 @@ export async function POST(request: NextRequest) {
       success: true, 
       id: result.lastInsertRowid,
       message: requestsRemaining > 0 
-        ? `Song requested! You have ${requestsRemaining} request${requestsRemaining !== 1 ? 's' : ''} remaining this hour.`
-        : `Song requested! You've used all ${rateLimit} requests this hour.`,
+        ? `${requested} You have ${requestsRemaining} request${requestsRemaining !== 1 ? 's' : ''} remaining this hour.`
+        : `${requested} You've used all ${rateLimit} requests this hour.`,
       rateLimit,
       requestsUsed,
       requestsRemaining

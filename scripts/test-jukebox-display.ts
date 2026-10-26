@@ -40,7 +40,9 @@ function print(msg: string) {
     original_playlist: 'Main', original_item_index: 3, was_resumed: 0, started_at: null, duration_ms: 1000, sequence_id: 4,
   };
   const pub = toPublicQueueItem(row);
-  assert.deepStrictEqual(Object.keys(pub).sort(), ['created_at', 'id', 'media_name', 'played_at', 'priority', 'requester_name', 'sequence_name', 'status']);
+  assert.deepStrictEqual(Object.keys(pub).sort(), ['created_at', 'id', 'media_name', 'played_at', 'priority', 'request_kind', 'requester_name', 'sequence_name', 'status']);
+  assert.strictEqual(pub.request_kind, 'song');
+  assert.strictEqual(toPublicQueueItem({ ...row, request_kind: 'playlist' }).request_kind, 'playlist');
   assert.strictEqual(pub.requester_name, 'Ava');
   const json = JSON.stringify(pub);
   for (const secret of ['203.0.113.9', '30.1', '-97.7', 'Austin', 'distance']) {

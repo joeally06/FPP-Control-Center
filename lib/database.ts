@@ -146,6 +146,12 @@ const migrations: Array<{ table: string; column: string; definition: string }> =
   { table: 'jukebox_queue', column: 'country_code', definition: 'TEXT' },
   { table: 'jukebox_queue', column: 'distance_from_show', definition: 'REAL' },
   
+  // Jukebox queue - 'song' or 'playlist' (a playlist row keeps the playlist name in sequence_name)
+  { table: 'jukebox_queue', column: 'request_kind', definition: "TEXT DEFAULT 'song'" },
+
+  // Queue processor - when a request sent to FPP must have started by (epoch ms)
+  { table: 'queue_processor_state', column: 'start_deadline', definition: 'INTEGER' },
+  
   // Votes - Geolocation for access control
   { table: 'votes', column: 'latitude', definition: 'REAL' },
   { table: 'votes', column: 'longitude', definition: 'REAL' },
@@ -210,6 +216,17 @@ db.exec(`
     sequence_name TEXT PRIMARY KEY,
     duration_seconds REAL,
     category TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// FPP playlists visitors can request, tagged with a theme by the admin (also migration 023)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS jukebox_playlists (
+    name TEXT PRIMARY KEY,
+    theme TEXT CHECK (theme IN ('christmas', 'halloween')),
+    item_count INTEGER NOT NULL DEFAULT 0,
+    duration_seconds REAL,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
@@ -788,6 +805,7 @@ export const updateProcessorState = db.prepare(`
   SET processing_state = ?, 
       sequence_start_time = ?, 
       current_queue_item_id = ?,
+      start_deadline = ?,
       last_updated = CURRENT_TIMESTAMP
   WHERE id = 1
 `);
@@ -797,6 +815,7 @@ export const resetProcessorState = db.prepare(`
   SET processing_state = 'IDLE', 
       sequence_start_time = NULL, 
       current_queue_item_id = NULL,
+      start_deadline = NULL,
       last_updated = CURRENT_TIMESTAMP
   WHERE id = 1
 `);

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
 import BannerSettings from '@/components/admin/BannerSettings';
 import { formatDateTime } from '@/lib/time-utils';
+import { THEME_PRESETS, type ThemeId } from '@/lib/themes/theme-config';
 import {
   DEFAULT_COURTESY_TEXT,
   MAX_CATEGORY_LENGTH,
@@ -494,6 +495,8 @@ export default function JukeboxSettings() {
 
       <SongDetailsSettings reloadKey={songDetailsReload} />
 
+      <PlaylistSettings reloadKey={songDetailsReload} />
+
       {/* Off-season message under the logo on the visitor page */}
       <BannerSettings />
 
@@ -675,6 +678,122 @@ function SongDetailsSettings({ reloadKey }: { reloadKey: number }) {
           <div className="mt-5">
             <button onClick={handleSave} disabled={saving} className={accentButton}>
               {saving ? 'Saving…' : 'Save categories'}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+interface AdminPlaylist {
+  name: string;
+  theme: ThemeId | null;
+  itemCount: number;
+  durationSeconds: number | null;
+}
+
+function PlaylistSettings({ reloadKey }: { reloadKey: number }) {
+  const [playlists, setPlaylists] = useState<AdminPlaylist[]>([]);
+  const [themes, setThemes] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    async function fetchPlaylists() {
+      try {
+        const response = await fetch('/api/jukebox/playlist-themes');
+        if (response.ok) {
+          const data = await response.json();
+          const list: AdminPlaylist[] = Array.isArray(data.playlists) ? data.playlists : [];
+          setPlaylists(list);
+          setThemes(Object.fromEntries(list.map((playlist) => [playlist.name, playlist.theme || ''])));
+        }
+      } catch (err) {
+        console.error('Error fetching playlists:', err);
+        setError('Failed to load playlists');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchPlaylists();
+  }, [reloadKey]);
+
+  async function handleSave() {
+    setSaving(true);
+    setSuccess('');
+    setError('');
+
+    try {
+      const response = await fetch('/api/jukebox/playlist-themes', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ themes })
+      });
+
+      if (response.ok) {
+        setSuccess('✅ Playlists saved!');
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Failed to save playlists');
+      }
+    } catch (err) {
+      console.error('Error saving playlists:', err);
+      setError('Failed to save playlists');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className={card}>
+      <AdminH3 className="mb-0.5">Playlists</AdminH3>
+      <AdminTextMuted>
+        Visitors can request a whole playlist; it starts when the current song ends, and the scheduled show carries on afterwards. Only playlists tagged with the active theme are offered, one in line at a time. New FPP playlists appear here after you refresh the song cache and start out hidden.
+      </AdminTextMuted>
+
+      {success && <p className={`${notice.ok} mt-4`}>{success}</p>}
+      {error && <p className={`${notice.danger} mt-4`}>{error}</p>}
+
+      {loading ? (
+        <AdminTextMuted className="mt-4">Loading...</AdminTextMuted>
+      ) : playlists.length === 0 ? (
+        <AdminTextMuted className="mt-4">No playlists yet. Refresh the song cache above first.</AdminTextMuted>
+      ) : (
+        <>
+          <ul className="mt-4 flex flex-col gap-2">
+            {playlists.map((playlist) => (
+              <li key={playlist.name} className="flex flex-col gap-2 rounded-xl border border-adm-line bg-adm-side p-3 md:flex-row md:items-center md:gap-4">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-adm-text">{playlist.name}</p>
+                  <p className="truncate text-xs text-adm-muted">
+                    {[
+                      `${playlist.itemCount} ${playlist.itemCount === 1 ? 'song' : 'songs'}`,
+                      playlist.durationSeconds != null ? formatClock(playlist.durationSeconds) : 'length unknown',
+                    ].join(' · ')}
+                  </p>
+                </div>
+                <select
+                  value={themes[playlist.name] || ''}
+                  onChange={(e) => setThemes((prev) => ({ ...prev, [playlist.name]: e.target.value }))}
+                  aria-label={`Theme for ${playlist.name}`}
+                  className={`${field} md:w-56`}
+                >
+                  <option value="">Hidden</option>
+                  {Object.values(THEME_PRESETS).map((theme) => (
+                    <option key={theme.id} value={theme.id}>{theme.name}</option>
+                  ))}
+                </select>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-5">
+            <button onClick={handleSave} disabled={saving} className={accentButton}>
+              {saving ? 'Saving…' : 'Save playlists'}
             </button>
           </div>
         </>
