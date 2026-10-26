@@ -60,7 +60,7 @@ export class FPPCircuitBreaker extends EventEmitter {
   private config: CircuitBreakerConfig;
   private db: Database.Database;
 
-  constructor(config?: Partial<CircuitBreakerConfig>) {
+  constructor(config?: Partial<CircuitBreakerConfig>, dbPath: string = path.join(process.cwd(), 'votes.db')) {
     super();
     
     // SECURITY: Validate configuration values
@@ -72,7 +72,6 @@ export class FPPCircuitBreaker extends EventEmitter {
     };
 
     // Initialize database connection
-    const dbPath = path.join(process.cwd(), 'votes.db');
     this.db = new Database(dbPath);
     this.db.pragma('foreign_keys = ON');
 
@@ -124,6 +123,9 @@ export class FPPCircuitBreaker extends EventEmitter {
 
   /**
    * Load circuit breaker state from database (survives restarts)
+   * The poller and the web server each have an instance; the database row is the shared state,
+   * so every public method re-reads it first (otherwise the web server keeps whatever it loaded at
+   * startup and never sees FPP come back). Read-only: state changes happen in allowRequest/record*.
    * SECURITY: Validates all loaded values before using them
    */
   private loadState(): void {
@@ -150,20 +152,10 @@ export class FPPCircuitBreaker extends EventEmitter {
         this.lastFailureTime = Math.max(0, row.last_failure_time || 0);
         this.lastStateChange = Math.max(0, row.last_state_change || Date.now());
         this.totalTransitions = Math.max(0, row.total_transitions || 0);
-
-        // If we were OPEN and enough time has passed, move to HALF_OPEN
-        if (this.state === CircuitState.OPEN) {
-          const timeSinceFailure = Date.now() - this.lastFailureTime;
-          if (timeSinceFailure >= this.config.resetTimeout) {
-            console.log('[Circuit Breaker] Resuming from persisted OPEN state after restart');
-            this.moveToHalfOpen();
-          }
-        }
       }
     } catch (error: any) {
+      // Keep the current state (CLOSED when this happens at startup)
       console.error('[Circuit Breaker] Failed to load state:', error.message);
-      // Safe default: CLOSED state
-      this.state = CircuitState.CLOSED;
     }
   }
 
@@ -200,6 +192,7 @@ export class FPPCircuitBreaker extends EventEmitter {
    * Get current circuit state
    */
   public getState(): CircuitState {
+    this.loadState();
     return this.state;
   }
 
@@ -208,6 +201,7 @@ export class FPPCircuitBreaker extends EventEmitter {
    * Returns true if request should be attempted, false if blocked
    */
   public allowRequest(): boolean {
+    this.loadState();
     if (this.state === CircuitState.OPEN) {
       // Check if enough time has passed to attempt recovery
       const timeSinceFailure = Date.now() - this.lastFailureTime;
@@ -226,6 +220,7 @@ export class FPPCircuitBreaker extends EventEmitter {
    * SECURITY: No user input, internal state management only
    */
   public recordSuccess(): void {
+    this.loadState();
     this.failureCount = 0; // Reset failure count
 
     if (this.state === CircuitState.HALF_OPEN) {
@@ -249,6 +244,7 @@ export class FPPCircuitBreaker extends EventEmitter {
    * SECURITY: Sanitizes error message (max 255 chars)
    */
   public recordFailure(error?: string): void {
+    this.loadState();
     this.failureCount++;
     this.lastFailureTime = Date.now();
 
@@ -339,6 +335,7 @@ export class FPPCircuitBreaker extends EventEmitter {
    * Get comprehensive circuit breaker statistics
    */
   public getStats(): CircuitBreakerStats {
+    this.loadState();
     const now = Date.now();
     const timeSinceLastFailure = this.lastFailureTime ? now - this.lastFailureTime : 0;
     const timeSinceStateChange = now - this.lastStateChange;
@@ -367,6 +364,7 @@ export class FPPCircuitBreaker extends EventEmitter {
    */
   public reset(): void {
     console.log('[Circuit Breaker] ⚙️  Manual reset to CLOSED state (admin override)');
+    this.loadState();
     this.failureCount = 0;
     this.successCount = 0;
     this.moveToClosed();
@@ -376,6 +374,7 @@ export class FPPCircuitBreaker extends EventEmitter {
    * Check if FPP is considered online based on circuit state
    */
   public isFPPOnline(): boolean {
+    this.loadState();
     return this.state === CircuitState.CLOSED;
   }
 
@@ -383,6 +382,7 @@ export class FPPCircuitBreaker extends EventEmitter {
    * Check if circuit is testing recovery
    */
   public isTestingRecovery(): boolean {
+    this.loadState();
     return this.state === CircuitState.HALF_OPEN;
   }
 
@@ -390,6 +390,7 @@ export class FPPCircuitBreaker extends EventEmitter {
    * Check if FPP is considered offline
    */
   public isFPPOffline(): boolean {
+    this.loadState();
     return this.state === CircuitState.OPEN;
   }
 
