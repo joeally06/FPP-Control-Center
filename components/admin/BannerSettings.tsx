@@ -5,7 +5,7 @@ import { OFF_SEASON_BANNER_DEFAULTS, OFF_SEASON_BANNER_LIMITS, type OffSeasonBan
 import { accentButton, card, field, notice } from '@/components/admin/ui-classes';
 
 /** Settings → Jukebox: the one optional message shown under the logo on the visitor page. */
-export default function BannerSettings() {
+export default function BannerSettings({ onSaved }: { onSaved?: () => void }) {
   const [banner, setBanner] = useState<OffSeasonBanner>(OFF_SEASON_BANNER_DEFAULTS);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -29,6 +29,7 @@ export default function BannerSettings() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || 'Failed to save the message');
       setMessage({ ok: true, text: '✅ Message saved' });
+      onSaved?.();
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
       setMessage({ ok: false, text: `❌ ${error instanceof Error ? error.message : 'Failed to save the message'}` });

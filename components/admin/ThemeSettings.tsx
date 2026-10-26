@@ -31,7 +31,7 @@ const ACCEPT = 'image/jpeg,image/png,image/webp';
 type Feedback = { type: 'success' | 'error'; text: string };
 
 /** Jukebox → Visitor page: pick the season and upload its logo and badge. */
-export default function ThemeSettings() {
+export default function ThemeSettings({ onSaved }: { onSaved?: () => void }) {
   const themes = getAllThemes();
   const [activeThemeId, setActiveThemeId] = useState<ThemeId | null>(null);
   const [assets, setAssets] = useState<Record<string, SeasonAssets>>({});
@@ -73,6 +73,7 @@ export default function ThemeSettings() {
       if (!response.ok) throw new Error(data.error || 'Could not switch themes');
       setActiveThemeId(theme.id);
       say(theme.id, 'success', `${theme.name} is now showing on the visitor page.`);
+      onSaved?.();
     } catch (error) {
       say(theme.id, 'error', error instanceof Error ? error.message : 'Could not switch themes');
     } finally {
@@ -92,6 +93,7 @@ export default function ThemeSettings() {
       if (!response.ok) throw new Error(data.error || 'Upload failed');
       await loadThemes();
       say(theme.id, 'success', `${theme.name} ${kind === 'logo' ? 'logo' : 'badge'} saved.`);
+      onSaved?.();
     } catch (error) {
       say(theme.id, 'error', error instanceof Error ? error.message : 'Upload failed');
     } finally {
@@ -107,6 +109,7 @@ export default function ThemeSettings() {
       if (!response.ok) throw new Error(data.error || 'Could not remove the image');
       await loadThemes();
       say(theme.id, 'success', `${theme.name} ${kind === 'logo' ? 'logo' : 'badge'} removed.`);
+      onSaved?.();
     } catch (error) {
       say(theme.id, 'error', error instanceof Error ? error.message : 'Could not remove the image');
     } finally {
@@ -128,7 +131,8 @@ export default function ThemeSettings() {
       <AdminH2 className="mb-1">Season and logo</AdminH2>
       <AdminTextMuted className="mb-4">Pick the season and upload its logo for the visitor jukebox page</AdminTextMuted>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {/* One column beside the visitor-page preview (xl), two where there's room */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
         {themes.map((theme) => {
           const isActive = activeThemeId === theme.id;
           const themeAssets = assets[theme.id] ?? NO_ASSETS;

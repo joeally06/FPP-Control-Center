@@ -46,6 +46,9 @@ export default function JukeboxSetup({ initialTab }: { initialTab?: string }) {
   const [setup, setSetup] = useState<{ songs: AdminSong[]; checklist: ChecklistItem[] } | null>(null);
   const [songFilter, setSongFilter] = useState<SongFilter>('all');
   const tabsRef = useRef<HTMLDivElement>(null);
+  // Bumped after a save on the Visitor page tab so the preview frame reloads
+  const [previewKey, setPreviewKey] = useState(0);
+  const reloadPreview = () => setPreviewKey((n) => n + 1);
 
   useEffect(() => {
     fetchCacheInfo();
@@ -228,13 +231,37 @@ export default function JukeboxSetup({ initialTab }: { initialTab?: string }) {
         <LocationRestrictions />
       </section>
 
-      <section aria-label="Visitor page" hidden={tab !== 'visitor'} className="flex flex-col gap-6">
-        <ThemeSettings />
-        <div className="flex max-w-3xl flex-col gap-4">
-          <VisitorPageSettings />
-          <BannerSettings />
-          <YouTubeVideoSettings />
+      <section aria-label="Visitor page" hidden={tab !== 'visitor'} className="flex flex-col gap-6 xl:flex-row xl:items-start">
+        <div className="flex min-w-0 flex-1 flex-col gap-6">
+          <ThemeSettings onSaved={reloadPreview} />
+          <div className="flex max-w-3xl flex-col gap-4">
+            <VisitorPageSettings onSaved={reloadPreview} />
+            <BannerSettings onSaved={reloadPreview} />
+            <YouTubeVideoSettings />
+          </div>
         </div>
+
+        <aside aria-labelledby="visitor-preview-title" className="flex flex-col items-center gap-3 xl:sticky xl:top-6 xl:w-[360px] xl:shrink-0">
+          <div className="flex w-full max-w-[360px] items-center justify-between gap-3">
+            <h2 id="visitor-preview-title" className="text-xs font-semibold uppercase tracking-[0.08em] text-adm-muted">What visitors see</h2>
+            <button onClick={reloadPreview} className={smallButton}>
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+              Reload
+            </button>
+          </div>
+          {/* Loaded only while this tab is open; a new key reloads it after a save */}
+          {tab === 'visitor' && (
+            <iframe
+              key={previewKey}
+              src="/settings/jukebox/preview"
+              title="Preview of the visitor jukebox page"
+              className="h-[640px] w-full max-w-[360px] rounded-[28px] border-8 border-adm-raised bg-black"
+            />
+          )}
+          <p className="max-w-[360px] text-xs text-adm-muted">
+            Shows your saved settings and reloads after each save. The song list, queue and videos are left out, and a courtesy card you dismissed in this browser stays hidden here too.
+          </p>
+        </aside>
       </section>
     </div>
   );

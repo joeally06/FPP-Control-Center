@@ -64,6 +64,11 @@ const nextConfig = {
       {
         source: '/:path*',
         headers: baseHeaders
+      },
+      {
+        // Shown in a frame on Settings → Jukebox; a later rule overrides the DENY above for this path only
+        source: '/settings/jukebox/preview',
+        headers: [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }]
       }
     ];
   }

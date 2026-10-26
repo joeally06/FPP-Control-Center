@@ -62,8 +62,8 @@ export async function proxy(request: NextRequest) {
   // Prevent MIME type sniffing
   response.headers.set('X-Content-Type-Options', 'nosniff');
   
-  // Prevent clickjacking
-  response.headers.set('X-Frame-Options', 'DENY');
+  // Prevent clickjacking. The visitor-page preview is shown in a frame on Settings → Jukebox (same origin only)
+  response.headers.set('X-Frame-Options', pathname === '/settings/jukebox/preview' ? 'SAMEORIGIN' : 'DENY');
   
   // Enable XSS protection
   response.headers.set('X-XSS-Protection', '1; mode=block');

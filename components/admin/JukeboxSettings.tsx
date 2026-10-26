@@ -319,7 +319,7 @@ export function RequestRulesSettings() {
 }
 
 /** Jukebox → Visitor page: the show name, radio frequency and optional cards on the visitor page. */
-export function VisitorPageSettings() {
+export function VisitorPageSettings({ onSaved }: { onSaved?: () => void }) {
   const [siteName, setSiteName] = useState('');
   const [fmFrequency, setFmFrequency] = useState('');
   const [courtesyEnabled, setCourtesyEnabled] = useState(false);
@@ -382,6 +382,7 @@ export function VisitorPageSettings() {
       if (response.ok) {
         setSuccess('✅ Settings saved successfully!');
         setTimeout(() => setSuccess(''), 3000);
+        onSaved?.();
       } else {
         const data = await response.json();
         setError(data.error || 'Failed to save settings');
