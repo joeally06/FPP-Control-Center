@@ -6,7 +6,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import {
   ChartColumn, CircleHelp, Database, Ellipsis, ExternalLink, LogOut, Mail, Menu,
-  Monitor, Music, Play, Radio, RefreshCw, Server, Sparkles, TreePine, X,
+  Monitor, Play, Radio, RefreshCw, Server, Sparkles, TreePine, X,
   type LucideIcon,
 } from 'lucide-react';
 import TimezoneIndicator from './TimezoneIndicator';
@@ -25,7 +25,6 @@ const NAV_GROUPS: { label: string | null; items: NavItem[] }[] = [
   {
     label: 'Content',
     items: [
-      { name: 'Media library', href: '/media', icon: Music },
       { name: 'Models', href: '/models', icon: TreePine },
       { name: 'Digital sign', href: '/settings/display', icon: Monitor },
     ],

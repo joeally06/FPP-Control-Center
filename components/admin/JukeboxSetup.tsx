@@ -1,20 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { RefreshCw } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { CircleAlert, CircleCheck, CircleDashed, RefreshCw } from 'lucide-react';
 import BannerSettings from '@/components/admin/BannerSettings';
+import JukeboxSongs from '@/components/admin/JukeboxSongs';
 import LocationRestrictions from '@/components/admin/LocationRestrictions';
 import ThemeSettings from '@/components/admin/ThemeSettings';
 import YouTubeVideoSettings from '@/components/admin/YouTubeVideoSettings';
 import {
   PlaylistSettings,
   RequestRulesSettings,
-  SongDetailsSettings,
   VisitorPageSettings,
 } from '@/components/admin/JukeboxSettings';
-import { AdminH3, AdminTextMuted } from '@/components/admin/Typography';
-import { accentButton, card, notice, tabClass, textLink } from '@/components/admin/ui-classes';
+import { accentButton, card, insetBox, notice, smallButton, tabClass } from '@/components/admin/ui-classes';
+import type { AdminSong, ChecklistItem, SongFilter } from '@/lib/jukebox-songs';
 import { formatDateTime } from '@/lib/time-utils';
 
 const TABS = [
@@ -30,6 +29,12 @@ function toTab(value: string | undefined): TabId {
   return TABS.find((tab) => tab.id === value)?.id ?? 'songs';
 }
 
+const CHECK_ICONS = {
+  ok: { Icon: CircleCheck, className: 'text-adm-ok', label: 'Ready' },
+  warn: { Icon: CircleAlert, className: 'text-adm-warn', label: 'Needs attention' },
+  todo: { Icon: CircleDashed, className: 'text-adm-faint', label: 'Not set up' },
+} as const;
+
 /** Settings → Jukebox: everything visitors can request and how the jukebox page looks, one tab per area. */
 export default function JukeboxSetup({ initialTab }: { initialTab?: string }) {
   const [tab, setTab] = useState<TabId>(toTab(initialTab));
@@ -38,10 +43,26 @@ export default function JukeboxSetup({ initialTab }: { initialTab?: string }) {
   const [cacheInfo, setCacheInfo] = useState<{ count: number; lastUpdated: string | null } | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [setup, setSetup] = useState<{ songs: AdminSong[]; checklist: ChecklistItem[] } | null>(null);
+  const [songFilter, setSongFilter] = useState<SongFilter>('all');
+  const tabsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchCacheInfo();
+    fetchSetup();
   }, []);
+
+  // Songs and the checklist, reloaded after anything that could change them
+  async function fetchSetup() {
+    try {
+      const response = await fetch('/api/admin/jukebox-setup');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      setSetup(await response.json());
+    } catch (error) {
+      console.error('Error fetching jukebox setup:', error);
+      setMessage({ ok: false, text: '❌ Could not load the song list. Reload the page to try again.' });
+    }
+  }
 
   async function fetchCacheInfo() {
     try {
@@ -61,6 +82,14 @@ export default function JukeboxSetup({ initialTab }: { initialTab?: string }) {
     const url = new URL(window.location.href);
     url.searchParams.set('tab', id);
     window.history.replaceState(null, '', url);
+    // Other tabs may have changed what the checklist reports
+    fetchSetup();
+  }
+
+  function openChecklistItem(item: ChecklistItem) {
+    if (item.filter) setSongFilter(item.filter);
+    selectTab(item.tab);
+    tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   // One button for both FPP caches: the songs and playlists visitors can request,
@@ -97,7 +126,7 @@ export default function JukeboxSetup({ initialTab }: { initialTab?: string }) {
       console.error('Error syncing from FPP:', error);
       setMessage({ ok: false, text: '❌ Network error while syncing from FPP.' });
     } finally {
-      await fetchCacheInfo();
+      await Promise.all([fetchCacheInfo(), fetchSetup()]);
       setReloadKey((n) => n + 1);
       setSyncing(false);
     }
@@ -128,7 +157,51 @@ export default function JukeboxSetup({ initialTab }: { initialTab?: string }) {
         <p role="status" className={`${message.ok ? notice.ok : notice.danger} mb-4`}>{message.text}</p>
       )}
 
-      <div className="mb-6 flex gap-1 overflow-x-auto border-b border-adm-line">
+      {setup && (
+        <section aria-labelledby="setup-checklist-title" className={`${card} mb-6`}>
+          {(() => {
+            const ready = setup.checklist.filter((item) => item.status === 'ok').length;
+            const total = setup.checklist.length;
+            return (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 id="setup-checklist-title" className="text-[15px] font-semibold text-adm-text">Setup checklist</h2>
+                  <p className="mt-0.5 text-[13px] text-adm-muted">{ready} of {total} ready. Each item opens the place to fix it.</p>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-adm-line sm:w-60" role="presentation">
+                  <div className="h-full rounded-full bg-adm-accent" style={{ width: `${Math.round((ready / total) * 100)}%` }} />
+                </div>
+              </div>
+            );
+          })()}
+          <ul className="mt-4 grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
+            {setup.checklist.map((item) => {
+              const { Icon, className, label } = CHECK_ICONS[item.status];
+              const isSync = item.id === 'sync';
+              return (
+                <li key={item.id} className={`${insetBox} flex items-start gap-3`}>
+                  <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${className}`} aria-hidden="true" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-adm-text">
+                      {item.title} <span className="sr-only">({label})</span>
+                    </p>
+                    <p className="mt-0.5 text-[13px] text-adm-muted">{item.detail}</p>
+                  </div>
+                  <button
+                    onClick={() => (isSync ? handleSync() : openChecklistItem(item))}
+                    disabled={isSync && syncing}
+                    className={`${smallButton} shrink-0`}
+                  >
+                    {isSync ? (syncing ? 'Syncing…' : 'Sync') : item.status === 'ok' ? 'Open' : 'Fix'}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      <div ref={tabsRef} className="mb-6 flex scroll-mt-4 gap-1 overflow-x-auto border-b border-adm-line">
         {TABS.map(({ id, label }) => (
           <button key={id} onClick={() => selectTab(id)} aria-pressed={tab === id} className={tabClass(tab === id)}>
             {label}
@@ -137,15 +210,13 @@ export default function JukeboxSetup({ initialTab }: { initialTab?: string }) {
       </div>
 
       {/* Every tab stays mounted so unsaved edits survive switching tabs */}
-      <section aria-label="Songs" hidden={tab !== 'songs'} className="flex max-w-3xl flex-col gap-4">
-        <div className={card}>
-          <AdminH3 className="mb-0.5">Artwork, titles and phone audio</AdminH3>
-          <AdminTextMuted>
-            Song titles, artists and album art, and the audio visitors hear on their phones, are edited in the Media library for now.
-          </AdminTextMuted>
-          <Link href="/media" className={`${textLink} mt-3 inline-block`}>Open the Media library</Link>
-        </div>
-        <SongDetailsSettings reloadKey={reloadKey} />
+      <section aria-label="Songs" hidden={tab !== 'songs'}>
+        <JukeboxSongs
+          songs={setup?.songs ?? null}
+          filter={songFilter}
+          onFilterChange={setSongFilter}
+          onChanged={fetchSetup}
+        />
       </section>
 
       <section aria-label="Playlists" hidden={tab !== 'playlists'} className="max-w-3xl">

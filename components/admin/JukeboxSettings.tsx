@@ -6,13 +6,9 @@ import { formatDateTime } from '@/lib/time-utils';
 import { THEME_PRESETS, type ThemeId } from '@/lib/themes/theme-config';
 import {
   DEFAULT_COURTESY_TEXT,
-  MAX_CATEGORY_LENGTH,
   SHOW_SPEC_FIELDS,
-  SUGGESTED_CATEGORIES,
   VISITOR_SETTING_LIMITS,
   formatClock,
-  songCategories,
-  type CatalogSong,
 } from '@/lib/jukebox-display';
 import {
   AdminH2,
@@ -539,120 +535,6 @@ export function VisitorPageSettings() {
           {saving ? 'Saving…' : 'Save settings'}
         </button>
       </div>
-    </div>
-  );
-}
-
-/** Jukebox → Songs: the category of each cached song. */
-export function SongDetailsSettings({ reloadKey }: { reloadKey: number }) {
-  const [songs, setSongs] = useState<CatalogSong[]>([]);
-  const [categories, setCategories] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [success, setSuccess] = useState('');
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    async function fetchSongs() {
-      try {
-        const response = await fetch('/api/jukebox/sequences');
-        if (response.ok) {
-          const data = await response.json();
-          const list: CatalogSong[] = Array.isArray(data.songs) ? data.songs : [];
-          setSongs(list);
-          setCategories(Object.fromEntries(list.map((song) => [song.name, song.category || ''])));
-        }
-      } catch (err) {
-        console.error('Error fetching songs:', err);
-        setError('Failed to load songs');
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchSongs();
-  }, [reloadKey]);
-
-  async function handleSave() {
-    setSaving(true);
-    setSuccess('');
-    setError('');
-
-    try {
-      const response = await fetch('/api/jukebox/song-categories', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ categories })
-      });
-
-      if (response.ok) {
-        setSuccess('✅ Categories saved!');
-        setTimeout(() => setSuccess(''), 3000);
-      } else {
-        const data = await response.json();
-        setError(data.error || 'Failed to save categories');
-      }
-    } catch (err) {
-      console.error('Error saving categories:', err);
-      setError('Failed to save categories');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  // Suggestions: the usual ones plus anything already in use
-  const suggestions = [...new Set([...SUGGESTED_CATEGORIES, ...songCategories(songs.map((song) => ({ ...song, category: categories[song.name] || null })))])];
-
-  return (
-    <div className={card}>
-      <AdminH3 className="mb-0.5">Song details</AdminH3>
-      <AdminTextMuted>
-        Categories become filter buttons on the visitor song list. Titles and artists come from the Media Library; song lengths come from your FPP playlist when you sync from FPP.
-      </AdminTextMuted>
-
-      {success && <p className={`${notice.ok} mt-4`}>{success}</p>}
-      {error && <p className={`${notice.danger} mt-4`}>{error}</p>}
-
-      {loading ? (
-        <AdminTextMuted className="mt-4">Loading...</AdminTextMuted>
-      ) : songs.length === 0 ? (
-        <AdminTextMuted className="mt-4">No songs cached yet. Use Sync from FPP at the top of the page first.</AdminTextMuted>
-      ) : (
-        <>
-          <datalist id="song-category-suggestions">
-            {suggestions.map((category) => (
-              <option key={category} value={category} />
-            ))}
-          </datalist>
-          <ul className="mt-4 flex flex-col gap-2">
-            {songs.map((song) => (
-              <li key={song.name} className="flex flex-col gap-2 rounded-xl border border-adm-line bg-adm-side p-3 md:flex-row md:items-center md:gap-4">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-adm-text">{song.title || song.name}</p>
-                  <p className="truncate text-xs text-adm-muted">
-                    {[song.artist || 'Unknown artist', song.durationSeconds != null ? formatClock(song.durationSeconds) : 'length unknown'].join(' · ')}
-                  </p>
-                </div>
-                <input
-                  type="text"
-                  list="song-category-suggestions"
-                  value={categories[song.name] || ''}
-                  onChange={(e) => setCategories((prev) => ({ ...prev, [song.name]: e.target.value }))}
-                  maxLength={MAX_CATEGORY_LENGTH}
-                  placeholder="Category"
-                  aria-label={`Category for ${song.title || song.name}`}
-                  className={`${field} md:w-56`}
-                />
-              </li>
-            ))}
-          </ul>
-
-          <div className="mt-5">
-            <button onClick={handleSave} disabled={saving} className={accentButton}>
-              {saving ? 'Saving…' : 'Save categories'}
-            </button>
-          </div>
-        </>
-      )}
     </div>
   );
 }
