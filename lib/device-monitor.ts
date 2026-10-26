@@ -1,7 +1,12 @@
 /**
  * Device Monitoring Scheduler
- * Automatically pings devices every 5 minutes
+ * Automatically pings devices every 5 minutes while monitoring is enabled;
+ * alert emails only go out during the monitoring schedule (lib/device-check.ts)
  */
+
+import db from './database';
+import { checkAllDevices } from './device-check';
+import { getSchedule, isMonitoringActive } from './monitoring-schedule';
 
 const CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
 
@@ -9,16 +14,16 @@ let monitorInterval: NodeJS.Timeout | null = null;
 
 async function checkDevices() {
   try {
-    console.log('[Device Monitor] Starting device health check...');
-    
-    const response = await fetch('http://localhost:3000/api/devices/check');
-    const data = await response.json();
-    
-    if (data.success) {
-      console.log('[Device Monitor] Health check completed successfully');
-    } else {
-      console.error('[Device Monitor] Health check failed:', data.error);
+    // The "Enable Device Monitoring" switch turns the automatic checks off; the Check button still works
+    if (!getSchedule()?.enabled) {
+      console.log('[Device Monitor] Monitoring disabled - skipping automatic check');
+      return;
     }
+
+    console.log('[Device Monitor] Starting device health check...');
+    // Called directly: the check API requires an admin session, which this background job doesn't have
+    await checkAllDevices(db, { alertsActive: isMonitoringActive() });
+    console.log('[Device Monitor] Health check completed successfully');
   } catch (error) {
     console.error('[Device Monitor] Error during health check:', error);
   }

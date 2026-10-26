@@ -1194,21 +1194,6 @@ export const getQueueStats = db.prepare(`
 `);
 
 // Device monitoring prepared statements
-export const upsertDeviceStatus = db.prepare(`
-  INSERT INTO device_status (device_id, is_online, last_checked, last_seen_online, consecutive_failures, last_notified)
-  VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?, ?)
-  ON CONFLICT(device_id) DO UPDATE SET
-    is_online = excluded.is_online,
-    last_checked = CURRENT_TIMESTAMP,
-    last_seen_online = excluded.last_seen_online,
-    consecutive_failures = excluded.consecutive_failures,
-    last_notified = excluded.last_notified
-`);
-
-export const getDeviceStatus = db.prepare(`
-  SELECT * FROM device_status WHERE device_id = ?
-`);
-
 export const getAllDeviceStatuses = db.prepare(`
   SELECT * FROM device_status ORDER BY device_id
 `);
@@ -1235,10 +1220,6 @@ export const getDeviceById = db.prepare(`
 
 export const getAllDevices = db.prepare(`
   SELECT * FROM devices ORDER BY name
-`);
-
-export const getEnabledDevices = db.prepare(`
-  SELECT * FROM devices WHERE enabled = 1 ORDER BY name
 `);
 
 // Monitoring schedule prepared statements

@@ -42,7 +42,7 @@ FPP Control Center is a **complete web-based control panel** for your Falcon Pla
 - **Device Status** - Live FPP connection status
 - **Playlist Monitoring** - See current playlist and schedule
 - **Email Alerts** - Get notified when FPP goes offline
-- **Scheduled Monitoring** - Only check during show hours
+- **Scheduled Alerts** - Devices are checked all day; offline alert emails only go out during show hours
 - **Performance Metrics** - Track uptime and reliability
 
 ### 🎛️ **Admin Dashboard**

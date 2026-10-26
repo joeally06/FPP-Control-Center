@@ -1184,7 +1184,7 @@ npm run db:stats  # View statistics
 
 4.  **Set Monitoring Hours**
    - Admin Panel  Settings  Monitoring
-   - Configure when to check FPP status
+   - Configure when device-offline alert emails are sent (devices are checked all day)
 
 5.  **Test Features**
    - Visit `/jukebox` - Request a song

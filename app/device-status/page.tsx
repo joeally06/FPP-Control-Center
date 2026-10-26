@@ -302,12 +302,12 @@ export default function DeviceStatusPage() {
                 {schedule.enabled ? (
                   <>
                     <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                    Monitoring hours: {formatTime12Hour(schedule.start_time)} - {formatTime12Hour(schedule.end_time)}
+                    Alert hours: {formatTime12Hour(schedule.start_time)} - {formatTime12Hour(schedule.end_time)}
                   </>
                 ) : (
                   <>
                     <BellOff className="h-3.5 w-3.5" aria-hidden="true" />
-                    Monitoring disabled - no checks running
+                    Automatic checks off - use Check to test devices
                   </>
                 )}
               </p>
