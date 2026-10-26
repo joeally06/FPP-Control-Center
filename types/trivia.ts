@@ -34,6 +34,16 @@ export interface TriviaAnswerResult {
   leaderboard?: TriviaPlayerSummary[];    // tonight's top scores, last answer only
 }
 
+/** A finished game, for the admin Scores tab (GET /api/trivia/scores). */
+export interface TriviaScoreRow {
+  id: number;
+  displayName: string;
+  score: number;
+  correctCount: number;
+  totalQuestions: number;
+  finishedAt: string;            // 'YYYY-MM-DD HH:MM:SS' UTC
+}
+
 export interface TriviaQuestionRow {
   id: number;
   category: string;

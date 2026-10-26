@@ -171,7 +171,7 @@ export default function TriviaGame() {
           <div>
             <span className="sp-eyebrow">Play along</span>
             <h2 className="sp-display sp-h2">Christmas trivia</h2>
-            <p className="sp-muted mt-1 text-sm">Beat the clock - the faster you answer, the more points you score.</p>
+            <p className="sp-muted mt-1 text-sm">Answer each question before the timer runs out.</p>
           </div>
           <label className="block text-sm font-semibold">
             Your name

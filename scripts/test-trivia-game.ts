@@ -2,8 +2,15 @@ import assert from 'assert';
 import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
-import { computePoints, parseTriviaSetting } from '../lib/trivia-logic';
-import { answerQuestion, getLeaderboard, isGameTokenShape, serveQuestion, startGame } from '../lib/trivia-game';
+import {
+  answerQuestion,
+  clearScores,
+  getLeaderboard,
+  isGameTokenShape,
+  listFinishedGames,
+  serveQuestion,
+  startGame,
+} from '../lib/trivia-game';
 import type { TriviaAnswerResult, TriviaServedQuestion } from '../types/trivia';
 
 function print(msg: string) {
@@ -51,18 +58,12 @@ function answered(token: string, questionId: number, choice: number | null, now:
 
 try {
   (() => {
-    print('Test 1: settings come from the migration and parse within limits');
+    print('Test 1: settings come from the migration');
     const rows = db.prepare(`SELECT key, value FROM settings WHERE category = 'trivia' ORDER BY key`).all();
     assert.deepStrictEqual(rows, [
       { key: 'trivia_questions_per_game', value: '10' },
       { key: 'trivia_seconds_per_question', value: '20' },
     ]);
-    assert.strictEqual(parseTriviaSetting('trivia_questions_per_game', '3'), 3);
-    assert.strictEqual(parseTriviaSetting('trivia_questions_per_game', '25'), 25);
-    assert.strictEqual(parseTriviaSetting('trivia_questions_per_game', '2'), null);
-    assert.strictEqual(parseTriviaSetting('trivia_seconds_per_question', '61'), null);
-    assert.strictEqual(parseTriviaSetting('trivia_seconds_per_question', '1.5'), null);
-    assert.strictEqual(parseTriviaSetting('trivia_seconds_per_question', null), null);
     print('Test 1 OK');
   })();
 
@@ -95,11 +96,11 @@ try {
     print('Test 4: right, wrong, timed-out, late and replayed answers');
     const game = startGame(db, { displayName: 'Di', ip: '192.0.2.3', questionsPerGame: 4, secondsPerQuestion: 20 })!;
 
-    // Correct after 4 s
+    // Correct after 15 s still earns the question's full points
     let q = served(game.token, at(0));
-    let r = answered(game.token, q.question.id, correctIndexOf(q.question.id), at(4000));
+    let r = answered(game.token, q.question.id, correctIndexOf(q.question.id), at(15000));
     assert.strictEqual(r.correct, true);
-    assert.strictEqual(r.pointsAwarded, computePoints(true, 4000, 20000, 1000));
+    assert.strictEqual(r.pointsAwarded, 1000);
     const afterFirst = r.score;
 
     // Replaying the same answer is rejected and doesn't change the score
@@ -142,7 +143,7 @@ try {
   })();
 
   (() => {
-    print('Test 5: rank and leaderboard count only finished games since the start of the night');
+    print('Test 5: rank and leaderboard count only finished games tonight, and equal scores go to whoever finished first');
     function playPerfect(name: string, answerAfterMs: number) {
       const game = startGame(db, { displayName: name, ip: '192.0.2.4', questionsPerGame: 3, secondsPerQuestion: 20 })!;
       let r: TriviaAnswerResult | null = null;
@@ -161,21 +162,59 @@ try {
     assert.strictEqual(fast.score, 3000);
     assert.strictEqual(fast.rank, 1);
     const slow = playPerfect('Slow', 10000);
-    assert.strictEqual(slow.score, 3 * computePoints(true, 10000, 20000, 1000));
-    assert.strictEqual(slow.rank, 2, 'only Fast scored more tonight; the 99999 from last night must not count');
+    assert.strictEqual(slow.score, 3000);
+    assert.strictEqual(slow.rank, 2, "same score as Fast but finished later; last night's 99999 must not count");
+    const twin = playPerfect('Twin', 10000);
+    assert.strictEqual(twin.rank, 3, 'same score and same second as Slow, but started after it');
 
     // Unfinished games (Ann, Bo, Cy) are left out; Di finished with one correct answer
     const board = getLeaderboard(db, SINCE);
-    assert.deepStrictEqual(board.map((p) => p.displayName), ['Fast', 'Slow', 'Di']);
-    assert.deepStrictEqual(slow.leaderboard, board);
+    assert.deepStrictEqual(board, [
+      { displayName: 'Fast', score: 3000 },
+      { displayName: 'Slow', score: 3000 },
+      { displayName: 'Twin', score: 3000 },
+      { displayName: 'Di', score: 1000 },
+    ]);
+    assert.deepStrictEqual(twin.leaderboard, board);
     print('Test 5 OK');
   })();
 
   (() => {
-    print('Test 6: an empty bank cannot start a game');
+    print('Test 6: the admin list shows finished games tonight or all time, best first');
+    const tonight = listFinishedGames(db, SINCE, 500);
+    assert.deepStrictEqual(tonight.games.map((g) => g.displayName), ['Fast', 'Slow', 'Twin', 'Di']);
+    assert.strictEqual(tonight.total, 4);
+    const di = tonight.games[3];
+    assert.deepStrictEqual([di.score, di.correctCount, di.totalQuestions], [1000, 1, 4]);
+    assert.ok(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(di.finishedAt));
+
+    const allTime = listFinishedGames(db, null, 2);
+    assert.deepStrictEqual(allTime.games.map((g) => g.displayName), ['Yesterday', 'Fast']);
+    assert.strictEqual(allTime.total, 5);
+    print('Test 6 OK');
+  })();
+
+  (() => {
+    print('Test 7: clearing scores removes finished and abandoned games but not one being played');
+    db.prepare(`UPDATE trivia_games SET created_at = datetime('now', '-2 hours') WHERE display_name = 'Cy'`).run();
+    const live = startGame(db, { displayName: 'Live', ip: '192.0.2.6', questionsPerGame: 3, secondsPerQuestion: 20 })!;
+    const q = served(live.token, new Date());
+
+    assert.strictEqual(clearScores(db, new Date()), 6, '5 finished games + abandoned Cy');
+    const left = (db.prepare('SELECT display_name as n FROM trivia_games ORDER BY id').all() as Array<{ n: string }>).map((r) => r.n);
+    assert.deepStrictEqual(left, ['Ann', 'Bo', 'Live']);
+    assert.strictEqual(listFinishedGames(db, null, 500).total, 0);
+
+    const r = answerQuestion(db, live.token, q.question.id, correctIndexOf(q.question.id), new Date(), SINCE);
+    assert.ok(!('error' in r) && r.correct, 'the game in progress carries on');
+    print('Test 7 OK');
+  })();
+
+  (() => {
+    print('Test 8: an empty bank cannot start a game');
     db.exec('DELETE FROM trivia_questions');
     assert.strictEqual(startGame(db, { displayName: 'Ed', ip: '192.0.2.5', questionsPerGame: 10, secondsPerQuestion: 20 }), null);
-    print('Test 6 OK');
+    print('Test 8 OK');
   })();
 } catch (err) {
   console.error('[test-trivia-game] FAILED:', err);

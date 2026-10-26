@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { TriviaQuestionRow } from '@/types/trivia';
+import type { TriviaQuestionRow, TriviaScoreRow } from '@/types/trivia';
 import { X } from 'lucide-react';
-import { insetBox, button, accentButton, field, sizedField, textLink, notice, tabClass } from '@/components/admin/ui-classes';
+import { insetBox, button, accentButton, dangerButton, field, sizedField, textLink, notice, tabClass } from '@/components/admin/ui-classes';
 import { TRIVIA_SETTING_LIMITS } from '@/lib/trivia-logic';
+import { formatDateTime } from '@/lib/time-utils';
 
-type SubTab = 'bank' | 'game';
+type SubTab = 'bank' | 'game' | 'scores';
+type ScoreRange = 'tonight' | 'all';
 
 const { trivia_questions_per_game: QUESTIONS_LIMITS, trivia_seconds_per_question: SECONDS_LIMITS } = TRIVIA_SETTING_LIMITS;
 
@@ -31,6 +33,10 @@ export default function TriviaSettings() {
   const [questionsPerGame, setQuestionsPerGame] = useState<number>(QUESTIONS_LIMITS.default);
   const [secondsPerQuestion, setSecondsPerQuestion] = useState<number>(SECONDS_LIMITS.default);
   const [savingGame, setSavingGame] = useState(false);
+
+  const [scoreRange, setScoreRange] = useState<ScoreRange>('tonight');
+  const [scores, setScores] = useState<{ games: TriviaScoreRow[]; total: number } | null>(null);
+  const [clearingScores, setClearingScores] = useState(false);
 
   useEffect(() => {
     void refreshAll();
@@ -159,6 +165,51 @@ export default function TriviaSettings() {
     }
   }
 
+  // ─── Scores ─────────────────────────────────────────────────────────────
+
+  async function loadScores(range: ScoreRange) {
+    try {
+      const res = await fetch(`/api/trivia/scores?range=${range}`);
+      const data = await res.json();
+      if (!res.ok) {
+        flash('error', data.error || 'Failed to load scores');
+        return;
+      }
+      setScores(data);
+    } catch {
+      flash('error', 'Failed to load scores');
+    }
+  }
+
+  function selectTab(tab: SubTab) {
+    setSubTab(tab);
+    if (tab === 'scores') void loadScores(scoreRange);
+  }
+
+  function selectScoreRange(range: ScoreRange) {
+    setScoreRange(range);
+    void loadScores(range);
+  }
+
+  async function clearAllScores() {
+    if (!confirm("Clear every trivia score? Tonight's leaderboard starts over. Games being played right now carry on.")) return;
+    setClearingScores(true);
+    try {
+      const res = await fetch('/api/trivia/scores', { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) {
+        flash('error', data.error || 'Failed to clear scores');
+        return;
+      }
+      flash('success', `Cleared ${data.deleted} game${data.deleted === 1 ? '' : 's'}`);
+      await loadScores(scoreRange);
+    } catch {
+      flash('error', 'Failed to clear scores');
+    } finally {
+      setClearingScores(false);
+    }
+  }
+
   if (loading) {
     return <p className="text-sm text-adm-muted">Loading trivia settings…</p>;
   }
@@ -168,14 +219,14 @@ export default function TriviaSettings() {
   return (
     <div className="space-y-5">
       <div className="flex gap-1 overflow-x-auto border-b border-adm-line">
-        {(['bank', 'game'] as SubTab[]).map((tab) => (
+        {(['bank', 'game', 'scores'] as SubTab[]).map((tab) => (
           <button
             key={tab}
-            onClick={() => setSubTab(tab)}
+            onClick={() => selectTab(tab)}
             aria-pressed={subTab === tab}
             className={tabClass(subTab === tab)}
           >
-            {tab === 'bank' ? 'Question Bank' : 'Game'}
+            {tab === 'bank' ? 'Question Bank' : tab === 'game' ? 'Game' : 'Scores'}
           </button>
         ))}
       </div>
@@ -243,7 +294,7 @@ export default function TriviaSettings() {
               )}
             </div>
             <div className="flex items-center gap-3">
-              <label htmlFor="trivia-points" className="text-sm text-adm-soft">Base points</label>
+              <label htmlFor="trivia-points" className="text-sm text-adm-soft">Points</label>
               <input
                 id="trivia-points"
                 type="number"
@@ -331,6 +382,60 @@ export default function TriviaSettings() {
           <button onClick={saveGameSettings} disabled={savingGame} className={accentButton}>
             {savingGame ? 'Saving…' : 'Save'}
           </button>
+        </div>
+      )}
+
+      {subTab === 'scores' && (
+        <div className={`${insetBox} space-y-3`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex gap-2" role="group" aria-label="Which scores to show">
+              {(['tonight', 'all'] as ScoreRange[]).map((range) => {
+                const active = scoreRange === range;
+                return (
+                  <button
+                    key={range}
+                    onClick={() => selectScoreRange(range)}
+                    aria-pressed={active}
+                    className={`min-h-9 rounded-full border px-3.5 text-[13px] font-medium transition-colors ${
+                      active ? 'border-adm-accent bg-adm-warn-bg text-adm-warn' : 'border-adm-control-line bg-adm-control text-adm-text hover:bg-adm-line'
+                    }`}
+                  >
+                    {range === 'tonight' ? 'Tonight' : 'All time'}
+                  </button>
+                );
+              })}
+            </div>
+            <button onClick={clearAllScores} disabled={clearingScores} className={dangerButton}>
+              {clearingScores ? 'Clearing…' : 'Clear all scores'}
+            </button>
+          </div>
+          {!scores ? (
+            <p className="text-sm text-adm-muted">Loading scores…</p>
+          ) : scores.games.length === 0 ? (
+            <p className="text-sm text-adm-muted">
+              {scoreRange === 'tonight' ? 'No finished games tonight yet.' : 'No finished games yet.'}
+            </p>
+          ) : (
+            <>
+              <ol className="space-y-2">
+                {scores.games.map((g, i) => (
+                  <li key={g.id} className="flex items-center gap-3 rounded-lg border border-adm-line bg-adm-surface p-3">
+                    <span className="w-8 shrink-0 text-sm font-semibold tabular-nums text-adm-muted">{i + 1}.</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-adm-text">{g.displayName}</p>
+                      <p className="text-xs text-adm-muted">
+                        {g.correctCount}/{g.totalQuestions} correct · {formatDateTime(g.finishedAt)}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums text-adm-text">{g.score}</span>
+                  </li>
+                ))}
+              </ol>
+              {scores.total > scores.games.length && (
+                <p className="text-xs text-adm-muted">Showing the top {scores.games.length} of {scores.total} games.</p>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>

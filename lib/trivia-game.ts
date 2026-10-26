@@ -4,9 +4,8 @@
 
 import crypto from 'crypto';
 import type BetterSqlite3 from 'better-sqlite3';
-import { computePoints } from './trivia-logic';
 import { getQuestionById } from './trivia-questions';
-import type { TriviaAnswerResult, TriviaPlayerSummary, TriviaServedQuestion } from '@/types/trivia';
+import type { TriviaAnswerResult, TriviaPlayerSummary, TriviaScoreRow, TriviaServedQuestion } from '@/types/trivia';
 
 type Db = BetterSqlite3.Database;
 
@@ -144,15 +143,16 @@ export function answerQuestion(
   const answerMs = Math.max(0, now.getTime() - new Date(game.question_started_at).getTime());
   const timedOut = choiceIndex === null || answerMs > windowMs + ANSWER_GRACE_MS;
   const correct = !timedOut && choiceIndex === question.correctIndex;
-  const pointsAwarded = computePoints(correct, answerMs, windowMs, question.points);
+  const pointsAwarded = correct ? question.points : 0;
   const finished = game.current_index + 1 >= questionIds.length;
+  const finishedAt = finished ? toSqlUtc(now) : null;
 
   const result = db.prepare(`
     UPDATE trivia_games
     SET score = score + ?, correct_count = correct_count + ?, current_index = current_index + 1,
         question_started_at = NULL, finished_at = ?
     WHERE id = ? AND current_index = ?
-  `).run(pointsAwarded, correct ? 1 : 0, finished ? toSqlUtc(now) : null, game.id, game.current_index);
+  `).run(pointsAwarded, correct ? 1 : 0, finishedAt, game.id, game.current_index);
   if (result.changes === 0) return { error: 'stale' };
 
   const score = game.score + pointsAwarded;
@@ -168,14 +168,19 @@ export function answerQuestion(
   };
 
   if (finished) {
-    const better = db.prepare(
-      'SELECT COUNT(*) as c FROM trivia_games WHERE finished_at >= ? AND score > ?'
-    ).get(sinceUtc, score) as { c: number };
-    answer.rank = better.c + 1;
+    // Same order as the leaderboard: equal scores go to whoever finished first
+    const ahead = db.prepare(`
+      SELECT COUNT(*) as c FROM trivia_games
+      WHERE finished_at >= ?
+        AND (score > ? OR (score = ? AND (finished_at < ? OR (finished_at = ? AND id < ?))))
+    `).get(sinceUtc, score, score, finishedAt, finishedAt, game.id) as { c: number };
+    answer.rank = ahead.c + 1;
     answer.leaderboard = getLeaderboard(db, sinceUtc);
   }
   return answer;
 }
+
+const SCORE_ORDER = 'ORDER BY score DESC, finished_at ASC, id ASC';
 
 /** Tonight's best finished games */
 export function getLeaderboard(db: Db, sinceUtc: string): TriviaPlayerSummary[] {
@@ -183,7 +188,33 @@ export function getLeaderboard(db: Db, sinceUtc: string): TriviaPlayerSummary[] 
     SELECT display_name as displayName, score
     FROM trivia_games
     WHERE finished_at >= ?
-    ORDER BY score DESC, finished_at ASC
+    ${SCORE_ORDER}
     LIMIT ?
   `).all(sinceUtc, LEADERBOARD_SIZE) as TriviaPlayerSummary[];
+}
+
+/** Finished games for the admin Scores tab, best first; sinceUtc null = all time */
+export function listFinishedGames(db: Db, sinceUtc: string | null, limit: number): { games: TriviaScoreRow[]; total: number } {
+  const since = sinceUtc ?? '';
+  const games = db.prepare(`
+    SELECT id, display_name as displayName, score, correct_count as correctCount,
+           json_array_length(question_ids) as totalQuestions, finished_at as finishedAt
+    FROM trivia_games
+    WHERE finished_at >= ?
+    ${SCORE_ORDER}
+    LIMIT ?
+  `).all(since, limit) as TriviaScoreRow[];
+  const { c } = db.prepare('SELECT COUNT(*) as c FROM trivia_games WHERE finished_at >= ?').get(since) as { c: number };
+  return { games, total: c };
+}
+
+/**
+ * Clears the scores: every finished game, plus unfinished ones started over an hour ago (abandoned).
+ * Games started within the last hour are kept so nobody playing right now gets cut off.
+ */
+export function clearScores(db: Db, now: Date): number {
+  const hourAgo = toSqlUtc(new Date(now.getTime() - 60 * 60 * 1000));
+  return db.prepare(
+    'DELETE FROM trivia_games WHERE finished_at IS NOT NULL OR created_at < ?'
+  ).run(hourAgo).changes;
 }
