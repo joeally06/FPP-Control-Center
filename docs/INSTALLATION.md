@@ -1160,6 +1160,9 @@ pm2 stop fpp-control       # Stop
 pm2 start fpp-control      # Start
 ``
 
+After editing `.env.local` you can also restart from the admin UI: **Settings → Updates → Restart Services**
+restarts `fpp-control` and `fpp-poller` so they read the new values. Changed `NEXT_PUBLIC_*` values still need a rebuild.
+
 **Database:**
 ``bash
 npm run backup    # Manual backup
