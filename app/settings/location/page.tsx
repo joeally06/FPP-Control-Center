@@ -1,10 +1,6 @@
-import AdminLayout from '@/components/AdminLayout';
-import LocationRestrictions from '@/components/admin/LocationRestrictions';
+import { redirect } from 'next/navigation';
 
+// Location limits are now part of Settings → Jukebox → Request rules
 export default function LocationSettingsPage() {
-  return (
-    <AdminLayout>
-      <LocationRestrictions />
-    </AdminLayout>
-  );
+  redirect('/settings/jukebox?tab=rules');
 }

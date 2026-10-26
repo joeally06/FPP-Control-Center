@@ -5,8 +5,8 @@ import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import {
-  ChartColumn, CircleHelp, Clapperboard, Database, Ellipsis, ExternalLink, LogOut, Mail, MapPin, Menu,
-  Monitor, Music, Palette, Play, Radio, RefreshCw, Server, Sparkles, TreePine, X,
+  ChartColumn, CircleHelp, Database, Ellipsis, ExternalLink, LogOut, Mail, Menu,
+  Monitor, Music, Play, Radio, RefreshCw, Server, Sparkles, TreePine, X,
   type LucideIcon,
 } from 'lucide-react';
 import TimezoneIndicator from './TimezoneIndicator';
@@ -26,9 +26,7 @@ const NAV_GROUPS: { label: string | null; items: NavItem[] }[] = [
     label: 'Content',
     items: [
       { name: 'Media library', href: '/media', icon: Music },
-      { name: 'Videos', href: '/settings/videos', icon: Clapperboard },
       { name: 'Models', href: '/models', icon: TreePine },
-      { name: 'Themes', href: '/theme-settings', icon: Palette },
       { name: 'Digital sign', href: '/settings/display', icon: Monitor },
     ],
   },
@@ -38,7 +36,6 @@ const NAV_GROUPS: { label: string | null; items: NavItem[] }[] = [
       { name: 'Jukebox', href: '/settings/jukebox', icon: Radio, short: 'Jukebox' },
       { name: 'Santa letters', href: '/santa-letters', icon: Mail, short: 'Letters' },
       { name: 'Trivia', href: '/settings/trivia', icon: CircleHelp },
-      { name: 'Location limits', href: '/settings/location', icon: MapPin },
     ],
   },
   {

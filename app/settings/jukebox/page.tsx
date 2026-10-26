@@ -1,10 +1,15 @@
 import AdminLayout from '@/components/AdminLayout';
-import JukeboxSettings from '@/components/admin/JukeboxSettings';
+import JukeboxSetup from '@/components/admin/JukeboxSetup';
 
-export default function JukeboxSettingsPage() {
+export default async function JukeboxSettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const { tab } = await searchParams;
   return (
     <AdminLayout>
-      <JukeboxSettings />
+      <JukeboxSetup initialTab={typeof tab === 'string' ? tab : undefined} />
     </AdminLayout>
   );
 }

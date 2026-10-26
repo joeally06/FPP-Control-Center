@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
-import BannerSettings from '@/components/admin/BannerSettings';
 import { formatDateTime } from '@/lib/time-utils';
 import { THEME_PRESETS, type ThemeId } from '@/lib/themes/theme-config';
 import {
@@ -22,7 +21,7 @@ import {
   AdminLabel,
 } from '@/components/admin/Typography';
 import {
-  accentButton, badge, button, card, checkInput, choiceCard, eyebrow, field, insetBox, notice, smallButton, smallDangerButton,
+  accentButton, badge, card, checkInput, choiceCard, field, insetBox, notice, smallButton, smallDangerButton,
 } from '@/components/admin/ui-classes';
 
 interface JukeboxUser {
@@ -33,30 +32,20 @@ interface JukeboxUser {
   firstRequest: string;
 }
 
-export default function JukeboxSettings() {
+/** Jukebox → Request rules: how many requests a visitor gets and where they go in the show. */
+export function RequestRulesSettings() {
   const [rateLimit, setRateLimit] = useState<number>(3);
   const [insertMode, setInsertMode] = useState<string>('after_current');
-  const [siteName, setSiteName] = useState('');
-  const [fmFrequency, setFmFrequency] = useState('');
-  const [courtesyEnabled, setCourtesyEnabled] = useState(false);
-  const [courtesyText, setCourtesyText] = useState('');
-  const [specsEnabled, setSpecsEnabled] = useState(false);
-  const [specValues, setSpecValues] = useState<Record<string, string>>({});
-  const [audienceEnabled, setAudienceEnabled] = useState(false);
-  const [songDetailsReload, setSongDetailsReload] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [jukeboxUsers, setJukeboxUsers] = useState<JukeboxUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
-  const [refreshingCache, setRefreshingCache] = useState(false);
-  const [cacheInfo, setCacheInfo] = useState<{ count: number; lastRefresh: string | null }>({ count: 0, lastRefresh: null });
 
   useEffect(() => {
     fetchSettings();
     fetchJukeboxUsers();
-    fetchCacheInfo();
   }, []);
 
   async function fetchSettings() {
@@ -66,13 +55,6 @@ export default function JukeboxSettings() {
         const data = await response.json();
         setRateLimit(parseInt(data.settings.jukebox_rate_limit || '3', 10));
         setInsertMode(data.settings.jukebox_insert_mode || 'after_current');
-        setSiteName(data.settings.site_name || '');
-        setFmFrequency(data.settings.jukebox_fm_frequency || '');
-        setCourtesyEnabled(data.settings.jukebox_courtesy_enabled === 'true');
-        setCourtesyText(data.settings.jukebox_courtesy_text || '');
-        setSpecsEnabled(data.settings.jukebox_specs_enabled === 'true');
-        setSpecValues(Object.fromEntries(SHOW_SPEC_FIELDS.map((field) => [field.key, data.settings[field.key] || ''])));
-        setAudienceEnabled(data.settings.jukebox_audience_enabled === 'true');
       }
     } catch (err) {
       console.error('Error fetching jukebox settings:', err);
@@ -94,59 +76,6 @@ export default function JukeboxSettings() {
       console.error('Error fetching jukebox users:', error);
     } finally {
       setLoadingUsers(false);
-    }
-  }
-
-  async function fetchCacheInfo() {
-    try {
-      const response = await fetch('/api/jukebox/sequences');
-      if (response.ok) {
-        const data = await response.json();
-        setCacheInfo({
-          count: data.sequences?.length || 0,
-          lastRefresh: data.lastRefresh || null
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching cache info:', error);
-    }
-  }
-
-  async function handleRefreshCache() {
-    setRefreshingCache(true);
-    setSuccess('');
-    setError('');
-
-    try {
-      const response = await fetch('/api/jukebox/refresh-cache', {
-        method: 'POST'
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setSuccess(`✅ Cache refreshed! ${data.sequencesCached} sequences loaded.`);
-        await fetchCacheInfo();
-        setSongDetailsReload((n) => n + 1);
-      } else {
-        const errorMsg = data.details || data.error || 'Failed to refresh cache';
-        if (data.error === 'FPP is offline') {
-          setError('⚠️ FPP is offline. Cannot refresh cache at this time.');
-        } else if (data.error === 'FPP server timeout') {
-          setError('⏱️ FPP server timeout. The server may be offline or busy.');
-        } else {
-          setError(`❌ ${errorMsg}`);
-        }
-      }
-    } catch (err) {
-      console.error('Error refreshing cache:', err);
-      setError('❌ Network error while refreshing cache.');
-    } finally {
-      setRefreshingCache(false);
-      setTimeout(() => {
-        setSuccess('');
-        setError('');
-      }, 5000);
     }
   }
 
@@ -189,14 +118,7 @@ export default function JukeboxSettings() {
         body: JSON.stringify({
           settings: {
             jukebox_rate_limit: rateLimit.toString(),
-            jukebox_insert_mode: insertMode,
-            site_name: siteName.trim(),
-            jukebox_fm_frequency: fmFrequency.trim(),
-            jukebox_courtesy_enabled: courtesyEnabled ? 'true' : 'false',
-            jukebox_courtesy_text: courtesyText.trim(),
-            jukebox_specs_enabled: specsEnabled ? 'true' : 'false',
-            ...Object.fromEntries(SHOW_SPEC_FIELDS.map((field) => [field.key, (specValues[field.key] || '').trim()])),
-            jukebox_audience_enabled: audienceEnabled ? 'true' : 'false'
+            jukebox_insert_mode: insertMode
           }
         })
       });
@@ -219,7 +141,7 @@ export default function JukeboxSettings() {
   if (loading) {
     return (
       <div className={card}>
-        <AdminH2>Jukebox Settings</AdminH2>
+        <AdminH2>Song requests</AdminH2>
         <AdminTextMuted>Loading...</AdminTextMuted>
       </div>
     );
@@ -228,7 +150,7 @@ export default function JukeboxSettings() {
   return (
     <div className="flex max-w-3xl flex-col gap-4">
       <div className={card}>
-        <AdminH2 className="mb-1">Jukebox Settings</AdminH2>
+        <AdminH2 className="mb-1">Song requests</AdminH2>
         <AdminTextMuted>
           How song requests work. Saved changes apply to new requests straight away, and visitors see the limit and queue behaviour on the request page.
         </AdminTextMuted>
@@ -319,130 +241,6 @@ export default function JukeboxSettings() {
           </div>
         </section>
 
-        {/* Visitor Page Section */}
-        <section className="mt-6 flex flex-col gap-4 border-t border-adm-line pt-5">
-          <div>
-            <AdminH3 className="mb-0.5">Visitor page</AdminH3>
-            <AdminTextMuted>What visitors see at the top of the jukebox page</AdminTextMuted>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <AdminLabel htmlFor="jukebox-site-name">Show name</AdminLabel>
-              <input
-                id="jukebox-site-name"
-                type="text"
-                value={siteName}
-                onChange={(e) => setSiteName(e.target.value)}
-                maxLength={VISITOR_SETTING_LIMITS.site_name}
-                placeholder="e.g. Lewis Family Light Show"
-                className={field}
-              />
-              <p className="mt-1 text-xs text-adm-muted">
-                Shown in the top bar and footer, in the active theme&apos;s lettering, and in place of the logo if none is uploaded.
-              </p>
-            </div>
-
-            <div>
-              <AdminLabel htmlFor="jukebox-fm-frequency">FM frequency</AdminLabel>
-              <input
-                id="jukebox-fm-frequency"
-                type="text"
-                value={fmFrequency}
-                onChange={(e) => setFmFrequency(e.target.value)}
-                maxLength={VISITOR_SETTING_LIMITS.jukebox_fm_frequency}
-                placeholder="e.g. 91.5 FM"
-                className={field}
-              />
-              <p className="mt-1 text-xs text-adm-muted">
-                Leave empty to hide the radio frequency (the Listen Online button still shows).
-              </p>
-            </div>
-          </div>
-
-          <label className={choiceCard}>
-            <input
-              type="checkbox"
-              checked={courtesyEnabled}
-              onChange={(e) => setCourtesyEnabled(e.target.checked)}
-              className={checkInput}
-            />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-adm-text">Show the courtesy reminders card</p>
-              <p className="mt-0.5 text-[13px] text-adm-muted">
-                A dismissible card with viewing reminders for visitors in cars.
-              </p>
-            </div>
-          </label>
-
-          {courtesyEnabled && (
-            <div>
-              <AdminLabel htmlFor="jukebox-courtesy-text">Courtesy reminders (one per line, up to 5)</AdminLabel>
-              <textarea
-                id="jukebox-courtesy-text"
-                value={courtesyText}
-                onChange={(e) => setCourtesyText(e.target.value)}
-                maxLength={VISITOR_SETTING_LIMITS.jukebox_courtesy_text}
-                rows={4}
-                placeholder={DEFAULT_COURTESY_TEXT}
-                className={field}
-              />
-              <p className="mt-1 text-xs text-adm-muted">
-                Leave empty to use the default reminders shown above.
-              </p>
-            </div>
-          )}
-
-          <label className={choiceCard}>
-            <input
-              type="checkbox"
-              checked={specsEnabled}
-              onChange={(e) => setSpecsEnabled(e.target.checked)}
-              className={checkInput}
-            />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-adm-text">Show the &ldquo;Behind the pixels&rdquo; card</p>
-              <p className="mt-0.5 text-[13px] text-adm-muted">
-                Facts about your display for curious visitors. Empty fields are hidden.
-              </p>
-            </div>
-          </label>
-
-          {specsEnabled && (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {SHOW_SPEC_FIELDS.map((specField) => (
-                <div key={specField.key}>
-                  <AdminLabel htmlFor={`jukebox-spec-${specField.key}`}>{specField.label}</AdminLabel>
-                  <input
-                    id={`jukebox-spec-${specField.key}`}
-                    type="text"
-                    value={specValues[specField.key] || ''}
-                    onChange={(e) => setSpecValues((prev) => ({ ...prev, [specField.key]: e.target.value }))}
-                    maxLength={VISITOR_SETTING_LIMITS[specField.key]}
-                    placeholder={specField.placeholder}
-                    className={field}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-
-          <label className={choiceCard}>
-            <input
-              type="checkbox"
-              checked={audienceEnabled}
-              onChange={(e) => setAudienceEnabled(e.target.checked)}
-              className={checkInput}
-            />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-adm-text">Show how many people are online</p>
-              <p className="mt-0.5 text-[13px] text-adm-muted">
-                Shows &ldquo;N online now&rdquo;: devices with the jukebox page open in the last minute. It can&apos;t count radio-only listeners. Nothing is stored.
-              </p>
-            </div>
-          </label>
-        </section>
-
         {/* Save Button */}
         <div className="mt-6 flex gap-3 border-t border-adm-line pt-5">
           <button onClick={handleSave} disabled={saving} className={accentButton}>
@@ -450,55 +248,6 @@ export default function JukeboxSettings() {
           </button>
         </div>
       </div>
-
-      {/* Sequence Cache Management */}
-      <div className={card}>
-        <AdminH3 className="mb-0.5">Song cache</AdminH3>
-        <AdminTextMuted>Refresh the list of available songs from FPP</AdminTextMuted>
-
-        {/* Cache Status */}
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className={insetBox}>
-            <p className={eyebrow}>Cached songs</p>
-            <p className="mt-1 font-mono text-2xl font-semibold text-adm-text">{cacheInfo.count}</p>
-          </div>
-          <div className={insetBox}>
-            <p className={eyebrow}>Cache status</p>
-            {cacheInfo.count > 0 ? (
-              <p className="mt-1 text-lg font-semibold text-adm-ok">Active</p>
-            ) : (
-              <p className="mt-1 text-lg font-semibold text-adm-warn">Empty</p>
-            )}
-          </div>
-        </div>
-
-        {/* Refresh Button */}
-        <button onClick={handleRefreshCache} disabled={refreshingCache} className={`${button} mt-4 w-full`}>
-          <RefreshCw className={`h-4 w-4 ${refreshingCache ? 'animate-spin' : ''}`} aria-hidden="true" />
-          {refreshingCache ? 'Refreshing…' : 'Refresh song cache from FPP'}
-        </button>
-        <p className="mt-2 text-[13px] text-adm-muted">
-          This fetches the latest playlist from your FPP server and updates the available songs for visitors to request.
-        </p>
-
-        {/* Info Box */}
-        <div className={`${notice.info} mt-4`}>
-          <p className="font-medium text-adm-info">When to refresh</p>
-          <ul className="mt-1.5 list-disc space-y-1 pl-5">
-            <li className="text-adm-info">After adding or removing songs from your FPP playlist</li>
-            <li className="text-adm-info">After reordering songs in FPP</li>
-            <li className="text-adm-info">If visitors report missing songs</li>
-            <li className="text-adm-info">The cache also refreshes automatically in the background when admins visit the jukebox page</li>
-          </ul>
-        </div>
-      </div>
-
-      <SongDetailsSettings reloadKey={songDetailsReload} />
-
-      <PlaylistSettings reloadKey={songDetailsReload} />
-
-      {/* Off-season message under the logo on the visitor page */}
-      <BannerSettings />
 
       {/* User Rate Limit Management */}
       <div className={card}>
@@ -573,7 +322,229 @@ export default function JukeboxSettings() {
   );
 }
 
-function SongDetailsSettings({ reloadKey }: { reloadKey: number }) {
+/** Jukebox → Visitor page: the show name, radio frequency and optional cards on the visitor page. */
+export function VisitorPageSettings() {
+  const [siteName, setSiteName] = useState('');
+  const [fmFrequency, setFmFrequency] = useState('');
+  const [courtesyEnabled, setCourtesyEnabled] = useState(false);
+  const [courtesyText, setCourtesyText] = useState('');
+  const [specsEnabled, setSpecsEnabled] = useState(false);
+  const [specValues, setSpecValues] = useState<Record<string, string>>({});
+  const [audienceEnabled, setAudienceEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  async function fetchSettings() {
+    try {
+      const response = await fetch('/api/settings');
+      if (response.ok) {
+        const data = await response.json();
+        setSiteName(data.settings.site_name || '');
+        setFmFrequency(data.settings.jukebox_fm_frequency || '');
+        setCourtesyEnabled(data.settings.jukebox_courtesy_enabled === 'true');
+        setCourtesyText(data.settings.jukebox_courtesy_text || '');
+        setSpecsEnabled(data.settings.jukebox_specs_enabled === 'true');
+        setSpecValues(Object.fromEntries(SHOW_SPEC_FIELDS.map((field) => [field.key, data.settings[field.key] || ''])));
+        setAudienceEnabled(data.settings.jukebox_audience_enabled === 'true');
+      }
+    } catch (err) {
+      console.error('Error fetching visitor page settings:', err);
+      setError('Failed to load settings');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setSuccess('');
+    setError('');
+
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          settings: {
+            site_name: siteName.trim(),
+            jukebox_fm_frequency: fmFrequency.trim(),
+            jukebox_courtesy_enabled: courtesyEnabled ? 'true' : 'false',
+            jukebox_courtesy_text: courtesyText.trim(),
+            jukebox_specs_enabled: specsEnabled ? 'true' : 'false',
+            ...Object.fromEntries(SHOW_SPEC_FIELDS.map((field) => [field.key, (specValues[field.key] || '').trim()])),
+            jukebox_audience_enabled: audienceEnabled ? 'true' : 'false'
+          }
+        })
+      });
+
+      if (response.ok) {
+        setSuccess('✅ Settings saved successfully!');
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Failed to save settings');
+      }
+    } catch (err) {
+      console.error('Error saving visitor page settings:', err);
+      setError('Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className={card}>
+        <AdminH2>Visitor page</AdminH2>
+        <AdminTextMuted>Loading...</AdminTextMuted>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${card} flex max-w-3xl flex-col gap-4`}>
+      <div>
+        <AdminH2 className="mb-1">Visitor page</AdminH2>
+        <AdminTextMuted>What visitors see at the top of the jukebox page</AdminTextMuted>
+      </div>
+
+      {success && <p className={notice.ok}>{success}</p>}
+      {error && <p className={notice.danger}>{error}</p>}
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div>
+          <AdminLabel htmlFor="jukebox-site-name">Show name</AdminLabel>
+          <input
+            id="jukebox-site-name"
+            type="text"
+            value={siteName}
+            onChange={(e) => setSiteName(e.target.value)}
+            maxLength={VISITOR_SETTING_LIMITS.site_name}
+            placeholder="e.g. Lewis Family Light Show"
+            className={field}
+          />
+          <p className="mt-1 text-xs text-adm-muted">
+            Shown in the top bar and footer, in the active theme&apos;s lettering, and in place of the logo if none is uploaded.
+          </p>
+        </div>
+
+        <div>
+          <AdminLabel htmlFor="jukebox-fm-frequency">FM frequency</AdminLabel>
+          <input
+            id="jukebox-fm-frequency"
+            type="text"
+            value={fmFrequency}
+            onChange={(e) => setFmFrequency(e.target.value)}
+            maxLength={VISITOR_SETTING_LIMITS.jukebox_fm_frequency}
+            placeholder="e.g. 91.5 FM"
+            className={field}
+          />
+          <p className="mt-1 text-xs text-adm-muted">
+            Leave empty to hide the radio frequency (the Listen Online button still shows).
+          </p>
+        </div>
+      </div>
+
+      <label className={choiceCard}>
+        <input
+          type="checkbox"
+          checked={courtesyEnabled}
+          onChange={(e) => setCourtesyEnabled(e.target.checked)}
+          className={checkInput}
+        />
+        <div className="flex-1">
+          <p className="text-sm font-medium text-adm-text">Show the courtesy reminders card</p>
+          <p className="mt-0.5 text-[13px] text-adm-muted">
+            A dismissible card with viewing reminders for visitors in cars.
+          </p>
+        </div>
+      </label>
+
+      {courtesyEnabled && (
+        <div>
+          <AdminLabel htmlFor="jukebox-courtesy-text">Courtesy reminders (one per line, up to 5)</AdminLabel>
+          <textarea
+            id="jukebox-courtesy-text"
+            value={courtesyText}
+            onChange={(e) => setCourtesyText(e.target.value)}
+            maxLength={VISITOR_SETTING_LIMITS.jukebox_courtesy_text}
+            rows={4}
+            placeholder={DEFAULT_COURTESY_TEXT}
+            className={field}
+          />
+          <p className="mt-1 text-xs text-adm-muted">
+            Leave empty to use the default reminders shown above.
+          </p>
+        </div>
+      )}
+
+      <label className={choiceCard}>
+        <input
+          type="checkbox"
+          checked={specsEnabled}
+          onChange={(e) => setSpecsEnabled(e.target.checked)}
+          className={checkInput}
+        />
+        <div className="flex-1">
+          <p className="text-sm font-medium text-adm-text">Show the &ldquo;Behind the pixels&rdquo; card</p>
+          <p className="mt-0.5 text-[13px] text-adm-muted">
+            Facts about your display for curious visitors. Empty fields are hidden.
+          </p>
+        </div>
+      </label>
+
+      {specsEnabled && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {SHOW_SPEC_FIELDS.map((specField) => (
+            <div key={specField.key}>
+              <AdminLabel htmlFor={`jukebox-spec-${specField.key}`}>{specField.label}</AdminLabel>
+              <input
+                id={`jukebox-spec-${specField.key}`}
+                type="text"
+                value={specValues[specField.key] || ''}
+                onChange={(e) => setSpecValues((prev) => ({ ...prev, [specField.key]: e.target.value }))}
+                maxLength={VISITOR_SETTING_LIMITS[specField.key]}
+                placeholder={specField.placeholder}
+                className={field}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <label className={choiceCard}>
+        <input
+          type="checkbox"
+          checked={audienceEnabled}
+          onChange={(e) => setAudienceEnabled(e.target.checked)}
+          className={checkInput}
+        />
+        <div className="flex-1">
+          <p className="text-sm font-medium text-adm-text">Show how many people are online</p>
+          <p className="mt-0.5 text-[13px] text-adm-muted">
+            Shows &ldquo;N online now&rdquo;: devices with the jukebox page open in the last minute. It can&apos;t count radio-only listeners. Nothing is stored.
+          </p>
+        </div>
+      </label>
+
+      {/* Save Button */}
+      <div className="flex gap-3 border-t border-adm-line pt-5">
+        <button onClick={handleSave} disabled={saving} className={accentButton}>
+          {saving ? 'Saving…' : 'Save settings'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Jukebox → Songs: the category of each cached song. */
+export function SongDetailsSettings({ reloadKey }: { reloadKey: number }) {
   const [songs, setSongs] = useState<CatalogSong[]>([]);
   const [categories, setCategories] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -635,7 +606,7 @@ function SongDetailsSettings({ reloadKey }: { reloadKey: number }) {
     <div className={card}>
       <AdminH3 className="mb-0.5">Song details</AdminH3>
       <AdminTextMuted>
-        Categories become filter buttons on the visitor song list. Titles and artists come from the Media Library; song lengths come from your FPP playlist when you refresh the song cache.
+        Categories become filter buttons on the visitor song list. Titles and artists come from the Media Library; song lengths come from your FPP playlist when you sync from FPP.
       </AdminTextMuted>
 
       {success && <p className={`${notice.ok} mt-4`}>{success}</p>}
@@ -644,7 +615,7 @@ function SongDetailsSettings({ reloadKey }: { reloadKey: number }) {
       {loading ? (
         <AdminTextMuted className="mt-4">Loading...</AdminTextMuted>
       ) : songs.length === 0 ? (
-        <AdminTextMuted className="mt-4">No songs cached yet. Refresh the song cache above first.</AdminTextMuted>
+        <AdminTextMuted className="mt-4">No songs cached yet. Use Sync from FPP at the top of the page first.</AdminTextMuted>
       ) : (
         <>
           <datalist id="song-category-suggestions">
@@ -693,7 +664,8 @@ interface AdminPlaylist {
   durationSeconds: number | null;
 }
 
-function PlaylistSettings({ reloadKey }: { reloadKey: number }) {
+/** Jukebox → Playlists: which FPP playlists visitors can request, per theme. */
+export function PlaylistSettings({ reloadKey }: { reloadKey: number }) {
   const [playlists, setPlaylists] = useState<AdminPlaylist[]>([]);
   const [themes, setThemes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -752,7 +724,7 @@ function PlaylistSettings({ reloadKey }: { reloadKey: number }) {
     <div className={card}>
       <AdminH3 className="mb-0.5">Playlists</AdminH3>
       <AdminTextMuted>
-        Visitors can request a whole playlist; it starts when the current song ends, and the scheduled show carries on afterwards. Only playlists tagged with the active theme are offered, one in line at a time. New FPP playlists appear here after you refresh the song cache and start out hidden.
+        Visitors can request a whole playlist; it starts when the current song ends, and the scheduled show carries on afterwards. Only playlists tagged with the active theme are offered, one in line at a time. New FPP playlists appear here after you sync from FPP and start out hidden.
       </AdminTextMuted>
 
       {success && <p className={`${notice.ok} mt-4`}>{success}</p>}
@@ -761,7 +733,7 @@ function PlaylistSettings({ reloadKey }: { reloadKey: number }) {
       {loading ? (
         <AdminTextMuted className="mt-4">Loading...</AdminTextMuted>
       ) : playlists.length === 0 ? (
-        <AdminTextMuted className="mt-4">No playlists yet. Refresh the song cache above first.</AdminTextMuted>
+        <AdminTextMuted className="mt-4">No playlists yet. Use Sync from FPP at the top of the page first.</AdminTextMuted>
       ) : (
         <>
           <ul className="mt-4 flex flex-col gap-2">

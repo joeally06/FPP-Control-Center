@@ -1,10 +1,6 @@
-import AdminLayout from '@/components/AdminLayout';
-import YouTubeVideoSettings from '@/components/admin/YouTubeVideoSettings';
+import { redirect } from 'next/navigation';
 
+// Videos are now part of Settings → Jukebox → Visitor page
 export default function VideoSettingsPage() {
-  return (
-    <AdminLayout>
-      <YouTubeVideoSettings />
-    </AdminLayout>
-  );
+  redirect('/settings/jukebox?tab=visitor');
 }
