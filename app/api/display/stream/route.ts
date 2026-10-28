@@ -9,6 +9,7 @@ import {
 } from '@/lib/database';
 import { getFppUrl } from '@/lib/fpp-config';
 import { getSetting } from '@/lib/settings';
+import { createLazyPoller } from '@/lib/lazy-poller';
 import type { DisplayConfig, DisplayState, UpcomingQueueItem, ColorTheme, BackgroundStyle, FontStyle, LayoutVariant, QueuePosition, IdleAnimation, ZoneConfig } from '@/types/display';
 
 // ─── Singleton state & clients ──────────────────────────────────────────────
@@ -415,23 +416,29 @@ function broadcast(data: DisplayState): void {
   dead.forEach((c) => clients.delete(c));
 }
 
-// ─── Module-level singleton polling (2 s) ────────────────────────────────────
+// ─── Polling (2 s), only while a display is connected ────────────────────────
 
-let pollingInterval: NodeJS.Timeout | null = null;
-if (!pollingInterval) {
-  // Fire immediately so the first SSE push reflects live state
-  pollDisplayState();
-  pollingInterval = setInterval(() => { pollDisplayState(); }, 2000);
-}
+const poller = createLazyPoller({
+  intervalMs: 2000,
+  hasClients: () => clients.size > 0,
+  poll: pollDisplayState,
+});
 
 // ─── SSE route (no auth — publicly accessible for the Raspberry Pi kiosk) ───
 
 export async function GET(req: NextRequest) {
-  // Trigger an immediate poll so the connecting client gets fresh data right away
-  pollDisplayState();
+  // Nobody was connected, so the stored state may be old: refresh it before the first snapshot goes out
+  if (!poller.isRunning()) await poller.pollNow();
 
   const stream = new ReadableStream({
     start(controller) {
+      // The visitor may have left while the state was being refreshed; an abort that already
+      // happened never fires its listener, so don't register a client that would never be removed
+      if (req.signal.aborted) {
+        controller.close();
+        return;
+      }
+
       clients.add(controller);
 
       // Push current state immediately on connect
@@ -462,6 +469,10 @@ export async function GET(req: NextRequest) {
       });
     },
   });
+
+  // The client is registered; make sure state keeps being polled
+  poller.ensureRunning();
+  void poller.pollNow();
 
   return new Response(stream, {
     headers: {

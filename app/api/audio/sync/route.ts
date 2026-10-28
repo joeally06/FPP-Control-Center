@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 import { getFppUrl } from '@/lib/fpp-config';
+import { createLazyPoller } from '@/lib/lazy-poller';
 
 // FPP Configuration - uses fpp.local as default
 const FPP_URL = getFppUrl();
@@ -112,7 +113,6 @@ function findAudioForSequence(sequenceName: string): string | null {
 }
 
 // Poll FPP status
-let pollingInterval: NodeJS.Timeout | null = null;
 let lastBroadcastTime = 0;
 async function pollFPPStatus() {
   try {
@@ -194,19 +194,35 @@ function broadcast(data: SyncState) {
   deadClients.forEach((client) => clients.delete(client));
 }
 
-// Initialize polling
-if (!pollingInterval) {
-  loadAvailableAudioFiles();
-  loadMappings();
-  pollingInterval = setInterval(() => {
-    pollFPPStatus();
-  }, 2000);
-}
+loadAvailableAudioFiles();
+loadMappings();
+
+// Polls FPP every 2 s, but only while a listener is connected
+const poller = createLazyPoller({
+  intervalMs: 2000,
+  hasClients: () => clients.size > 0,
+  poll: pollFPPStatus,
+  // Don't greet the next listener with a state from hours ago
+  onStop: () => {
+    currentState = { isPlaying: false, currentSequence: null, audioFile: null, position: 0, timestamp: Date.now() };
+    lastBroadcastTime = 0;
+  },
+});
 
 // Server-Sent Events endpoint
 export async function GET(req: NextRequest) {
+  // Nobody was listening, so the stored state may be old: refresh it before the first snapshot goes out
+  if (!poller.isRunning()) await poller.pollNow();
+
   const stream = new ReadableStream({
     start(controller) {
+      // The visitor may have left while the state was being refreshed; an abort that already
+      // happened never fires its listener, so don't register a client that would never be removed
+      if (req.signal.aborted) {
+        controller.close();
+        return;
+      }
+
       clients.add(controller);
       
       const message = `data: ${JSON.stringify(currentState)}\n\n`;
@@ -236,6 +252,10 @@ export async function GET(req: NextRequest) {
       });
     },
   });
+
+  // The client is registered; make sure FPP keeps being polled
+  poller.ensureRunning();
+  void poller.pollNow();
 
   return new Response(stream, {
     headers: {

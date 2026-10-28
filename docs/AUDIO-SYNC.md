@@ -16,7 +16,7 @@ This implementation uses a three-component architecture:
 
 ### 2. **Audio Sync Server** (`/api/audio/sync`) ✅ Complete
 - Server-Sent Events (SSE) for real-time sync
-- Polls FPP status every 2 seconds
+- Polls FPP status every 2 seconds while at least one listener is connected (it stops when the last one leaves)
 - Broadcasts current sequence + position to all connected clients
 - Uses audio mappings to determine which file to play
 
