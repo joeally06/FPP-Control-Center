@@ -16,6 +16,7 @@ import {
 } from '@/lib/santa-confirmation';
 import { checkSantaRateLimit, getClientIP } from '@/lib/santa-rate-limit';
 import { getSetting, getSettingBoolean } from '@/lib/settings';
+import { hashEmail } from '@/lib/privacy-utils';
 
 interface SendLetterRequest {
   childName: string;
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
   try {
     const body: SendLetterRequest = await request.json();
     
-    console.log('📬 Received letter from:', body.childName);
+    console.log('📬 Received a Santa letter');
 
     if (!getSettingBoolean('santa_letters_enabled', true)) {
       return NextResponse.json(
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
         ? `You've already sent ${rateLimitResult.emailCount} letter(s) today from this email address. Daily limit is ${rateLimitResult.limit}.`
         : `You've already sent ${rateLimitResult.ipCount} letter(s) today from this location. Daily limit is ${rateLimitResult.limit}.`;
       
-      console.warn(`[SECURITY] Rate limit exceeded for ${sanitizedEmail} / ${clientIP} (${rateLimitResult.reason})`);
+      console.warn(`[SECURITY] Rate limit exceeded for ${hashEmail(sanitizedEmail)} / ${clientIP} (${rateLimitResult.reason})`);
       
       return NextResponse.json({ 
         error: errorMessage,

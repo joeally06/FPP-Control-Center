@@ -30,7 +30,7 @@ async function processQueue() {
     const result = await response.json();
     
     if (result.processed) {
-      console.log(`[Queue Processor] ✅ Processed letter for ${result.childName}`);
+      console.log('[Queue Processor] ✅ Processed a letter');
     } else if (result.message === 'Queue is empty') {
       console.log('[Queue Processor] Queue is empty - no letters to process');
     } else {

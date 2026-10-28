@@ -1,16 +1,9 @@
-import crypto from 'crypto';
 import { TIMING } from './constants';
+import { keyedHash } from './privacy-key';
 
-// Anonymize IP address using SHA256 hash with a salt
-const IP_SALT = process.env.IP_HASH_SALT || 'fpp-jukebox-salt-2025';
-
+// Anonymize IP address with a keyed hash (the key is never in the repo, see lib/privacy-key.ts)
 export function anonymizeIP(ip: string): string {
-  // Hash the IP with salt for anonymization
-  return crypto
-    .createHash('sha256')
-    .update(ip + IP_SALT)
-    .digest('hex')
-    .substring(0, 16); // Use first 16 chars for storage efficiency
+  return keyedHash(ip, 'ip'); // first 16 hex chars, enough for storage
 }
 
 // One shared implementation (see lib/rate-limit.ts and server.js)

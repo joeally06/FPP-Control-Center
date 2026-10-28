@@ -54,7 +54,6 @@ export const authOptions: NextAuthOptions = {
       // GDPR: Log login attempts with hashed email (no PII)
       console.log(`[AUTH] Login attempt:`, {
         userHash: createSafeUserId(user.email!, account?.provider),
-        name: user.name,
         provider: account?.provider,
         isAdmin,
         timestamp: new Date().toISOString()

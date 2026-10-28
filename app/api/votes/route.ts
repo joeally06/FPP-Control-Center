@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { insertVote, getVoteCounts, getUserVote } from '../../../lib/database';
 import { getDistanceInMiles } from '@/lib/location-utils';
+import { roundMiles } from '@/lib/location-check';
 import { getClientIP } from '@/lib/rate-limit';
 import db from '@/lib/database';
 
@@ -133,7 +134,7 @@ export async function POST(request: NextRequest) {
           
           return NextResponse.json({
             error: `You must be within ${restrictions.max_distance_miles} mile(s) of the light show to vote. You are ${distanceFromShow.toFixed(1)} miles away.`,
-            distanceMiles: distanceFromShow,
+            distanceMiles: roundMiles(distanceFromShow),
             maxDistance: restrictions.max_distance_miles,
             accuracy: userLocation.accuracy ? `±${Math.round(userLocation.accuracy)}m` : undefined
           }, { status: 403 });

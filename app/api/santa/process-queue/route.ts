@@ -57,7 +57,7 @@ export async function GET(request: Request) {
       });
     }
 
-    console.log(`[Queue Processor] Processing letter ID: ${letter.id} from ${letter.child_name}`);
+    console.log(`[Queue Processor] Processing letter ID: ${letter.id}`);
 
     // Mark as processing
     markLetterProcessing.run(letter.id);
@@ -65,7 +65,7 @@ export async function GET(request: Request) {
     try {
       // Generate Santa's reply using Ollama LLM
       const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
-      console.log(`[Queue Processor] Generating Santa reply for ${letter.child_name}, age ${letter.child_age}`);
+      console.log(`[Queue Processor] Generating Santa reply for letter ID: ${letter.id}`);
       
       const santaReply = await generateSantaReply(
         letter.child_name,
@@ -77,7 +77,7 @@ export async function GET(request: Request) {
       console.log(`[Queue Processor] Generated reply (${santaReply.length} characters)`);
 
       // Send email to parent
-      console.log(`[Queue Processor] Sending email to ${letter.parent_email}`);
+      console.log(`[Queue Processor] Sending email for letter ID: ${letter.id}`);
       const emailSent = await sendSantaReply({
         parentEmail: letter.parent_email,
         childName: letter.child_name,
@@ -88,7 +88,7 @@ export async function GET(request: Request) {
         throw new Error('Failed to send email');
       }
 
-      console.log(`[Queue Processor] Email sent successfully to ${letter.parent_email}`);
+      console.log(`[Queue Processor] Email sent successfully for letter ID: ${letter.id}`);
 
       // Mark as completed
       markLetterCompleted.run(santaReply, letter.id);

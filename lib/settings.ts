@@ -87,7 +87,8 @@ export function setSetting(key: string, value: string): void {
  */
 export function updateSettings(settings: Record<string, string>): void {
   try {
-    console.log('[Settings] Updating settings:', JSON.stringify(settings, null, 2));
+    // Keys only: setting values can be personal or secret
+    console.log('[Settings] Updating settings:', Object.keys(settings).join(', '));
     
     // Use UPDATE instead of INSERT...ON CONFLICT to preserve category and description
     const stmt = db.prepare(`
@@ -98,7 +99,7 @@ export function updateSettings(settings: Record<string, string>): void {
 
     const transaction = db.transaction((entries: [string, string][]) => {
       for (const [key, value] of entries) {
-        console.log(`[Settings] Writing: ${key} = ${value}`);
+        console.log(`[Settings] Writing: ${key}`);
         const result = stmt.run(value, key);
         console.log(`[Settings] Changes: ${result.changes}`);
         

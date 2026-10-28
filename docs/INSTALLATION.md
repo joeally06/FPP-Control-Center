@@ -1410,6 +1410,11 @@ SMTP_SECURE=false
 SMTP_USER=yourname@gmail.com
 SMTP_PASS=your-app-password
 
+# Secret used to hash visitor IP addresses and emails in analytics and logs.
+# If unset, one is derived from NEXTAUTH_SECRET, which is fine. Changing it later makes every
+# returning visitor count as new once.
+# IP_HASH_SALT=a-long-random-string
+
 # Database file location (default: votes.db in the project folder). The web app and the
 # poller both follow it; the setup/migrate scripts (npm run setup, scripts/migrate-database.js)
 # always use ./votes.db, so leave this unset unless you know you need it.

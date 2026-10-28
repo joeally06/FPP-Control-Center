@@ -31,7 +31,7 @@ import PlaylistPicker from '@/components/jukebox/PlaylistPicker';
 import RequestConfirmModal from '@/components/jukebox/RequestConfirmModal';
 import ShowSpecsCard from '@/components/jukebox/ShowSpecsCard';
 import { formatDateTime } from '@/lib/time-utils';
-import { getBrowserLocation, getDistanceInMiles, type UserLocation } from '@/lib/location-utils';
+import { getBrowserLocation, type UserLocation } from '@/lib/location-utils';
 import {
   anchorElapsed,
   estimateWaits,
@@ -150,7 +150,9 @@ export default function JukeboxPage() {
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [locationPermissionStatus, setLocationPermissionStatus] = useState<'granted' | 'denied' | 'skipped' | null>(null);
   const [distanceFromShow, setDistanceFromShow] = useState<number | null>(null);
-  const [showLocation, setShowLocation] = useState<{ lat: number; lng: number; maxDistance: number } | null>(null);
+  // The server decides if the visitor is in range; the show's coordinates never reach the browser
+  const [withinRange, setWithinRange] = useState<boolean | null>(null);
+  const [showLocation, setShowLocation] = useState<{ maxDistance: number } | null>(null);
   const [locationRestrictionsEnabled, setLocationRestrictionsEnabled] = useState<boolean | null>(null); // null = loading, true/false = loaded
 
   // Lazy location modal state - only show when user tries to take action
@@ -182,16 +184,13 @@ export default function JukeboxPage() {
 
     // Only show badge when we have location and can display the distance
     // Don't show "Enable", "Blocked", or "Checking" states - keep it minimal
-    if (userLocation && showLocation && distanceFromShow !== null) {
-      if (distanceFromShow > showLocation.maxDistance) {
-        return 'out-of-range';
-      }
-      return 'granted';
+    if (userLocation && showLocation && distanceFromShow !== null && withinRange !== null) {
+      return withinRange ? 'granted' : 'out-of-range';
     }
 
     // Return null for all other states - badge won't show
     return null;
-  }, [userLocation, showLocation, distanceFromShow, locationRestrictionsEnabled]);
+  }, [userLocation, showLocation, distanceFromShow, withinRange, locationRestrictionsEnabled]);
 
   // Restore cached location from localStorage on mount
   useEffect(() => {
@@ -437,18 +436,33 @@ export default function JukeboxPage() {
     fetchYouTubeVideos();
   }, [theme.id]);
 
-  // Calculate distance when user location and show location are both available
+  // Ask the server how far the visitor is from the show (it keeps the show's coordinates private)
   useEffect(() => {
-    if (userLocation && showLocation) {
-      const distance = getDistanceInMiles(
-        userLocation.lat,
-        userLocation.lng,
-        showLocation.lat,
-        showLocation.lng
-      );
-      setDistanceFromShow(distance);
-      console.log(`[Location] Distance from show: ${distance.toFixed(2)} miles (max: ${showLocation.maxDistance})`);
-    }
+    if (!userLocation || !showLocation) return;
+
+    let cancelled = false;
+    // Don't keep showing the old badge for a position that has changed
+    setDistanceFromShow(null);
+    setWithinRange(null);
+    (async () => {
+      try {
+        const response = await fetch('/api/location-restrictions/check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lat: userLocation.lat, lng: userLocation.lng })
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (cancelled || !data.enabled) return;
+        setDistanceFromShow(data.distanceMiles);
+        setWithinRange(Boolean(data.withinRange));
+        console.log(`[Location] Distance from show: ${data.distanceMiles} miles (max: ${data.maxDistance})`);
+      } catch (error) {
+        console.error('Failed to check distance from the show:', error);
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, [userLocation, showLocation]);
 
   useEffect(() => {
@@ -693,13 +707,11 @@ export default function JukeboxPage() {
       if (response.ok) {
         const data = await response.json();
         // Track if restrictions are enabled
-        const isEnabled = Boolean(data.enabled && data.show_latitude && data.show_longitude);
+        const isEnabled = Boolean(data.enabled && data.configured);
         setLocationRestrictionsEnabled(isEnabled);
 
         if (isEnabled) {
           setShowLocation({
-            lat: data.show_latitude,
-            lng: data.show_longitude,
             maxDistance: data.max_distance_miles || 1
           });
           console.log('[Location] Restrictions enabled - max distance:', data.max_distance_miles, 'miles');

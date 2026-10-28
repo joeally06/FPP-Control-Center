@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { isAdminSession } from '@/lib/auth-helpers';
+import { hashEmail } from '@/lib/privacy-utils';
 
 const FPP_URL = process.env.FPP_URL || 'http://fpp.local';
 
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!isAdminSession(session)) {
-      console.warn('[FPP Command] Forbidden -', session.user.email, 'is not an admin');
+      console.warn('[FPP Command] Forbidden -', hashEmail(session.user.email), 'is not an admin');
       return NextResponse.json(
         { error: 'Forbidden - Admin access required' },
         { status: 403 }

@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server';
 import { getClientIP } from './rate-limit';
 import { RATE_LIMIT } from './constants';
 import { isAdminEmail } from './admin-emails';
+import { hashEmail } from './privacy-utils';
 
 // Admin rate limiting - in-memory store (resets on server restart)
 // Key: "email:ip", Value: { count, timestamp }
@@ -43,7 +44,8 @@ export async function requireAdminWithRateLimit(request?: NextRequest) {
   const userEmail = session.user.email.toLowerCase();
   
   if (!isAdminEmail(userEmail)) {
-    console.error(`[Security] Unauthorized admin access attempt by: ${session.user.email}`);
+    // Any Google account can sign in, so this is a stranger's address: log a hash, not the address
+    console.error(`[Security] Unauthorized admin access attempt by: ${hashEmail(session.user.email)}`);
     throw new Error('Admin access required');
   }
   
@@ -112,7 +114,8 @@ export async function requireAdmin() {
   const userEmail = session.user.email.toLowerCase();
   
   if (!isAdminEmail(userEmail)) {
-    console.error(`[Security] Unauthorized admin access attempt by: ${session.user.email}`);
+    // Any Google account can sign in, so this is a stranger's address: log a hash, not the address
+    console.error(`[Security] Unauthorized admin access attempt by: ${hashEmail(session.user.email)}`);
     throw new Error('Admin access required');
   }
   

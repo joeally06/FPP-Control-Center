@@ -3,6 +3,7 @@
 import validator from 'validator';
 import { escapeHtml } from './input-sanitization';
 import { debugLog } from './logging';
+import { hashEmail, safeErrorSummary } from './privacy-utils';
 
 interface EmailConfig {
   host: string;
@@ -61,7 +62,7 @@ export async function sendMailWithRetries(config: any, mailOptions: any, opts: {
     try {
       const nodemailer = await import('nodemailer');
       const transporter = (createTransport && createTransport()) || nodemailer.default.createTransport(config);
-      debugLog(`[email] Attempt ${attempt} - sending email to ${mailOptions.to}`);
+      debugLog(`[email] Attempt ${attempt} - sending email to ${hashEmail(String(mailOptions.to))}`);
       if (doVerify) await transporter.verify();
       const info = await transporter.sendMail(mailOptions);
       debugLog(`[email] Sent on attempt ${attempt} - info: ${info && info.messageId}`);
@@ -239,7 +240,7 @@ function sanitizeEmailHeader(input: string): string {
  */
 export async function sendSantaReply(params: SantaEmailParams): Promise<boolean> {
   try {
-    console.log('📧 Email service: Starting to send email to', params.parentEmail);
+    console.log('📧 Email service: Starting to send email to', hashEmail(params.parentEmail));
     
     // SECURITY: Sanitize all email header inputs
     const sanitizedEmail = sanitizeEmailHeader(params.parentEmail);
@@ -247,7 +248,7 @@ export async function sendSantaReply(params: SantaEmailParams): Promise<boolean>
     
     // ✅ SECURITY: Validate email address after sanitization
     if (!validator.isEmail(sanitizedEmail)) {
-      console.error('❌ Invalid email address:', params.parentEmail);
+      console.error('❌ Invalid email address:', hashEmail(params.parentEmail));
       throw new Error('Invalid email address');
     }
     
@@ -288,11 +289,11 @@ export async function sendSantaReply(params: SantaEmailParams): Promise<boolean>
       debugLog('✅ Santa email sent');
       return true;
     } catch (err) {
-      console.error('❌ Error sending Santa email after retries:', err);
+      console.error('❌ Error sending Santa email after retries:', safeErrorSummary(err));
       return false;
     }
   } catch (error) {
-    console.error('❌ Error sending Santa email:', error);
+    console.error('❌ Error sending Santa email:', safeErrorSummary(error));
     return false;
   }
 }
@@ -375,7 +376,7 @@ export async function sendSantaConfirmation(params: { parentEmail: string; confi
     debugLog('✅ Santa confirmation email sent');
     return true;
   } catch (error) {
-    console.error('❌ Error sending Santa confirmation email:', error);
+    console.error('❌ Error sending Santa confirmation email:', safeErrorSummary(error));
     return false;
   }
 }

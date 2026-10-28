@@ -296,7 +296,8 @@ sessionStorage.getItem('user-location-timestamp')
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
-| `/api/location-restrictions` | GET | Fetch current settings (public) |
+| `/api/location-restrictions` | GET | Settings. Public: on/off, `configured` and the allowed distance only. Admin: also the show's coordinates and location name |
+| `/api/location-restrictions/check` | POST | Public, rate limited (30/min per IP). Body `{ lat, lng }`; replies whether the visitor is in range and how far away (to 0.1 mile). The show's coordinates never leave the server |
 | `/api/location-restrictions` | PUT | Update settings (admin only) |
 | `/api/jukebox/queue` | POST | Submit song request (validates location) |
 | `/api/votes` | POST | Submit vote (validates location) |

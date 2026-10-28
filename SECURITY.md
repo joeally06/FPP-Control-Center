@@ -107,6 +107,13 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 - `validator` (v13.12.0) - Email validation, normalization
 - `isomorphic-dompurify` (v2.15.0) - HTML sanitization
 
+### 7. Privacy of Visitor and Children's Data
+
+- **Hashes are keyed.** Visitor analytics (`lib/visitor-tracking.ts`) and log lines (`lib/privacy-utils.ts`) hash IP and email addresses with a secret from `lib/privacy-key.ts`: `IP_HASH_SALT` if set, otherwise derived from `NEXTAUTH_SECRET`. Production refuses to hash without one. Changing the secret changes every hash (returning visitors count as new once).
+- **Logs carry no personal details.** Santa letter processing logs the letter ID, never a child's name or age or a parent's address; settings changes log the setting names, not the values; an address that tries an admin route is logged as a hash.
+- **The show's location stays on the server.** `GET /api/location-restrictions` gives visitors only the on/off state and the allowed distance; coordinates and the location name go to an admin only. Phones ask `POST /api/location-restrictions/check` whether they are in range (rate limited to 30 a minute per IP, distance rounded to 0.1 mile). This keeps the coordinates out of the page and its network traffic; it does not make them impossible to find, because every in/out answer is an exact boundary test and a determined person sending many fake positions could work out where the show is. The range check is a deterrent for casual out-of-area requests: the position comes from the visitor's phone and cannot be verified.
+- **Old multiplayer trivia tables** (which kept IP addresses) are dropped by migration `025`.
+
 ## 🎯 Attack Vectors Blocked
 
 ### 1. Cross-Site Scripting (XSS)

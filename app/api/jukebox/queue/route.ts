@@ -7,6 +7,7 @@ import { debugLog } from '@/lib/logging';
 import db from '@/lib/database';
 import { isRequestableSong, lookupMediaName } from '@/lib/jukebox-catalog';
 import { getDistanceInMiles } from '@/lib/location-utils';
+import { roundMiles } from '@/lib/location-check';
 import { toPublicQueueItem } from '@/lib/jukebox-display';
 import { listVisitorPlaylists } from '@/lib/jukebox-playlists';
 import { normalizeThemeId } from '@/lib/themes/theme-config';
@@ -145,7 +146,7 @@ export async function POST(request: NextRequest) {
           
           return NextResponse.json({
             error: `You must be within ${restrictions.max_distance_miles} mile(s) of the light show to request songs. You are ${distanceFromShow.toFixed(1)} miles away.`,
-            distanceMiles: distanceFromShow,
+            distanceMiles: roundMiles(distanceFromShow),
             maxDistance: restrictions.max_distance_miles,
             accuracy: userLocation.accuracy ? `±${Math.round(userLocation.accuracy)}m` : undefined
           }, { status: 403 });

@@ -5,7 +5,7 @@
  * in logs and analytics to protect user privacy.
  */
 
-import { createHash } from 'crypto';
+import { keyedHash } from './privacy-key';
 
 /**
  * Hash an email address using SHA-256
@@ -16,13 +16,26 @@ import { createHash } from 'crypto';
  */
 export function hashEmail(email: string): string {
   if (!email) return 'unknown';
-  
-  const hash = createHash('sha256')
-    .update(email.toLowerCase().trim())
-    .digest('hex');
-  
-  // Return first 16 characters for logs (still unique, more readable)
-  return hash.substring(0, 16);
+
+  // Keyed (see lib/privacy-key.ts): an unkeyed hash of an email can be guessed back to the address.
+  // First 16 characters for logs (still unique, more readable)
+  return keyedHash(email.toLowerCase().trim(), 'email');
+}
+
+const EMAIL_IN_TEXT = /[^\s<>"',;()]+@[^\s<>"',;()]+/g;
+
+/** Replace anything that looks like an email address, e.g. in an SMTP error that names the recipient */
+export function redactEmails(text: string): string {
+  return text.replace(EMAIL_IN_TEXT, '[email]');
+}
+
+/** An error as one log-safe line: its code and message with any email address removed */
+export function safeErrorSummary(error: unknown): string {
+  if (error instanceof Error) {
+    const code = (error as { code?: unknown }).code;
+    return `${typeof code === 'string' ? `${code}: ` : ''}${redactEmails(error.message)}`;
+  }
+  return redactEmails(String(error));
 }
 
 /**

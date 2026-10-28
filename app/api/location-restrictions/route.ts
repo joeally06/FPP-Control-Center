@@ -3,18 +3,24 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { isAdminSession } from '@/lib/auth-helpers';
 import { getDb } from '@/lib/database';
+import { isRestrictionConfigured } from '@/lib/location-check';
+
+const NO_STORE = { headers: { 'Cache-Control': 'private, no-store' } };
 
 /**
  * GET /api/location-restrictions
  * Get current location restriction settings
- * PUBLIC (needed for client-side warning messages)
+ * PUBLIC for the on/off state and the allowed distance (needed for client-side warning messages).
+ * The show's coordinates and location name are only returned to an admin; visitors ask
+ * POST /api/location-restrictions/check whether they are in range.
  */
 export async function GET() {
   try {
     const db = getDb();
-    
+    const session = await getServerSession(authOptions);
+
     const settings = db.prepare(`
-      SELECT 
+      SELECT
         is_active as enabled,
         max_distance_miles,
         show_latitude,
@@ -23,24 +29,40 @@ export async function GET() {
       FROM location_restrictions
       WHERE id = 1
     `).get() as any;
-    
-    
+
+
     // Ensure enabled is a boolean (SQLite returns 0/1)
     const result = settings ? {
       enabled: Boolean(settings.enabled),
+      configured: isRestrictionConfigured({
+        is_active: settings.enabled,
+        max_distance_miles: settings.max_distance_miles,
+        show_latitude: settings.show_latitude,
+        show_longitude: settings.show_longitude
+      }),
       max_distance_miles: settings.max_distance_miles,
       show_latitude: settings.show_latitude,
       show_longitude: settings.show_longitude,
       location_name: settings.location_name
     } : {
       enabled: false,
+      configured: false,
       max_distance_miles: 1,
       show_latitude: null,
       show_longitude: null,
       location_name: null
     };
-    
-    return NextResponse.json(result);
+
+    if (!isAdminSession(session)) {
+      return NextResponse.json({
+        enabled: result.enabled,
+        configured: result.configured,
+        max_distance_miles: result.max_distance_miles
+      }, NO_STORE);
+    }
+
+    // The reply depends on who is asking, so no cache may keep it
+    return NextResponse.json(result, NO_STORE);
   } catch (error) {
     console.error('[Location API] GET error:', error);
     return NextResponse.json(
