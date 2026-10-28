@@ -6,6 +6,7 @@ import type {
   DisplayConfig, ColorTheme, BackgroundStyle, FontStyle,
   LayoutVariant, QueuePosition, IdleAnimation, ZoneConfig, ZoneTemplate, ZoneWidgetType,
 } from '@/types/display';
+import { isAdminSession } from '@/lib/auth-helpers';
 
 function readConfig(): DisplayConfig {
   const s = (key: string, fb: string) => getSetting(key) ?? fb;
@@ -57,7 +58,7 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user?.role !== 'admin') {
+    if (!isAdminSession(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

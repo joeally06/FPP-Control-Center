@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import Database from 'better-sqlite3';
 import path from 'path';
+import { isAdminSession } from '@/lib/auth-helpers';
 
 const dbPath = path.join(process.cwd(), 'votes.db');
 
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (session?.user?.role !== 'admin') {
+    if (!isAdminSession(session)) {
       return NextResponse.json({ 
         error: 'Unauthorized' 
       }, { status: 401 });

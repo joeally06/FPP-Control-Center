@@ -4,6 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import db from '@/lib/database';
 import { resetRequestLimit } from '@/lib/jukebox-queue';
 import { anonymizeIP } from '@/lib/privacy-utils';
+import { isAdminSession } from '@/lib/auth-helpers';
 
 /**
  * GET /api/jukebox/users
@@ -14,7 +15,7 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user || session.user.role !== 'admin') {
+    if (!isAdminSession(session)) {
       return NextResponse.json({ 
         error: 'Unauthorized' 
       }, { status: 401 });
@@ -71,7 +72,7 @@ export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user || session.user.role !== 'admin') {
+    if (!isAdminSession(session)) {
       return NextResponse.json({ 
         error: 'Unauthorized' 
       }, { status: 401 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { isAdminSession } from '@/lib/auth-helpers';
 import { syncFppData, getSyncStatus } from '@/lib/fpp-sync';
 
 /**
@@ -20,8 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check admin access
-    const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim());
-    if (!adminEmails.includes(session.user.email)) {
+    if (!isAdminSession(session)) {
       return NextResponse.json(
         { error: 'Forbidden - admin access required' },
         { status: 403 }

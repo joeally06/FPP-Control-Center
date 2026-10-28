@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { isSameOriginRequest } from './lib/csrf';
+import { isAdminEmail } from './lib/admin-emails';
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -48,7 +49,7 @@ export async function proxy(request: NextRequest) {
       secret: process.env.NEXTAUTH_SECRET 
     });
 
-    if (!token || token.role !== 'admin') {
+    if (!isAdminEmail(token?.email)) {
       const url = new URL('/api/auth/signin', request.url);
       url.searchParams.set('callbackUrl', pathname);
       return NextResponse.redirect(url);

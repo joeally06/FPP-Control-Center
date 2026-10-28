@@ -5,6 +5,7 @@ import { writeFile, mkdir, readFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { getFppUrl } from '@/lib/fpp-config';
+import { isAdminSession } from '@/lib/auth-helpers';
 
 const AUDIO_DIR = join(process.cwd(), 'public', 'audio');
 const DATA_DIR = join(process.cwd(), 'data');
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (session.user.role !== 'admin') {
+    if (!isAdminSession(session)) {
       return NextResponse.json(
         { error: 'Admin access required' },
         { status: 403 }

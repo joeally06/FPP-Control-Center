@@ -10,12 +10,13 @@ import {
   updateSantaLetterStatus,
 } from '@/lib/database';
 import { sendSantaReply } from '@/lib/email-service';
+import { isAdminSession } from '@/lib/auth-helpers';
 
 // GET: Fetch all letters (admin only)
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
 
-  if (!session || session.user?.role !== 'admin') {
+  if (!isAdminSession(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   const session = await getServerSession(authOptions);
 
-  if (!session || session.user?.role !== 'admin') {
+  if (!isAdminSession(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -87,7 +88,7 @@ export async function PUT(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const session = await getServerSession(authOptions);
 
-  if (!session || session.user?.role !== 'admin') {
+  if (!isAdminSession(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

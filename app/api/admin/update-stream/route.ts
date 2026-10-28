@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { existsSync, readFileSync, statSync, watchFile, unwatchFile, writeFileSync } from 'fs';
 import path from 'path';
+import { isAdminSession } from '@/lib/auth-helpers';
 
 const STATUS_FILE = path.join(process.cwd(), 'logs', 'update_status');
 const LOG_FILE = path.join(process.cwd(), 'logs', 'update.log');
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
   // Verify admin authentication
   const session = await getServerSession(authOptions);
   
-  if (!session?.user || session.user.role !== 'admin') {
+  if (!isAdminSession(session)) {
     return new Response(
       JSON.stringify({ error: 'Unauthorized - Admin access required' }),
       { status: 401, headers: { 'Content-Type': 'application/json' } }

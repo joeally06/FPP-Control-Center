@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { isAdminSession } from '@/lib/auth-helpers';
 
 const execAsync = promisify(exec);
 
@@ -14,7 +15,7 @@ export async function POST() {
   try {
     const session = await getServerSession(authOptions);
     
-    if (session?.user?.role !== 'admin') {
+    if (!isAdminSession(session)) {
       return NextResponse.json({ 
         error: 'Unauthorized - Admin access required' 
       }, { status: 401 });

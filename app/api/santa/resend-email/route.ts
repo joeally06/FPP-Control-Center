@@ -5,11 +5,12 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { getSantaLetter, updateSantaLetterStatus } from '@/lib/database';
 import { sendSantaReply } from '@/lib/email-service';
+import { isAdminSession } from '@/lib/auth-helpers';
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
 
-  if (!session || session.user?.role !== 'admin') {
+  if (!isAdminSession(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

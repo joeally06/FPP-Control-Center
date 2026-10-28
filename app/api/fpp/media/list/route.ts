@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { isAdminSession } from '@/lib/auth-helpers';
 
 /**
  * GET /api/fpp/media/list
@@ -19,7 +20,7 @@ export async function GET() {
       );
     }
 
-    if (session.user.role !== 'admin') {
+    if (!isAdminSession(session)) {
       return NextResponse.json(
         { error: 'Admin access required' },
         { status: 403 }

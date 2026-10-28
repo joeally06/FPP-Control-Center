@@ -3,6 +3,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { NextRequest } from 'next/server';
 import { getClientIP } from './rate-limit';
 import { RATE_LIMIT } from './constants';
+import { isAdminEmail } from './admin-emails';
 
 // Admin rate limiting - in-memory store (resets on server restart)
 // Key: "email:ip", Value: { count, timestamp }
@@ -39,15 +40,9 @@ export async function requireAdminWithRateLimit(request?: NextRequest) {
   
   // SECURITY: Always verify admin status from environment variable
   // NEVER trust the role claim from JWT as it could be tampered with
-  const adminEmails = (process.env.ADMIN_EMAILS || '')
-    .split(',')
-    .map(email => email.trim().toLowerCase())
-    .filter(email => email.length > 0);
-  
   const userEmail = session.user.email.toLowerCase();
-  const isAdmin = adminEmails.includes(userEmail);
   
-  if (!isAdmin) {
+  if (!isAdminEmail(userEmail)) {
     console.error(`[Security] Unauthorized admin access attempt by: ${session.user.email}`);
     throw new Error('Admin access required');
   }
@@ -92,12 +87,12 @@ export async function requireAdminWithRateLimit(request?: NextRequest) {
 }
 
 /**
- * Requires admin authentication for API routes (legacy - no rate limiting)
+ * Requires admin authentication for API routes (no rate limiting; pass the request to
+ * requireAdminWithRateLimit() for that)
  * 
  * SECURITY: Re-verifies admin status from ADMIN_EMAILS environment variable
  * Does NOT trust the role claim in JWT - verifies against server-side source of truth
  * 
- * @deprecated Use requireAdminWithRateLimit() instead for better security
  * @throws Error if user is not authenticated or not an admin
  * @returns The authenticated session
  */
@@ -114,15 +109,9 @@ export async function requireAdmin() {
   
   // SECURITY: Always verify admin status from environment variable
   // NEVER trust the role claim from JWT as it could be tampered with
-  const adminEmails = (process.env.ADMIN_EMAILS || '')
-    .split(',')
-    .map(email => email.trim().toLowerCase())
-    .filter(email => email.length > 0);
-  
   const userEmail = session.user.email.toLowerCase();
-  const isAdmin = adminEmails.includes(userEmail);
   
-  if (!isAdmin) {
+  if (!isAdminEmail(userEmail)) {
     console.error(`[Security] Unauthorized admin access attempt by: ${session.user.email}`);
     throw new Error('Admin access required');
   }
@@ -157,11 +146,13 @@ export async function isAdmin() {
   }
   
   // SECURITY: Verify admin status from environment variable
-  const adminEmails = (process.env.ADMIN_EMAILS || '')
-    .split(',')
-    .map(email => email.trim().toLowerCase())
-    .filter(email => email.length > 0);
-  
-  const userEmail = session.user.email.toLowerCase();
-  return adminEmails.includes(userEmail);
+  return isAdminEmail(session.user.email);
+}
+
+/**
+ * For routes that already hold a session: is this session's user in ADMIN_EMAILS?
+ * Checks the env list, not the role stored in the JWT.
+ */
+export function isAdminSession(session: { user?: { email?: string | null } | null } | null | undefined): boolean {
+  return isAdminEmail(session?.user?.email);
 }

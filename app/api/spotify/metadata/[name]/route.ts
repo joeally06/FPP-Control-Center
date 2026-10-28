@@ -9,6 +9,7 @@ import {
   extractTrackMetadata,
   cleanSequenceName
 } from '@/lib/spotify-token';
+import { isAdminSession } from '@/lib/auth-helpers';
 
 const dbPath = path.join(process.cwd(), 'votes.db');
 
@@ -32,7 +33,7 @@ export async function GET(
   try {
     // Verify admin authentication
     const session = await getServerSession(authOptions);
-    if (!session || (session.user as any).role !== 'admin') {
+    if (!isAdminSession(session)) {
       return NextResponse.json(
         { error: 'Unauthorized - Admin access required' },
         { status: 401 }
@@ -193,7 +194,7 @@ export async function DELETE(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user as any).role !== 'admin') {
+    if (!isAdminSession(session)) {
       return NextResponse.json(
         { error: 'Unauthorized - Admin access required' },
         { status: 401 }

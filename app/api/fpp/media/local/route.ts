@@ -4,6 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { readdir, unlink, stat } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { isAdminSession } from '@/lib/auth-helpers';
 
 const AUDIO_DIR = join(process.cwd(), 'public', 'audio');
 
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (session.user.role !== 'admin') {
+    if (!isAdminSession(session)) {
       return NextResponse.json(
         { error: 'Admin access required' },
         { status: 403 }
@@ -112,7 +113,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    if (session.user.role !== 'admin') {
+    if (!isAdminSession(session)) {
       return NextResponse.json(
         { error: 'Admin access required' },
         { status: 403 }

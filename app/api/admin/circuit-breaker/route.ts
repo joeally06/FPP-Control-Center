@@ -22,6 +22,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { getCircuitBreaker, CircuitState } from '@/lib/circuit-breaker';
 import db from '@/lib/database';
+import { isAdminSession } from '@/lib/auth-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
   try {
     // SECURITY: Verify admin authentication
     const session = await getServerSession(authOptions);
-    if (!session?.user?.role || session.user.role !== 'admin') {
+    if (!session || !isAdminSession(session)) {
       return NextResponse.json(
         { error: 'Unauthorized - Admin access required' },
         { status: 401 }
@@ -140,7 +141,7 @@ export async function POST(request: NextRequest) {
   try {
     // SECURITY: Verify admin authentication
     const session = await getServerSession(authOptions);
-    if (!session?.user?.role || session.user.role !== 'admin') {
+    if (!session || !isAdminSession(session)) {
       return NextResponse.json(
         { error: 'Unauthorized - Admin access required' },
         { status: 401 }

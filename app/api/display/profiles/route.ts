@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { isAdminSession } from '@/lib/auth-helpers';
 import { getDb } from '@/lib/database';
 import { getSetting, updateSettings } from '@/lib/settings';
 import type { DisplayConfig } from '@/types/display';
@@ -9,7 +10,7 @@ function db() { return getDb(); }
 
 async function adminOnly() {
   const s = await getServerSession(authOptions);
-  return s?.user?.role === 'admin';
+  return isAdminSession(s);
 }
 
 function readCurrentConfig(): DisplayConfig {

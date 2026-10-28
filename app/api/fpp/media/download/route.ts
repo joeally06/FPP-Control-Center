@@ -5,6 +5,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import crypto from 'crypto';
+import { isAdminSession } from '@/lib/auth-helpers';
 
 const AUDIO_DIR = join(process.cwd(), 'public', 'audio');
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB limit
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (session.user.role !== 'admin') {
+    if (!isAdminSession(session)) {
       return NextResponse.json(
         { error: 'Admin access required' },
         { status: 403 }

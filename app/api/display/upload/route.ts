@@ -5,6 +5,7 @@ import { writeFile, mkdir, unlink } from 'fs/promises';
 import { join, resolve, sep } from 'path';
 import sharp from 'sharp';
 import { getSetting, updateSettings } from '@/lib/settings';
+import { isAdminSession } from '@/lib/auth-helpers';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
@@ -18,7 +19,7 @@ const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'display');
  */
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session || session.user?.role !== 'admin') {
+  if (!isAdminSession(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
 /** DELETE /api/display/upload?slot=slideshow&index=N — remove one slideshow image */
 export async function DELETE(request: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session || session.user?.role !== 'admin') {
+  if (!isAdminSession(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

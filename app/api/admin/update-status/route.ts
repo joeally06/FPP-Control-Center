@@ -6,6 +6,7 @@ import path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { getUtcNow } from '@/lib/time-utils';
+import { isAdminSession } from '@/lib/auth-helpers';
 
 const execAsync = promisify(exec);
 
@@ -20,7 +21,7 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     
-    if (session?.user?.role !== 'admin') {
+    if (!isAdminSession(session)) {
       return NextResponse.json({ 
         error: 'Unauthorized - Admin access required' 
       }, { status: 401 });

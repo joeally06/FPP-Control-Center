@@ -8,6 +8,7 @@ import {
   getDatabaseStats,
   checkIntegrity 
 } from '@/lib/db-maintenance';
+import { isAdminSession } from '@/lib/auth-helpers';
 
 /**
  * Database Maintenance API
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
   try {
     // Verify admin authentication
     const session = await getServerSession(authOptions);
-    if (!session?.user || (session.user as any).role !== 'admin') {
+    if (!isAdminSession(session)) {
       return NextResponse.json(
         { error: 'Unauthorized - Admin access required' },
         { status: 403 }
@@ -83,7 +84,7 @@ export async function GET(request: NextRequest) {
   try {
     // Verify admin authentication
     const session = await getServerSession(authOptions);
-    if (!session?.user || (session.user as any).role !== 'admin') {
+    if (!isAdminSession(session)) {
       return NextResponse.json(
         { error: 'Unauthorized - Admin access required' },
         { status: 403 }

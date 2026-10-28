@@ -5,6 +5,7 @@ import { JWT } from 'next-auth/jwt';
 import { Session } from 'next-auth';
 import { hashEmail, createSafeUserId } from '@/lib/privacy-utils';
 import { SESSION } from '@/lib/constants';
+import { isAdminEmail } from '@/lib/admin-emails';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -48,8 +49,7 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async signIn({ user, account, profile }) {
-      const adminEmails = process.env.ADMIN_EMAILS?.split(',') || [];
-      const isAdmin = adminEmails.includes(user.email!);
+      const isAdmin = isAdminEmail(user.email);
       
       // GDPR: Log login attempts with hashed email (no PII)
       console.log(`[AUTH] Login attempt:`, {
@@ -75,8 +75,7 @@ export const authOptions: NextAuthOptions = {
       // Add role to token
       if (user) {
         // Check if user email is in admin list
-        const adminEmails = process.env.ADMIN_EMAILS?.split(',') || [];
-        const isAdmin = adminEmails.includes(user.email!);
+        const isAdmin = isAdminEmail(user.email);
         token.role = isAdmin ? 'admin' : 'user';
         
         // GDPR: Log non-admin authentication attempts with hashed email
@@ -89,9 +88,10 @@ export const authOptions: NextAuthOptions = {
       }
       return token;
     },
-    async session({ session, token }: { session: Session; token: JWT }) {
-      // Add role to session
-      session.user.role = token.role as string;
+    async session({ session }: { session: Session }) {
+      // Display-only role, worked out from the current ADMIN_EMAILS on every read so removing
+      // an admin shows up at once. Server checks use isAdminSession()/requireAdmin().
+      session.user.role = isAdminEmail(session.user?.email) ? 'admin' : 'user';
       return session;
     },
   },

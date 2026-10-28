@@ -6,6 +6,7 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import Database from 'better-sqlite3';
 import path from 'path';
+import { isAdminSession } from '@/lib/auth-helpers';
 
 const DATA_DIR = join(process.cwd(), 'data');
 const MAPPING_FILE = join(DATA_DIR, 'audio-mapping.json');
@@ -94,7 +95,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (session.user.role !== 'admin') {
+    if (!isAdminSession(session)) {
       return NextResponse.json(
         { error: 'Admin access required' },
         { status: 403 }

@@ -4,6 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { spawn } from 'child_process';
 import { existsSync, mkdirSync, writeFileSync, statSync, unlinkSync, realpathSync } from 'fs';
 import path from 'path';
+import { isAdminSession } from '@/lib/auth-helpers';
 
 const LOGS_DIR = path.join(/*turbopackIgnore: true*/ process.cwd(), 'logs');
 const STATUS_FILE = path.join(LOGS_DIR, 'update_status');
@@ -66,7 +67,7 @@ export async function POST() {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user || session.user.role !== 'admin') {
+    if (!session || !isAdminSession(session)) {
       return NextResponse.json({ 
         error: 'Unauthorized - Admin access required' 
       }, { status: 401 });

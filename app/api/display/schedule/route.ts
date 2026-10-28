@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { isAdminSession } from '@/lib/auth-helpers';
 import { getDb } from '@/lib/database';
 import type { ScheduleActionType } from '@/types/display';
 
@@ -8,7 +9,7 @@ function db() { return getDb(); }
 
 function adminOnly(): Promise<boolean> {
   return getServerSession(authOptions).then(
-    (s) => s?.user?.role === 'admin'
+    (s) => isAdminSession(s)
   );
 }
 
