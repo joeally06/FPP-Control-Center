@@ -96,10 +96,16 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 
 
 **CSP (Content Security Policy):**
-- Restricts script sources
-- Blocks inline scripts where possible
-- Allows only necessary external connections (Ollama, FPP)
-- Prevents clickjacking with frame-ancestors 'none'
+- Defined once, in `lib/csp.ts`, and set by `proxy.ts` (`next.config.js` sets no CSP)
+- Restricts script, frame and connection sources to this site plus YouTube and Google Slides/Docs
+- `unsafe-inline` and `unsafe-eval` are still allowed for scripts (Next.js needs them without a nonce setup)
+- Names no LAN address: the server makes every FPP and Ollama call, never the browser
+- Prevents clickjacking with `frame-ancestors 'self'` (the visitor-page preview on Settings → Jukebox is framed from the same site)
+
+**Visitor analytics (`POST /api/analytics/track`):**
+- Rate limited per IP (60 requests a minute, 10 new visits a minute)
+- A session can only be changed by the visitor it was created for; page paths and user agents are length-limited
+- Location lookups for new visitors are capped at 30 a minute across all visitors
 
 ### 6. Dependencies
 

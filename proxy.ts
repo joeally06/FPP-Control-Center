@@ -5,6 +5,7 @@ import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { isSameOriginRequest } from './lib/csrf';
 import { isAdminEmail } from './lib/admin-emails';
+import { CONTENT_SECURITY_POLICY } from './lib/csp';
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -73,24 +74,7 @@ export async function proxy(request: NextRequest) {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   
   // Content Security Policy
-  response.headers.set(
-    'Content-Security-Policy',
-    [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://www.youtube.com https://*.youtube.com",
-      "script-src-elem 'self' 'unsafe-inline' https://www.youtube.com https://*.youtube.com",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "font-src 'self' https://fonts.gstatic.com",
-      "img-src 'self' data: https: https://img.youtube.com https://*.youtube.com https://*.googlevideo.com",
-      "connect-src 'self' http://192.168.2.186:11434 http://192.168.5.2 https://www.youtube.com https://*.youtube.com https://*.googlevideo.com https://www.googleapis.com",
-      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.youtube.com https://docs.google.com https://slides.google.com",
-      "media-src 'self' https://*.googlevideo.com",
-      "frame-ancestors 'self'",
-      "base-uri 'self'",
-      "form-action 'self'",
-      "object-src 'none'"
-    ].join('; ')
-  );
+  response.headers.set('Content-Security-Policy', CONTENT_SECURITY_POLICY);
   
   // Permissions Policy (formerly Feature-Policy)
   // Allow geolocation for this domain only (required for voting/song requests)

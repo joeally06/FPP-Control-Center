@@ -1,106 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { anonymizeIP, getClientIP, getGeolocation } from '@/lib/visitor-tracking';
+import { anonymizeIP, getClientIP, getGeolocation, isLocalAddress } from '@/lib/visitor-tracking';
 import { getDb } from '@/lib/database';
+import { createFixedWindowLimiter } from '@/lib/fixed-window-limiter';
+import { recordTrackEvent, type TrackBody } from '@/lib/analytics-tracking';
 
+// A visitor sends a handful of events per page; these only stop a script flooding the tables
+const requestLimiter = createFixedWindowLimiter({ windowMs: 60_000, max: 60 });
+const visitLimiter = createFixedWindowLimiter({ windowMs: 60_000, max: 10 });
+// ip-api.com's free tier allows 45 a minute; stay under it however many addresses are sending
+const geolocationLimiter = createFixedWindowLimiter({ windowMs: 60_000, max: 30 });
+
+/**
+ * POST /api/analytics/track
+ * Body: { action: 'visit' | 'pageview' | 'end', page?, sessionId? }
+ * PUBLIC, rate limited per IP. A session can only be changed by the visitor it was created for.
+ */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { action, page, sessionId } = body;
-
     const ip = getClientIP(request);
-    const visitorHash = anonymizeIP(ip);
-    const userAgent = request.headers.get('user-agent') || 'Unknown';
-
-    const db = getDb();
-
-    if (action === 'visit') {
-      // Check if visitor exists
-      const visitor = db.prepare(`
-        SELECT * FROM visitors WHERE visitor_hash = ?
-      `).get(visitorHash) as any;
-
-      if (visitor) {
-        // Update existing visitor
-        db.prepare(`
-          UPDATE visitors 
-          SET last_visit = CURRENT_TIMESTAMP, 
-              total_visits = total_visits + 1
-          WHERE visitor_hash = ?
-        `).run(visitorHash);
-      } else {
-        // Get geolocation for new visitor
-        const geo = await getGeolocation(ip);
-        
-        // Create new visitor
-        db.prepare(`
-          INSERT INTO visitors (visitor_hash, city, region, country)
-          VALUES (?, ?, ?, ?)
-        `).run(visitorHash, geo.city, geo.region, geo.country);
-      }
-
-      // Create new session
-      const sessionResult = db.prepare(`
-        INSERT INTO sessions (visitor_hash, user_agent)
-        VALUES (?, ?)
-      `).run(visitorHash, userAgent);
-
-      const newSessionId = sessionResult.lastInsertRowid;
-
-      // Record page view
-      db.prepare(`
-        INSERT INTO page_views (session_id, page_path)
-        VALUES (?, ?)
-      `).run(newSessionId, page || '/jukebox');
-
-
-      return NextResponse.json({ 
-        success: true, 
-        sessionId: newSessionId,
-        isReturning: !!visitor
-      });
-
-    } else if (action === 'pageview' && sessionId) {
-      // Record additional page view
-      db.prepare(`
-        INSERT INTO page_views (session_id, page_path)
-        VALUES (?, ?)
-      `).run(sessionId, page || '/');
-
-      // Update session page view count
-      db.prepare(`
-        UPDATE sessions 
-        SET page_views = page_views + 1
-        WHERE id = ?
-      `).run(sessionId);
-
-
-      return NextResponse.json({ success: true });
-
-    } else if (action === 'end' && sessionId) {
-      // End session and calculate duration
-      const session = db.prepare(`
-        SELECT session_start FROM sessions WHERE id = ?
-      `).get(sessionId) as any;
-
-      if (session) {
-        const startTime = new Date(session.session_start).getTime();
-        const endTime = Date.now();
-        const durationSeconds = Math.floor((endTime - startTime) / 1000);
-
-        db.prepare(`
-          UPDATE sessions 
-          SET session_end = CURRENT_TIMESTAMP,
-              duration_seconds = ?
-          WHERE id = ?
-        `).run(durationSeconds, sessionId);
-      }
-
-
-      return NextResponse.json({ success: true });
+    if (!requestLimiter.allow(ip)) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
 
-    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+    }
 
+    if ((body as TrackBody).action === 'visit' && !visitLimiter.allow(ip)) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
+    const result = await recordTrackEvent(getDb(), body as TrackBody, {
+      visitorHash: anonymizeIP(ip),
+      userAgent: request.headers.get('user-agent') || 'Unknown',
+      // A local address is answered without a network call, so it doesn't use up the budget
+      lookupGeo: () => isLocalAddress(ip) || geolocationLimiter.allow('all')
+        ? getGeolocation(ip)
+        : Promise.resolve({ city: null, region: null, country: null }),
+    });
+
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error('Visitor tracking error:', error);
     return NextResponse.json(

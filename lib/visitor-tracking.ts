@@ -9,6 +9,11 @@ export function anonymizeIP(ip: string): string {
 // One shared implementation (see lib/rate-limit.ts and server.js)
 export { getClientIP } from './rate-limit';
 
+/** True for addresses on this machine or its own network, which are never looked up */
+export function isLocalAddress(ip: string): boolean {
+  return ip === '127.0.0.1' || ip.startsWith('192.168.') || ip.startsWith('10.');
+}
+
 // Simple geolocation lookup (you could integrate with a real IP geolocation service)
 export async function getGeolocation(ip: string): Promise<{
   city: string | null;
@@ -16,7 +21,7 @@ export async function getGeolocation(ip: string): Promise<{
   country: string | null;
 }> {
   // Skip geolocation for local IPs
-  if (ip === '127.0.0.1' || ip.startsWith('192.168.') || ip.startsWith('10.')) {
+  if (isLocalAddress(ip)) {
     return {
       city: 'Local Network',
       region: null,

@@ -14,23 +14,7 @@ const nextConfig = {
   async headers() {
     const isProd = process.env.NODE_ENV === 'production';
     const baseHeaders = [
-      {
-        key: 'Content-Security-Policy',
-        value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://www.youtube.com https://*.youtube.com",
-              "script-src-elem 'self' 'unsafe-inline' https://www.youtube.com https://*.youtube.com",
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' data: https: https://img.youtube.com https://*.youtube.com https://*.googlevideo.com",
-              "connect-src 'self' https://www.youtube.com https://*.youtube.com https://*.googlevideo.com https://www.googleapis.com",
-              "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.youtube.com https://docs.google.com https://slides.google.com",
-              "media-src 'self' https://*.googlevideo.com",
-              "object-src 'none'",
-              "base-uri 'self'",
-              "form-action 'self'"
-            ].join('; ')
-      },
+      // No Content-Security-Policy here: it lives in lib/csp.ts and proxy.ts sets it
       {
         key: 'X-Content-Type-Options',
         value: 'nosniff'
