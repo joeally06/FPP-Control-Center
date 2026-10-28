@@ -1,0 +1,3950 @@
+{
+ "master": [
+  [
+   "index",
+   "idx_cached_playlist_seq_name",
+   "fpp_cached_playlist_sequences",
+   "CREATE INDEX idx_cached_playlist_seq_name ON fpp_cached_playlist_sequences(sequence_name)"
+  ],
+  [
+   "index",
+   "idx_cached_playlist_seq_playlist",
+   "fpp_cached_playlist_sequences",
+   "CREATE INDEX idx_cached_playlist_seq_playlist ON fpp_cached_playlist_sequences(playlist_name)"
+  ],
+  [
+   "index",
+   "idx_cached_playlist_seq_position",
+   "fpp_cached_playlist_sequences",
+   "CREATE INDEX idx_cached_playlist_seq_position ON fpp_cached_playlist_sequences(position)"
+  ],
+  [
+   "index",
+   "idx_cached_playlists_active",
+   "fpp_cached_playlists",
+   "CREATE INDEX idx_cached_playlists_active ON fpp_cached_playlists(is_active)"
+  ],
+  [
+   "index",
+   "idx_cached_playlists_cached_at",
+   "cached_playlists",
+   "CREATE INDEX idx_cached_playlists_cached_at ON cached_playlists(cached_at DESC)"
+  ],
+  [
+   "index",
+   "idx_cached_playlists_name",
+   "cached_playlists",
+   "CREATE INDEX idx_cached_playlists_name ON cached_playlists(name)"
+  ],
+  [
+   "index",
+   "idx_cached_playlists_name_time",
+   "cached_playlists",
+   "CREATE UNIQUE INDEX idx_cached_playlists_name_time ON cached_playlists(name, cached_at)"
+  ],
+  [
+   "index",
+   "idx_cached_playlists_synced",
+   "fpp_cached_playlists",
+   "CREATE INDEX idx_cached_playlists_synced ON fpp_cached_playlists(last_synced)"
+  ],
+  [
+   "index",
+   "idx_cached_sequences_order",
+   "cached_sequences",
+   "CREATE INDEX idx_cached_sequences_order ON cached_sequences(playlist_order ASC)"
+  ],
+  [
+   "index",
+   "idx_cached_sequences_updated",
+   "cached_sequences",
+   "CREATE INDEX idx_cached_sequences_updated ON cached_sequences(last_updated DESC)"
+  ],
+  [
+   "index",
+   "idx_checklist_completed",
+   "setup_checklist",
+   "CREATE INDEX idx_checklist_completed ON setup_checklist(completed, year)"
+  ],
+  [
+   "index",
+   "idx_checklist_model",
+   "setup_checklist",
+   "CREATE INDEX idx_checklist_model ON setup_checklist(model_id)"
+  ],
+  [
+   "index",
+   "idx_checklist_year",
+   "setup_checklist",
+   "CREATE INDEX idx_checklist_year ON setup_checklist(year)"
+  ],
+  [
+   "index",
+   "idx_device_status_checked",
+   "device_status",
+   "CREATE INDEX idx_device_status_checked ON device_status(last_checked DESC)"
+  ],
+  [
+   "index",
+   "idx_device_status_failures",
+   "device_status",
+   "CREATE INDEX idx_device_status_failures ON device_status(consecutive_failures DESC)"
+  ],
+  [
+   "index",
+   "idx_device_status_online",
+   "device_status",
+   "CREATE INDEX idx_device_status_online ON device_status(is_online, last_checked DESC)"
+  ],
+  [
+   "index",
+   "idx_devices_enabled",
+   "devices",
+   "CREATE INDEX idx_devices_enabled ON devices(enabled)"
+  ],
+  [
+   "index",
+   "idx_devices_type",
+   "devices",
+   "CREATE INDEX idx_devices_type ON devices(type)"
+  ],
+  [
+   "index",
+   "idx_fpp_playlists_name",
+   "fpp_playlists",
+   "CREATE INDEX idx_fpp_playlists_name ON fpp_playlists(name)"
+  ],
+  [
+   "index",
+   "idx_fpp_playlists_synced",
+   "fpp_playlists",
+   "CREATE INDEX idx_fpp_playlists_synced ON fpp_playlists(synced_at)"
+  ],
+  [
+   "index",
+   "idx_fpp_sequences_name",
+   "fpp_sequences",
+   "CREATE INDEX idx_fpp_sequences_name ON fpp_sequences(name)"
+  ],
+  [
+   "index",
+   "idx_fpp_sequences_synced",
+   "fpp_sequences",
+   "CREATE INDEX idx_fpp_sequences_synced ON fpp_sequences(synced_at)"
+  ],
+  [
+   "index",
+   "idx_fpp_state_updated",
+   "fpp_state",
+   "CREATE INDEX idx_fpp_state_updated ON fpp_state(last_updated)"
+  ],
+  [
+   "index",
+   "idx_fpp_status_cache_updated",
+   "fpp_status_cache",
+   "CREATE INDEX idx_fpp_status_cache_updated ON fpp_status_cache(updated_at DESC)"
+  ],
+  [
+   "index",
+   "idx_game_scores_date",
+   "game_scores",
+   "CREATE INDEX idx_game_scores_date ON game_scores(created_at DESC)"
+  ],
+  [
+   "index",
+   "idx_game_scores_leaderboard",
+   "game_scores",
+   "CREATE INDEX idx_game_scores_leaderboard ON game_scores(game_type, score DESC, created_at DESC)"
+  ],
+  [
+   "index",
+   "idx_game_scores_player",
+   "game_scores",
+   "CREATE INDEX idx_game_scores_player ON game_scores(session_id, game_type, score DESC)"
+  ],
+  [
+   "index",
+   "idx_jukebox_duplicate_check",
+   "jukebox_queue",
+   "CREATE INDEX idx_jukebox_duplicate_check ON jukebox_queue(requester_ip, sequence_name, created_at DESC)"
+  ],
+  [
+   "index",
+   "idx_jukebox_played_at",
+   "jukebox_queue",
+   "CREATE INDEX idx_jukebox_played_at ON jukebox_queue(played_at DESC)"
+  ],
+  [
+   "index",
+   "idx_jukebox_priority",
+   "jukebox_queue",
+   "CREATE INDEX idx_jukebox_priority ON jukebox_queue(priority DESC, created_at ASC)"
+  ],
+  [
+   "index",
+   "idx_jukebox_requester_ip_created",
+   "jukebox_queue",
+   "CREATE INDEX idx_jukebox_requester_ip_created ON jukebox_queue(requester_ip, created_at DESC)"
+  ],
+  [
+   "index",
+   "idx_jukebox_resume",
+   "jukebox_queue",
+   "CREATE INDEX idx_jukebox_resume ON jukebox_queue(status, was_resumed, original_playlist)"
+  ],
+  [
+   "index",
+   "idx_jukebox_status",
+   "jukebox_queue",
+   "CREATE INDEX idx_jukebox_status ON jukebox_queue(status)"
+  ],
+  [
+   "index",
+   "idx_jukebox_status_created",
+   "jukebox_queue",
+   "CREATE INDEX idx_jukebox_status_created ON jukebox_queue(status, created_at ASC)"
+  ],
+  [
+   "index",
+   "idx_media_spotify_url",
+   "spotify_metadata",
+   "CREATE INDEX idx_media_spotify_url ON spotify_metadata(spotify_url)"
+  ],
+  [
+   "index",
+   "idx_metadata_updated",
+   "sequence_metadata",
+   "CREATE INDEX idx_metadata_updated ON sequence_metadata(last_updated DESC)"
+  ],
+  [
+   "index",
+   "idx_models_channel_range",
+   "fpp_models",
+   "CREATE INDEX idx_models_channel_range ON fpp_models(start_channel_no, end_channel_no)"
+  ],
+  [
+   "index",
+   "idx_models_controller",
+   "fpp_models",
+   "CREATE INDEX idx_models_controller ON fpp_models(controller_name)"
+  ],
+  [
+   "index",
+   "idx_models_display_as",
+   "fpp_models",
+   "CREATE INDEX idx_models_display_as ON fpp_models(display_as)"
+  ],
+  [
+   "index",
+   "idx_models_name",
+   "fpp_models",
+   "CREATE INDEX idx_models_name ON fpp_models(model_name)"
+  ],
+  [
+   "index",
+   "idx_page_views_path",
+   "page_views",
+   "CREATE INDEX idx_page_views_path ON page_views(page_path, view_time DESC)"
+  ],
+  [
+   "index",
+   "idx_page_views_session",
+   "page_views",
+   "CREATE INDEX idx_page_views_session ON page_views(session_id)"
+  ],
+  [
+   "index",
+   "idx_page_views_time",
+   "page_views",
+   "CREATE INDEX idx_page_views_time ON page_views(view_time DESC)"
+  ],
+  [
+   "index",
+   "idx_poll_log_success",
+   "fpp_poll_log",
+   "CREATE INDEX idx_poll_log_success ON fpp_poll_log(success)"
+  ],
+  [
+   "index",
+   "idx_poll_log_timestamp",
+   "fpp_poll_log",
+   "CREATE INDEX idx_poll_log_timestamp ON fpp_poll_log(poll_timestamp)"
+  ],
+  [
+   "index",
+   "idx_queue_sequence_id",
+   "jukebox_queue",
+   "CREATE INDEX idx_queue_sequence_id ON jukebox_queue(sequence_id)"
+  ],
+  [
+   "index",
+   "idx_santa_created",
+   "santa_letters",
+   "CREATE INDEX idx_santa_created ON santa_letters(created_at DESC)"
+  ],
+  [
+   "index",
+   "idx_santa_ip_date",
+   "santa_letters",
+   "CREATE INDEX idx_santa_ip_date ON santa_letters(ip_address, created_at)"
+  ],
+  [
+   "index",
+   "idx_santa_queue_status",
+   "santa_letters",
+   "CREATE INDEX idx_santa_queue_status ON santa_letters(queue_status, created_at ASC)"
+  ],
+  [
+   "index",
+   "idx_santa_status",
+   "santa_letters",
+   "CREATE INDEX idx_santa_status ON santa_letters(status)"
+  ],
+  [
+   "index",
+   "idx_sequence_requests_last",
+   "sequence_requests",
+   "CREATE INDEX idx_sequence_requests_last ON sequence_requests(last_requested DESC)"
+  ],
+  [
+   "index",
+   "idx_sequence_requests_popularity",
+   "sequence_requests",
+   "CREATE INDEX idx_sequence_requests_popularity ON sequence_requests(total_requests DESC)"
+  ],
+  [
+   "index",
+   "idx_sequence_spotify_url",
+   "sequence_metadata",
+   "CREATE INDEX idx_sequence_spotify_url ON sequence_metadata(spotify_url)"
+  ],
+  [
+   "index",
+   "idx_sequences_custom_metadata",
+   "sequences",
+   "CREATE INDEX idx_sequences_custom_metadata ON sequences(is_custom_metadata)"
+  ],
+  [
+   "index",
+   "idx_sequences_last_played",
+   "sequences",
+   "CREATE INDEX idx_sequences_last_played ON sequences(last_played_at)"
+  ],
+  [
+   "index",
+   "idx_sequences_name",
+   "sequences",
+   "CREATE INDEX idx_sequences_name ON sequences(sequence_name)"
+  ],
+  [
+   "index",
+   "idx_sequences_play_count",
+   "sequences",
+   "CREATE INDEX idx_sequences_play_count ON sequences(play_count DESC)"
+  ],
+  [
+   "index",
+   "idx_sequences_spotify_id",
+   "sequences",
+   "CREATE INDEX idx_sequences_spotify_id ON sequences(spotify_id)"
+  ],
+  [
+   "index",
+   "idx_sequences_spotify_url",
+   "sequences",
+   "CREATE INDEX idx_sequences_spotify_url ON sequences(spotify_url)"
+  ],
+  [
+   "index",
+   "idx_sessions_start",
+   "sessions",
+   "CREATE INDEX idx_sessions_start ON sessions(session_start DESC)"
+  ],
+  [
+   "index",
+   "idx_sessions_visitor",
+   "sessions",
+   "CREATE INDEX idx_sessions_visitor ON sessions(visitor_hash)"
+  ],
+  [
+   "index",
+   "idx_settings_category",
+   "settings",
+   "CREATE INDEX idx_settings_category ON settings(category)"
+  ],
+  [
+   "index",
+   "idx_settings_key",
+   "settings",
+   "CREATE INDEX idx_settings_key ON settings(key)"
+  ],
+  [
+   "index",
+   "idx_spotify_confidence",
+   "spotify_metadata",
+   "CREATE INDEX idx_spotify_confidence ON spotify_metadata(match_confidence)"
+  ],
+  [
+   "index",
+   "idx_spotify_updated",
+   "spotify_metadata",
+   "CREATE INDEX idx_spotify_updated ON spotify_metadata(last_updated)"
+  ],
+  [
+   "index",
+   "idx_trivia_games_finished",
+   "trivia_games",
+   "CREATE INDEX idx_trivia_games_finished ON trivia_games(finished_at, score)"
+  ],
+  [
+   "index",
+   "idx_trivia_games_ip",
+   "trivia_games",
+   "CREATE INDEX idx_trivia_games_ip ON trivia_games(ip_address, created_at)"
+  ],
+  [
+   "index",
+   "idx_visitors_hash",
+   "visitors",
+   "CREATE INDEX idx_visitors_hash ON visitors(visitor_hash)"
+  ],
+  [
+   "index",
+   "idx_visitors_last_visit",
+   "visitors",
+   "CREATE INDEX idx_visitors_last_visit ON visitors(last_visit DESC)"
+  ],
+  [
+   "index",
+   "idx_votes_ip_created",
+   "votes",
+   "CREATE INDEX idx_votes_ip_created ON votes(user_ip, created_at DESC)"
+  ],
+  [
+   "index",
+   "idx_votes_sequence",
+   "votes",
+   "CREATE INDEX idx_votes_sequence ON votes(sequence_name)"
+  ],
+  [
+   "index",
+   "idx_votes_user_sequence",
+   "votes",
+   "CREATE INDEX idx_votes_user_sequence ON votes(user_ip, sequence_name)"
+  ],
+  [
+   "index",
+   "idx_youtube_created",
+   "youtube_videos",
+   "CREATE INDEX idx_youtube_created ON youtube_videos(created_at)"
+  ],
+  [
+   "index",
+   "idx_youtube_theme",
+   "youtube_videos",
+   "CREATE INDEX idx_youtube_theme ON youtube_videos(theme)"
+  ],
+  [
+   "index",
+   "idx_youtube_youtube_id",
+   "youtube_videos",
+   "CREATE INDEX idx_youtube_youtube_id ON youtube_videos(youtube_id)"
+  ],
+  [
+   "index",
+   "sqlite_autoindex_cached_sequences_1",
+   "cached_sequences",
+   ""
+  ],
+  [
+   "index",
+   "sqlite_autoindex_device_status_1",
+   "device_status",
+   ""
+  ],
+  [
+   "index",
+   "sqlite_autoindex_devices_1",
+   "devices",
+   ""
+  ],
+  [
+   "index",
+   "sqlite_autoindex_fpp_cached_playlist_sequences_1",
+   "fpp_cached_playlist_sequences",
+   ""
+  ],
+  [
+   "index",
+   "sqlite_autoindex_fpp_cached_playlists_1",
+   "fpp_cached_playlists",
+   ""
+  ],
+  [
+   "index",
+   "sqlite_autoindex_fpp_playlists_1",
+   "fpp_playlists",
+   ""
+  ],
+  [
+   "index",
+   "sqlite_autoindex_fpp_sequences_1",
+   "fpp_sequences",
+   ""
+  ],
+  [
+   "index",
+   "sqlite_autoindex_jukebox_playlists_1",
+   "jukebox_playlists",
+   ""
+  ],
+  [
+   "index",
+   "sqlite_autoindex_jukebox_rate_limit_resets_1",
+   "jukebox_rate_limit_resets",
+   ""
+  ],
+  [
+   "index",
+   "sqlite_autoindex_jukebox_song_details_1",
+   "jukebox_song_details",
+   ""
+  ],
+  [
+   "index",
+   "sqlite_autoindex_santa_letter_confirmations_1",
+   "santa_letter_confirmations",
+   ""
+  ],
+  [
+   "index",
+   "sqlite_autoindex_sequence_metadata_1",
+   "sequence_metadata",
+   ""
+  ],
+  [
+   "index",
+   "sqlite_autoindex_sequence_requests_1",
+   "sequence_requests",
+   ""
+  ],
+  [
+   "index",
+   "sqlite_autoindex_sequences_1",
+   "sequences",
+   ""
+  ],
+  [
+   "index",
+   "sqlite_autoindex_settings_1",
+   "settings",
+   ""
+  ],
+  [
+   "index",
+   "sqlite_autoindex_spotify_metadata_1",
+   "spotify_metadata",
+   ""
+  ],
+  [
+   "index",
+   "sqlite_autoindex_theme_assets_1",
+   "theme_assets",
+   ""
+  ],
+  [
+   "index",
+   "sqlite_autoindex_trivia_games_1",
+   "trivia_games",
+   ""
+  ],
+  [
+   "index",
+   "sqlite_autoindex_visitors_1",
+   "visitors",
+   ""
+  ],
+  [
+   "index",
+   "sqlite_autoindex_votes_1",
+   "votes",
+   ""
+  ],
+  [
+   "index",
+   "sqlite_autoindex_youtube_videos_1",
+   "youtube_videos",
+   ""
+  ],
+  [
+   "table",
+   "cached_playlists",
+   "cached_playlists",
+   "CREATE TABLE cached_playlists ( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, data TEXT NOT NULL, cached_at DATETIME DEFAULT CURRENT_TIMESTAMP )"
+  ],
+  [
+   "table",
+   "cached_sequences",
+   "cached_sequences",
+   "CREATE TABLE cached_sequences ( id INTEGER PRIMARY KEY AUTOINCREMENT, sequence_name TEXT NOT NULL UNIQUE, last_updated DATETIME DEFAULT CURRENT_TIMESTAMP , playlist_order INTEGER DEFAULT 0)"
+  ],
+  [
+   "table",
+   "device_status",
+   "device_status",
+   "CREATE TABLE device_status ( device_id TEXT PRIMARY KEY, is_online BOOLEAN NOT NULL DEFAULT 0, last_checked DATETIME DEFAULT CURRENT_TIMESTAMP, last_seen_online DATETIME, consecutive_failures INTEGER DEFAULT 0, last_notified DATETIME )"
+  ],
+  [
+   "table",
+   "devices",
+   "devices",
+   "CREATE TABLE devices ( id TEXT PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL, ip TEXT NOT NULL, enabled BOOLEAN DEFAULT 1, description TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP )"
+  ],
+  [
+   "table",
+   "display_profiles",
+   "display_profiles",
+   "CREATE TABLE display_profiles ( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, is_active INTEGER NOT NULL DEFAULT 0, config_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL DEFAULT (datetime('now')) )"
+  ],
+  [
+   "table",
+   "display_schedule",
+   "display_schedule",
+   "CREATE TABLE display_schedule ( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1, days TEXT NOT NULL DEFAULT '0,1,2,3,4,5,6', start_time TEXT NOT NULL DEFAULT '00:00', end_time TEXT NOT NULL DEFAULT '23:59', action_type TEXT NOT NULL CHECK (action_type IN ('slideshow','theme','announcement','custom_display')), action_payload TEXT NOT NULL DEFAULT '{}', priority INTEGER NOT NULL DEFAULT 10, created_at TEXT NOT NULL DEFAULT (datetime('now')) )"
+  ],
+  [
+   "table",
+   "fpp_cached_playlist_sequences",
+   "fpp_cached_playlist_sequences",
+   "CREATE TABLE fpp_cached_playlist_sequences ( id INTEGER PRIMARY KEY AUTOINCREMENT, playlist_name TEXT NOT NULL, sequence_name TEXT NOT NULL, position INTEGER NOT NULL, -- Order in playlist (0-based) duration INTEGER, -- Duration in seconds enabled BOOLEAN DEFAULT 1, last_synced DATETIME DEFAULT CURRENT_TIMESTAMP, -- Foreign key to cached playlists FOREIGN KEY (playlist_name) REFERENCES fpp_cached_playlists(name) ON DELETE CASCADE, -- Ensure unique position per playlist UNIQUE(playlist_name, position) )"
+  ],
+  [
+   "table",
+   "fpp_cached_playlists",
+   "fpp_cached_playlists",
+   "CREATE TABLE fpp_cached_playlists ( name TEXT PRIMARY KEY, description TEXT, sequence_count INTEGER DEFAULT 0, total_duration INTEGER DEFAULT 0, -- Total duration in seconds is_active BOOLEAN DEFAULT 0, -- Currently playing last_played DATETIME, last_synced DATETIME DEFAULT CURRENT_TIMESTAMP, -- Metadata created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP )"
+  ],
+  [
+   "table",
+   "fpp_models",
+   "fpp_models",
+   "CREATE TABLE fpp_models ( id INTEGER PRIMARY KEY AUTOINCREMENT, model_name TEXT NOT NULL, display_as TEXT, description TEXT, string_type TEXT, string_count INTEGER, node_count INTEGER, light_count INTEGER, channels_per_node INTEGER, channel_count INTEGER, start_channel TEXT, start_channel_no INTEGER, end_channel_no INTEGER, universe_start_channel TEXT, controller_name TEXT, controller_type TEXT, controller_ip TEXT, controller_ports TEXT, protocol TEXT, universe_id TEXT, universe_channel INTEGER, controller_channel INTEGER, connection_protocol TEXT, connection_attributes TEXT, est_current_amps REAL, buffer_dimensions TEXT, notes TEXT, physical_location TEXT, last_tested DATETIME, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP )"
+  ],
+  [
+   "table",
+   "fpp_playlists",
+   "fpp_playlists",
+   "CREATE TABLE fpp_playlists ( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, description TEXT, item_count INTEGER DEFAULT 0, duration INTEGER DEFAULT 0, raw_data TEXT, synced_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP )"
+  ],
+  [
+   "table",
+   "fpp_poll_log",
+   "fpp_poll_log",
+   "CREATE TABLE fpp_poll_log ( id INTEGER PRIMARY KEY AUTOINCREMENT, poll_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, success BOOLEAN DEFAULT 1, response_time_ms INTEGER, error_message TEXT, status TEXT, -- FPP status at time of poll current_sequence TEXT, -- Rate limiting tracking consecutive_failures INTEGER DEFAULT 0 )"
+  ],
+  [
+   "table",
+   "fpp_sequences",
+   "fpp_sequences",
+   "CREATE TABLE fpp_sequences ( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, filename TEXT, length_ms INTEGER DEFAULT 0, channel_count INTEGER DEFAULT 0, raw_data TEXT, synced_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP )"
+  ],
+  [
+   "table",
+   "fpp_state",
+   "fpp_state",
+   "CREATE TABLE fpp_state ( id INTEGER PRIMARY KEY CHECK (id = 1), -- Enforce single row -- FPP Status status TEXT DEFAULT 'unknown', -- 'idle', 'playing', 'stopped', 'unknown' current_sequence TEXT, -- Currently playing sequence current_playlist TEXT, -- Active playlist name current_playlist_index INTEGER, -- Position in playlist (0-based) current_playlist_count INTEGER, -- Total sequences in playlist -- Playback Info seconds_played INTEGER DEFAULT 0, -- Current playback position seconds_remaining INTEGER DEFAULT 0, -- Time remaining in sequence -- Device Info volume INTEGER DEFAULT 0, -- Current volume (0-100) mode TEXT DEFAULT 'player', -- 'player', 'bridge', 'master', 'remote' uptime INTEGER DEFAULT 0, -- FPP uptime in seconds -- Metadata last_updated DATETIME DEFAULT CURRENT_TIMESTAMP, last_poll_success BOOLEAN DEFAULT 1, last_error TEXT, -- Security: Track last update to detect stale data updated_at DATETIME DEFAULT CURRENT_TIMESTAMP )"
+  ],
+  [
+   "table",
+   "fpp_status_cache",
+   "fpp_status_cache",
+   "CREATE TABLE fpp_status_cache ( id INTEGER PRIMARY KEY AUTOINCREMENT, status_name TEXT NOT NULL, current_playlist TEXT, current_sequence TEXT, current_song TEXT, media_name TEXT, seconds_played INTEGER, seconds_remaining INTEGER, time_elapsed TEXT, time_remaining TEXT, volume INTEGER, mode_name TEXT, scheduler_status TEXT, next_playlist TEXT, raw_data TEXT NOT NULL, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, created_at DATETIME DEFAULT CURRENT_TIMESTAMP )"
+  ],
+  [
+   "table",
+   "fpp_sync_status",
+   "fpp_sync_status",
+   "CREATE TABLE fpp_sync_status ( id INTEGER PRIMARY KEY CHECK (id = 1), last_sync DATETIME, last_success DATETIME, last_error TEXT, playlists_count INTEGER DEFAULT 0, sequences_count INTEGER DEFAULT 0 )"
+  ],
+  [
+   "table",
+   "game_scores",
+   "game_scores",
+   "CREATE TABLE game_scores ( id INTEGER PRIMARY KEY AUTOINCREMENT, player_name TEXT NOT NULL, score INTEGER NOT NULL, game_type TEXT NOT NULL DEFAULT 'christmas_ornaments', theme TEXT NOT NULL DEFAULT 'christmas', created_at TEXT NOT NULL, ip_address TEXT, session_id TEXT )"
+  ],
+  [
+   "table",
+   "jukebox_playlists",
+   "jukebox_playlists",
+   "CREATE TABLE jukebox_playlists ( name TEXT PRIMARY KEY, -- FPP playlist name theme TEXT CHECK (theme IN ('christmas', 'halloween')), -- NULL = hidden item_count INTEGER NOT NULL DEFAULT 0, duration_seconds REAL, -- NULL = unknown updated_at DATETIME DEFAULT CURRENT_TIMESTAMP )"
+  ],
+  [
+   "table",
+   "jukebox_queue",
+   "jukebox_queue",
+   "CREATE TABLE jukebox_queue ( id INTEGER PRIMARY KEY AUTOINCREMENT, sequence_name TEXT NOT NULL, media_name TEXT, requester_name TEXT, requester_ip TEXT NOT NULL, status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'playing', 'completed', 'skipped')), priority INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, played_at DATETIME, original_playlist TEXT, original_item_index INTEGER, was_resumed BOOLEAN DEFAULT 0, started_at DATETIME, duration_ms INTEGER , sequence_id INTEGER, latitude REAL, longitude REAL, city TEXT, region TEXT, country_code TEXT, distance_from_show REAL, request_kind TEXT DEFAULT 'song')"
+  ],
+  [
+   "table",
+   "jukebox_rate_limit_resets",
+   "jukebox_rate_limit_resets",
+   "CREATE TABLE jukebox_rate_limit_resets ( requester_ip TEXT PRIMARY KEY, reset_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP -- UTC, same format as jukebox_queue.created_at )"
+  ],
+  [
+   "table",
+   "jukebox_song_details",
+   "jukebox_song_details",
+   "CREATE TABLE jukebox_song_details ( sequence_name TEXT PRIMARY KEY, -- bare sequence name (no .fseq), same key as cached_sequences duration_seconds REAL, -- NULL = unknown category TEXT, -- NULL = uncategorised updated_at DATETIME DEFAULT CURRENT_TIMESTAMP )"
+  ],
+  [
+   "table",
+   "location_restrictions",
+   "location_restrictions",
+   "CREATE TABLE location_restrictions ( id INTEGER PRIMARY KEY CHECK (id = 1), is_active BOOLEAN DEFAULT 0, max_distance_miles INTEGER DEFAULT 1, show_latitude REAL, show_longitude REAL, show_location_name TEXT, last_updated DATETIME DEFAULT CURRENT_TIMESTAMP, updated_by_admin TEXT )"
+  ],
+  [
+   "table",
+   "model_photos",
+   "model_photos",
+   "CREATE TABLE model_photos ( id INTEGER PRIMARY KEY AUTOINCREMENT, model_id INTEGER NOT NULL, photo_url TEXT NOT NULL, caption TEXT, photo_type TEXT CHECK (photo_type IN ('setup', 'wiring', 'controller', 'installed')), created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (model_id) REFERENCES fpp_models(id) ON DELETE CASCADE )"
+  ],
+  [
+   "table",
+   "monitoring_schedule",
+   "monitoring_schedule",
+   "CREATE TABLE monitoring_schedule ( id INTEGER PRIMARY KEY CHECK (id = 1), enabled BOOLEAN DEFAULT 1, start_time TEXT NOT NULL DEFAULT '16:00', end_time TEXT NOT NULL DEFAULT '22:00', timezone TEXT DEFAULT 'America/Chicago', updated_at DATETIME DEFAULT CURRENT_TIMESTAMP )"
+  ],
+  [
+   "table",
+   "page_views",
+   "page_views",
+   "CREATE TABLE page_views ( id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER NOT NULL, page_path TEXT NOT NULL, view_time DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (session_id) REFERENCES sessions(id) )"
+  ],
+  [
+   "table",
+   "queue_processor_state",
+   "queue_processor_state",
+   "CREATE TABLE queue_processor_state ( id INTEGER PRIMARY KEY CHECK (id = 1), processing_state TEXT DEFAULT 'IDLE' CHECK (processing_state IN ('IDLE', 'MONITORING_SEQUENCE')), sequence_start_time INTEGER, current_queue_item_id INTEGER, last_updated DATETIME DEFAULT CURRENT_TIMESTAMP , start_deadline INTEGER)"
+  ],
+  [
+   "table",
+   "santa_letter_confirmations",
+   "santa_letter_confirmations",
+   "CREATE TABLE santa_letter_confirmations ( letter_id INTEGER PRIMARY KEY REFERENCES santa_letters(id) ON DELETE CASCADE, token_hash TEXT NOT NULL UNIQUE, expires_at DATETIME NOT NULL, confirmed_at DATETIME, created_at DATETIME DEFAULT CURRENT_TIMESTAMP )"
+  ],
+  [
+   "table",
+   "santa_letters",
+   "santa_letters",
+   "CREATE TABLE santa_letters ( id INTEGER PRIMARY KEY AUTOINCREMENT, child_name TEXT NOT NULL, child_age INTEGER, parent_email TEXT NOT NULL, letter_content TEXT NOT NULL, santa_reply TEXT, status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'sent', 'rejected')), ip_address TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, sent_at DATETIME, admin_notes TEXT, queue_status TEXT DEFAULT 'queued' CHECK (queue_status IN ('queued', 'processing', 'completed', 'failed')), processing_started_at DATETIME, processing_completed_at DATETIME, retry_count INTEGER DEFAULT 0, last_error TEXT )"
+  ],
+  [
+   "table",
+   "sequence_metadata",
+   "sequence_metadata",
+   "CREATE TABLE sequence_metadata ( sequence_name TEXT PRIMARY KEY, song_title TEXT, artist TEXT, album TEXT, release_year INTEGER, album_cover_url TEXT, spotify_id TEXT, last_updated DATETIME DEFAULT CURRENT_TIMESTAMP , spotify_url TEXT)"
+  ],
+  [
+   "table",
+   "sequence_requests",
+   "sequence_requests",
+   "CREATE TABLE sequence_requests ( id INTEGER PRIMARY KEY AUTOINCREMENT, sequence_name TEXT NOT NULL UNIQUE, total_requests INTEGER DEFAULT 0, last_requested DATETIME DEFAULT CURRENT_TIMESTAMP )"
+  ],
+  [
+   "table",
+   "sequences",
+   "sequences",
+   "CREATE TABLE sequences ( id INTEGER PRIMARY KEY AUTOINCREMENT, sequence_name TEXT NOT NULL UNIQUE, -- FPP sequence filename (without .fseq) -- Metadata fields title TEXT, -- Song title artist TEXT, -- Artist name album TEXT, -- Album name album_art_url TEXT, -- Album cover URL spotify_url TEXT, -- Spotify web URL spotify_id TEXT, -- Spotify track ID spotify_uri TEXT, -- Spotify URI (spotify:track:xxx) preview_url TEXT, -- Spotify preview URL year TEXT, -- Release year -- Metadata management is_custom_metadata BOOLEAN DEFAULT 0, -- TRUE if user edited in Media Library metadata_source TEXT, -- 'manual', 'spotify_api', 'media_library' last_metadata_update DATETIME, -- When metadata was last changed -- Usage statistics play_count INTEGER DEFAULT 0, -- Total times played request_count INTEGER DEFAULT 0, -- Total times requested last_played_at DATETIME, -- Last play timestamp last_requested_at DATETIME, -- Last request timestamp -- Timestamps created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP )"
+  ],
+  [
+   "table",
+   "sessions",
+   "sessions",
+   "CREATE TABLE sessions ( id INTEGER PRIMARY KEY AUTOINCREMENT, visitor_hash TEXT NOT NULL, session_start DATETIME DEFAULT CURRENT_TIMESTAMP, session_end DATETIME, page_views INTEGER DEFAULT 1, duration_seconds INTEGER, user_agent TEXT, FOREIGN KEY (visitor_hash) REFERENCES visitors(visitor_hash) )"
+  ],
+  [
+   "table",
+   "settings",
+   "settings",
+   "CREATE TABLE settings ( id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT NOT NULL UNIQUE, value TEXT NOT NULL, description TEXT, category TEXT DEFAULT 'general', updated_at DATETIME DEFAULT CURRENT_TIMESTAMP )"
+  ],
+  [
+   "table",
+   "setup_checklist",
+   "setup_checklist",
+   "CREATE TABLE setup_checklist ( id INTEGER PRIMARY KEY AUTOINCREMENT, model_id INTEGER NOT NULL, task TEXT NOT NULL, completed BOOLEAN DEFAULT 0, completed_at DATETIME, notes TEXT, year INTEGER NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (model_id) REFERENCES fpp_models(id) ON DELETE CASCADE )"
+  ],
+  [
+   "table",
+   "spotify_metadata",
+   "spotify_metadata",
+   "CREATE TABLE spotify_metadata ( sequence_name TEXT PRIMARY KEY, album_art_url TEXT, artist_name TEXT, album_name TEXT, track_name TEXT, spotify_track_id TEXT, spotify_uri TEXT, preview_url TEXT, last_updated DATETIME DEFAULT CURRENT_TIMESTAMP, search_query TEXT, match_confidence TEXT CHECK(match_confidence IN ('high', 'medium', 'low', 'none')) DEFAULT 'none' , spotify_url TEXT)"
+  ],
+  [
+   "table",
+   "sqlite_sequence",
+   "sqlite_sequence",
+   "CREATE TABLE sqlite_sequence(name,seq)"
+  ],
+  [
+   "table",
+   "theme_assets",
+   "theme_assets",
+   "CREATE TABLE theme_assets ( theme_id TEXT NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('logo', 'badge')), mime_type TEXT NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL, data BLOB NOT NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (theme_id, kind) )"
+  ],
+  [
+   "table",
+   "theme_settings",
+   "theme_settings",
+   "CREATE TABLE theme_settings ( id INTEGER PRIMARY KEY CHECK (id = 1), active_theme_id TEXT NOT NULL DEFAULT 'default', custom_particles TEXT, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP )"
+  ],
+  [
+   "table",
+   "trivia_games",
+   "trivia_games",
+   "CREATE TABLE trivia_games ( id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT NOT NULL UNIQUE, -- random secret held by the phone display_name TEXT NOT NULL, question_ids TEXT NOT NULL, -- JSON array, drawn at random when the game starts seconds_per_question INTEGER NOT NULL, current_index INTEGER NOT NULL DEFAULT 0, question_started_at TEXT, -- ISO; NULL until the current question is served score INTEGER NOT NULL DEFAULT 0, correct_count INTEGER NOT NULL DEFAULT 0, finished_at TEXT, -- 'YYYY-MM-DD HH:MM:SS' UTC; NULL while in progress or abandoned ip_address TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')) )"
+  ],
+  [
+   "table",
+   "trivia_questions",
+   "trivia_questions",
+   "CREATE TABLE trivia_questions ( id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT NOT NULL DEFAULT 'General', question_text TEXT NOT NULL, choices TEXT NOT NULL, -- JSON array of 2-6 strings correct_index INTEGER NOT NULL, points INTEGER NOT NULL DEFAULT 1000, created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')) )"
+  ],
+  [
+   "table",
+   "visitors",
+   "visitors",
+   "CREATE TABLE visitors ( id INTEGER PRIMARY KEY AUTOINCREMENT, visitor_hash TEXT NOT NULL UNIQUE, first_visit DATETIME DEFAULT CURRENT_TIMESTAMP, last_visit DATETIME DEFAULT CURRENT_TIMESTAMP, total_visits INTEGER DEFAULT 1, city TEXT, region TEXT, country TEXT )"
+  ],
+  [
+   "table",
+   "votes",
+   "votes",
+   "CREATE TABLE votes ( id INTEGER PRIMARY KEY AUTOINCREMENT, sequence_name TEXT NOT NULL, vote_type TEXT NOT NULL CHECK (vote_type IN ('up', 'down')), user_ip TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, latitude REAL, longitude REAL, city TEXT, region TEXT, country_code TEXT, distance_from_show REAL, UNIQUE(sequence_name, user_ip) )"
+  ],
+  [
+   "table",
+   "youtube_videos",
+   "youtube_videos",
+   "CREATE TABLE youtube_videos ( id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, youtube_id TEXT NOT NULL UNIQUE, description TEXT, thumbnail_url TEXT, duration_seconds INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP , theme TEXT DEFAULT 'christmas' CHECK(theme IN ('christmas', 'halloween')))"
+  ],
+  [
+   "trigger",
+   "cleanup_poll_log",
+   "fpp_poll_log",
+   "CREATE TRIGGER cleanup_poll_log AFTER INSERT ON fpp_poll_log BEGIN DELETE FROM fpp_poll_log WHERE id <= (SELECT MAX(id) - 1000 FROM fpp_poll_log) AND (SELECT COUNT(*) FROM fpp_poll_log) > 1000; END"
+  ],
+  [
+   "view",
+   "fpp_health_summary",
+   "fpp_health_summary",
+   "CREATE VIEW fpp_health_summary AS SELECT fs.status, fs.current_sequence, fs.last_updated, fs.last_poll_success, fs.last_error, (julianday('now') - julianday(fs.last_updated)) * 86400 as age_seconds, (SELECT COUNT(*) FROM fpp_poll_log WHERE success = 0 AND poll_timestamp > datetime('now', '-5 minutes')) as recent_failures, (SELECT AVG(response_time_ms) FROM fpp_poll_log WHERE success = 1 AND poll_timestamp > datetime('now', '-5 minutes')) as avg_response_ms FROM fpp_state fs"
+  ],
+  [
+   "view",
+   "spotify_metadata_view",
+   "spotify_metadata_view",
+   "CREATE VIEW spotify_metadata_view AS SELECT sequence_name, album_art_url, artist as artist_name, album as album_name, title as track_name, spotify_id as spotify_track_id, spotify_uri, preview_url, last_metadata_update as last_updated, metadata_source as search_query, 'none' as match_confidence, is_custom_metadata as is_manual_override, spotify_url FROM sequences"
+  ]
+ ],
+ "columns": {
+  "cached_playlists": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "name",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "data",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "cached_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "cached_sequences": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "sequence_name",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "last_updated",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "playlist_order",
+    "INTEGER",
+    0,
+    "0",
+    0
+   ]
+  ],
+  "device_status": [
+   [
+    "device_id",
+    "TEXT",
+    0,
+    null,
+    1
+   ],
+   [
+    "is_online",
+    "BOOLEAN",
+    1,
+    "0",
+    0
+   ],
+   [
+    "last_checked",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "last_seen_online",
+    "DATETIME",
+    0,
+    null,
+    0
+   ],
+   [
+    "consecutive_failures",
+    "INTEGER",
+    0,
+    "0",
+    0
+   ],
+   [
+    "last_notified",
+    "DATETIME",
+    0,
+    null,
+    0
+   ]
+  ],
+  "devices": [
+   [
+    "id",
+    "TEXT",
+    0,
+    null,
+    1
+   ],
+   [
+    "name",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "type",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "ip",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "enabled",
+    "BOOLEAN",
+    0,
+    "1",
+    0
+   ],
+   [
+    "description",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "created_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "updated_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "display_profiles": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "name",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "is_active",
+    "INTEGER",
+    1,
+    "0",
+    0
+   ],
+   [
+    "config_json",
+    "TEXT",
+    1,
+    "'{}'",
+    0
+   ],
+   [
+    "created_at",
+    "TEXT",
+    1,
+    "datetime('now')",
+    0
+   ]
+  ],
+  "display_schedule": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "name",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "enabled",
+    "INTEGER",
+    1,
+    "1",
+    0
+   ],
+   [
+    "days",
+    "TEXT",
+    1,
+    "'0,1,2,3,4,5,6'",
+    0
+   ],
+   [
+    "start_time",
+    "TEXT",
+    1,
+    "'00:00'",
+    0
+   ],
+   [
+    "end_time",
+    "TEXT",
+    1,
+    "'23:59'",
+    0
+   ],
+   [
+    "action_type",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "action_payload",
+    "TEXT",
+    1,
+    "'{}'",
+    0
+   ],
+   [
+    "priority",
+    "INTEGER",
+    1,
+    "10",
+    0
+   ],
+   [
+    "created_at",
+    "TEXT",
+    1,
+    "datetime('now')",
+    0
+   ]
+  ],
+  "fpp_cached_playlist_sequences": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "playlist_name",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "sequence_name",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "position",
+    "INTEGER",
+    1,
+    null,
+    0
+   ],
+   [
+    "duration",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "enabled",
+    "BOOLEAN",
+    0,
+    "1",
+    0
+   ],
+   [
+    "last_synced",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "fpp_cached_playlists": [
+   [
+    "name",
+    "TEXT",
+    0,
+    null,
+    1
+   ],
+   [
+    "description",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "sequence_count",
+    "INTEGER",
+    0,
+    "0",
+    0
+   ],
+   [
+    "total_duration",
+    "INTEGER",
+    0,
+    "0",
+    0
+   ],
+   [
+    "is_active",
+    "BOOLEAN",
+    0,
+    "0",
+    0
+   ],
+   [
+    "last_played",
+    "DATETIME",
+    0,
+    null,
+    0
+   ],
+   [
+    "last_synced",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "created_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "updated_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "fpp_models": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "model_name",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "display_as",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "description",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "string_type",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "string_count",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "node_count",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "light_count",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "channels_per_node",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "channel_count",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "start_channel",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "start_channel_no",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "end_channel_no",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "universe_start_channel",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "controller_name",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "controller_type",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "controller_ip",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "controller_ports",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "protocol",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "universe_id",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "universe_channel",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "controller_channel",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "connection_protocol",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "connection_attributes",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "est_current_amps",
+    "REAL",
+    0,
+    null,
+    0
+   ],
+   [
+    "buffer_dimensions",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "notes",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "physical_location",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "last_tested",
+    "DATETIME",
+    0,
+    null,
+    0
+   ],
+   [
+    "created_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "updated_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "fpp_playlists": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "name",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "description",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "item_count",
+    "INTEGER",
+    0,
+    "0",
+    0
+   ],
+   [
+    "duration",
+    "INTEGER",
+    0,
+    "0",
+    0
+   ],
+   [
+    "raw_data",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "synced_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "updated_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "fpp_poll_log": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "poll_timestamp",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "success",
+    "BOOLEAN",
+    0,
+    "1",
+    0
+   ],
+   [
+    "response_time_ms",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "error_message",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "status",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "current_sequence",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "consecutive_failures",
+    "INTEGER",
+    0,
+    "0",
+    0
+   ]
+  ],
+  "fpp_sequences": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "name",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "filename",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "length_ms",
+    "INTEGER",
+    0,
+    "0",
+    0
+   ],
+   [
+    "channel_count",
+    "INTEGER",
+    0,
+    "0",
+    0
+   ],
+   [
+    "raw_data",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "synced_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "updated_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "fpp_state": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "status",
+    "TEXT",
+    0,
+    "'unknown'",
+    0
+   ],
+   [
+    "current_sequence",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "current_playlist",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "current_playlist_index",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "current_playlist_count",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "seconds_played",
+    "INTEGER",
+    0,
+    "0",
+    0
+   ],
+   [
+    "seconds_remaining",
+    "INTEGER",
+    0,
+    "0",
+    0
+   ],
+   [
+    "volume",
+    "INTEGER",
+    0,
+    "0",
+    0
+   ],
+   [
+    "mode",
+    "TEXT",
+    0,
+    "'player'",
+    0
+   ],
+   [
+    "uptime",
+    "INTEGER",
+    0,
+    "0",
+    0
+   ],
+   [
+    "last_updated",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "last_poll_success",
+    "BOOLEAN",
+    0,
+    "1",
+    0
+   ],
+   [
+    "last_error",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "updated_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "fpp_status_cache": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "status_name",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "current_playlist",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "current_sequence",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "current_song",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "media_name",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "seconds_played",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "seconds_remaining",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "time_elapsed",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "time_remaining",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "volume",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "mode_name",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "scheduler_status",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "next_playlist",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "raw_data",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "updated_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "created_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "fpp_sync_status": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "last_sync",
+    "DATETIME",
+    0,
+    null,
+    0
+   ],
+   [
+    "last_success",
+    "DATETIME",
+    0,
+    null,
+    0
+   ],
+   [
+    "last_error",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "playlists_count",
+    "INTEGER",
+    0,
+    "0",
+    0
+   ],
+   [
+    "sequences_count",
+    "INTEGER",
+    0,
+    "0",
+    0
+   ]
+  ],
+  "game_scores": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "player_name",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "score",
+    "INTEGER",
+    1,
+    null,
+    0
+   ],
+   [
+    "game_type",
+    "TEXT",
+    1,
+    "'christmas_ornaments'",
+    0
+   ],
+   [
+    "theme",
+    "TEXT",
+    1,
+    "'christmas'",
+    0
+   ],
+   [
+    "created_at",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "ip_address",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "session_id",
+    "TEXT",
+    0,
+    null,
+    0
+   ]
+  ],
+  "jukebox_playlists": [
+   [
+    "name",
+    "TEXT",
+    0,
+    null,
+    1
+   ],
+   [
+    "theme",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "item_count",
+    "INTEGER",
+    1,
+    "0",
+    0
+   ],
+   [
+    "duration_seconds",
+    "REAL",
+    0,
+    null,
+    0
+   ],
+   [
+    "updated_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "jukebox_queue": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "sequence_name",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "media_name",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "requester_name",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "requester_ip",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "status",
+    "TEXT",
+    0,
+    "'pending'",
+    0
+   ],
+   [
+    "priority",
+    "INTEGER",
+    0,
+    "0",
+    0
+   ],
+   [
+    "created_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "played_at",
+    "DATETIME",
+    0,
+    null,
+    0
+   ],
+   [
+    "original_playlist",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "original_item_index",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "was_resumed",
+    "BOOLEAN",
+    0,
+    "0",
+    0
+   ],
+   [
+    "started_at",
+    "DATETIME",
+    0,
+    null,
+    0
+   ],
+   [
+    "duration_ms",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "sequence_id",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "latitude",
+    "REAL",
+    0,
+    null,
+    0
+   ],
+   [
+    "longitude",
+    "REAL",
+    0,
+    null,
+    0
+   ],
+   [
+    "city",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "region",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "country_code",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "distance_from_show",
+    "REAL",
+    0,
+    null,
+    0
+   ],
+   [
+    "request_kind",
+    "TEXT",
+    0,
+    "'song'",
+    0
+   ]
+  ],
+  "jukebox_rate_limit_resets": [
+   [
+    "requester_ip",
+    "TEXT",
+    0,
+    null,
+    1
+   ],
+   [
+    "reset_at",
+    "DATETIME",
+    1,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "jukebox_song_details": [
+   [
+    "sequence_name",
+    "TEXT",
+    0,
+    null,
+    1
+   ],
+   [
+    "duration_seconds",
+    "REAL",
+    0,
+    null,
+    0
+   ],
+   [
+    "category",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "updated_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "location_restrictions": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "is_active",
+    "BOOLEAN",
+    0,
+    "0",
+    0
+   ],
+   [
+    "max_distance_miles",
+    "INTEGER",
+    0,
+    "1",
+    0
+   ],
+   [
+    "show_latitude",
+    "REAL",
+    0,
+    null,
+    0
+   ],
+   [
+    "show_longitude",
+    "REAL",
+    0,
+    null,
+    0
+   ],
+   [
+    "show_location_name",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "last_updated",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "updated_by_admin",
+    "TEXT",
+    0,
+    null,
+    0
+   ]
+  ],
+  "model_photos": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "model_id",
+    "INTEGER",
+    1,
+    null,
+    0
+   ],
+   [
+    "photo_url",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "caption",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "photo_type",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "created_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "monitoring_schedule": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "enabled",
+    "BOOLEAN",
+    0,
+    "1",
+    0
+   ],
+   [
+    "start_time",
+    "TEXT",
+    1,
+    "'16:00'",
+    0
+   ],
+   [
+    "end_time",
+    "TEXT",
+    1,
+    "'22:00'",
+    0
+   ],
+   [
+    "timezone",
+    "TEXT",
+    0,
+    "'America/Chicago'",
+    0
+   ],
+   [
+    "updated_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "page_views": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "session_id",
+    "INTEGER",
+    1,
+    null,
+    0
+   ],
+   [
+    "page_path",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "view_time",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "queue_processor_state": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "processing_state",
+    "TEXT",
+    0,
+    "'IDLE'",
+    0
+   ],
+   [
+    "sequence_start_time",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "current_queue_item_id",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "last_updated",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "start_deadline",
+    "INTEGER",
+    0,
+    null,
+    0
+   ]
+  ],
+  "santa_letter_confirmations": [
+   [
+    "letter_id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "token_hash",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "expires_at",
+    "DATETIME",
+    1,
+    null,
+    0
+   ],
+   [
+    "confirmed_at",
+    "DATETIME",
+    0,
+    null,
+    0
+   ],
+   [
+    "created_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "santa_letters": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "child_name",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "child_age",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "parent_email",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "letter_content",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "santa_reply",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "status",
+    "TEXT",
+    0,
+    "'pending'",
+    0
+   ],
+   [
+    "ip_address",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "created_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "sent_at",
+    "DATETIME",
+    0,
+    null,
+    0
+   ],
+   [
+    "admin_notes",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "queue_status",
+    "TEXT",
+    0,
+    "'queued'",
+    0
+   ],
+   [
+    "processing_started_at",
+    "DATETIME",
+    0,
+    null,
+    0
+   ],
+   [
+    "processing_completed_at",
+    "DATETIME",
+    0,
+    null,
+    0
+   ],
+   [
+    "retry_count",
+    "INTEGER",
+    0,
+    "0",
+    0
+   ],
+   [
+    "last_error",
+    "TEXT",
+    0,
+    null,
+    0
+   ]
+  ],
+  "sequence_metadata": [
+   [
+    "sequence_name",
+    "TEXT",
+    0,
+    null,
+    1
+   ],
+   [
+    "song_title",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "artist",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "album",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "release_year",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "album_cover_url",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "spotify_id",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "last_updated",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "spotify_url",
+    "TEXT",
+    0,
+    null,
+    0
+   ]
+  ],
+  "sequence_requests": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "sequence_name",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "total_requests",
+    "INTEGER",
+    0,
+    "0",
+    0
+   ],
+   [
+    "last_requested",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "sequences": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "sequence_name",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "title",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "artist",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "album",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "album_art_url",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "spotify_url",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "spotify_id",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "spotify_uri",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "preview_url",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "year",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "is_custom_metadata",
+    "BOOLEAN",
+    0,
+    "0",
+    0
+   ],
+   [
+    "metadata_source",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "last_metadata_update",
+    "DATETIME",
+    0,
+    null,
+    0
+   ],
+   [
+    "play_count",
+    "INTEGER",
+    0,
+    "0",
+    0
+   ],
+   [
+    "request_count",
+    "INTEGER",
+    0,
+    "0",
+    0
+   ],
+   [
+    "last_played_at",
+    "DATETIME",
+    0,
+    null,
+    0
+   ],
+   [
+    "last_requested_at",
+    "DATETIME",
+    0,
+    null,
+    0
+   ],
+   [
+    "created_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "updated_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "sessions": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "visitor_hash",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "session_start",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "session_end",
+    "DATETIME",
+    0,
+    null,
+    0
+   ],
+   [
+    "page_views",
+    "INTEGER",
+    0,
+    "1",
+    0
+   ],
+   [
+    "duration_seconds",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "user_agent",
+    "TEXT",
+    0,
+    null,
+    0
+   ]
+  ],
+  "settings": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "key",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "value",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "description",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "category",
+    "TEXT",
+    0,
+    "'general'",
+    0
+   ],
+   [
+    "updated_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "setup_checklist": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "model_id",
+    "INTEGER",
+    1,
+    null,
+    0
+   ],
+   [
+    "task",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "completed",
+    "BOOLEAN",
+    0,
+    "0",
+    0
+   ],
+   [
+    "completed_at",
+    "DATETIME",
+    0,
+    null,
+    0
+   ],
+   [
+    "notes",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "year",
+    "INTEGER",
+    1,
+    null,
+    0
+   ],
+   [
+    "created_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "spotify_metadata": [
+   [
+    "sequence_name",
+    "TEXT",
+    0,
+    null,
+    1
+   ],
+   [
+    "album_art_url",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "artist_name",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "album_name",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "track_name",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "spotify_track_id",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "spotify_uri",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "preview_url",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "last_updated",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "search_query",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "match_confidence",
+    "TEXT",
+    0,
+    "'none'",
+    0
+   ],
+   [
+    "spotify_url",
+    "TEXT",
+    0,
+    null,
+    0
+   ]
+  ],
+  "sqlite_sequence": [
+   [
+    "name",
+    "",
+    0,
+    null,
+    0
+   ],
+   [
+    "seq",
+    "",
+    0,
+    null,
+    0
+   ]
+  ],
+  "theme_assets": [
+   [
+    "theme_id",
+    "TEXT",
+    1,
+    null,
+    1
+   ],
+   [
+    "kind",
+    "TEXT",
+    1,
+    null,
+    2
+   ],
+   [
+    "mime_type",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "width",
+    "INTEGER",
+    1,
+    null,
+    0
+   ],
+   [
+    "height",
+    "INTEGER",
+    1,
+    null,
+    0
+   ],
+   [
+    "data",
+    "BLOB",
+    1,
+    null,
+    0
+   ],
+   [
+    "updated_at",
+    "DATETIME",
+    1,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "theme_settings": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "active_theme_id",
+    "TEXT",
+    1,
+    "'default'",
+    0
+   ],
+   [
+    "custom_particles",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "updated_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ]
+  ],
+  "trivia_games": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "token",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "display_name",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "question_ids",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "seconds_per_question",
+    "INTEGER",
+    1,
+    null,
+    0
+   ],
+   [
+    "current_index",
+    "INTEGER",
+    1,
+    "0",
+    0
+   ],
+   [
+    "question_started_at",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "score",
+    "INTEGER",
+    1,
+    "0",
+    0
+   ],
+   [
+    "correct_count",
+    "INTEGER",
+    1,
+    "0",
+    0
+   ],
+   [
+    "finished_at",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "ip_address",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "created_at",
+    "TEXT",
+    1,
+    "datetime('now')",
+    0
+   ]
+  ],
+  "trivia_questions": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "category",
+    "TEXT",
+    1,
+    "'General'",
+    0
+   ],
+   [
+    "question_text",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "choices",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "correct_index",
+    "INTEGER",
+    1,
+    null,
+    0
+   ],
+   [
+    "points",
+    "INTEGER",
+    1,
+    "1000",
+    0
+   ],
+   [
+    "created_at",
+    "TEXT",
+    1,
+    "datetime('now')",
+    0
+   ],
+   [
+    "updated_at",
+    "TEXT",
+    1,
+    "datetime('now')",
+    0
+   ]
+  ],
+  "visitors": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "visitor_hash",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "first_visit",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "last_visit",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "total_visits",
+    "INTEGER",
+    0,
+    "1",
+    0
+   ],
+   [
+    "city",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "region",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "country",
+    "TEXT",
+    0,
+    null,
+    0
+   ]
+  ],
+  "votes": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "sequence_name",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "vote_type",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "user_ip",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "created_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "latitude",
+    "REAL",
+    0,
+    null,
+    0
+   ],
+   [
+    "longitude",
+    "REAL",
+    0,
+    null,
+    0
+   ],
+   [
+    "city",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "region",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "country_code",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "distance_from_show",
+    "REAL",
+    0,
+    null,
+    0
+   ]
+  ],
+  "youtube_videos": [
+   [
+    "id",
+    "INTEGER",
+    0,
+    null,
+    1
+   ],
+   [
+    "title",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "youtube_id",
+    "TEXT",
+    1,
+    null,
+    0
+   ],
+   [
+    "description",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "thumbnail_url",
+    "TEXT",
+    0,
+    null,
+    0
+   ],
+   [
+    "duration_seconds",
+    "INTEGER",
+    0,
+    null,
+    0
+   ],
+   [
+    "created_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "updated_at",
+    "DATETIME",
+    0,
+    "CURRENT_TIMESTAMP",
+    0
+   ],
+   [
+    "theme",
+    "TEXT",
+    0,
+    "'christmas'",
+    0
+   ]
+  ]
+ },
+ "rows": {
+  "cached_playlists": [],
+  "cached_sequences": [],
+  "device_status": [],
+  "devices": [],
+  "display_profiles": [],
+  "display_schedule": [],
+  "fpp_cached_playlist_sequences": [],
+  "fpp_cached_playlists": [],
+  "fpp_models": [],
+  "fpp_playlists": [],
+  "fpp_poll_log": [],
+  "fpp_sequences": [],
+  "fpp_state": [
+   {
+    "id": 1,
+    "status": "unknown",
+    "current_sequence": null,
+    "current_playlist": null,
+    "current_playlist_index": null,
+    "current_playlist_count": null,
+    "seconds_played": 0,
+    "seconds_remaining": 0,
+    "volume": 0,
+    "mode": "player",
+    "uptime": 0,
+    "last_updated": "2026-10-28 22:31:40",
+    "last_poll_success": 1,
+    "last_error": null,
+    "updated_at": "2026-10-28 22:31:40"
+   }
+  ],
+  "fpp_status_cache": [],
+  "fpp_sync_status": [
+   {
+    "id": 1,
+    "last_sync": null,
+    "last_success": null,
+    "last_error": null,
+    "playlists_count": 0,
+    "sequences_count": 0
+   }
+  ],
+  "game_scores": [],
+  "jukebox_playlists": [],
+  "jukebox_queue": [],
+  "jukebox_rate_limit_resets": [],
+  "jukebox_song_details": [],
+  "location_restrictions": [
+   {
+    "id": 1,
+    "is_active": 0,
+    "max_distance_miles": 1,
+    "show_latitude": null,
+    "show_longitude": null,
+    "show_location_name": null,
+    "last_updated": "2026-10-28 22:31:40",
+    "updated_by_admin": null
+   }
+  ],
+  "model_photos": [],
+  "monitoring_schedule": [
+   {
+    "id": 1,
+    "enabled": 1,
+    "start_time": "16:00",
+    "end_time": "22:00",
+    "timezone": "America/Chicago",
+    "updated_at": "2026-10-28 22:31:40"
+   }
+  ],
+  "page_views": [],
+  "queue_processor_state": [
+   {
+    "id": 1,
+    "processing_state": "IDLE",
+    "sequence_start_time": null,
+    "current_queue_item_id": null,
+    "last_updated": "2026-10-28 22:31:41",
+    "start_deadline": null
+   }
+  ],
+  "santa_letter_confirmations": [],
+  "santa_letters": [],
+  "sequence_metadata": [],
+  "sequence_requests": [],
+  "sequences": [],
+  "sessions": [],
+  "settings": [
+   {
+    "id": 1,
+    "key": "santa_letters_enabled",
+    "value": "true",
+    "description": "Enable Santa letter submissions",
+    "category": "santa",
+    "updated_at": "2026-10-28 22:31:40"
+   },
+   {
+    "id": 2,
+    "key": "santa_daily_limit",
+    "value": "1",
+    "description": "Maximum letters per IP address per day",
+    "category": "santa",
+    "updated_at": "2026-10-28 22:31:40"
+   },
+   {
+    "id": 3,
+    "key": "ollama_model",
+    "value": "llama3.2:latest",
+    "description": "AI model for Santa letter replies",
+    "category": "santa",
+    "updated_at": "2026-10-28 22:31:40"
+   },
+   {
+    "id": 4,
+    "key": "monitoring_enabled",
+    "value": "true",
+    "description": "Enable device monitoring",
+    "category": "monitoring",
+    "updated_at": "2026-10-28 22:31:40"
+   },
+   {
+    "id": 5,
+    "key": "monitoring_start_hour",
+    "value": "17",
+    "description": "Show start hour (0-23) - 5:30 PM",
+    "category": "monitoring",
+    "updated_at": "2026-10-28 22:31:40"
+   },
+   {
+    "id": 6,
+    "key": "monitoring_start_minute",
+    "value": "30",
+    "description": "Show start minute (0-59)",
+    "category": "monitoring",
+    "updated_at": "2026-10-28 22:31:40"
+   },
+   {
+    "id": 7,
+    "key": "monitoring_end_hour",
+    "value": "22",
+    "description": "Show end hour (0-23) - 10:00 PM",
+    "category": "monitoring",
+    "updated_at": "2026-10-28 22:31:40"
+   },
+   {
+    "id": 8,
+    "key": "monitoring_end_minute",
+    "value": "0",
+    "description": "Show end minute (0-59)",
+    "category": "monitoring",
+    "updated_at": "2026-10-28 22:31:40"
+   },
+   {
+    "id": 9,
+    "key": "monitoring_interval_minutes",
+    "value": "5",
+    "description": "Check interval in minutes",
+    "category": "monitoring",
+    "updated_at": "2026-10-28 22:31:40"
+   },
+   {
+    "id": 10,
+    "key": "site_name",
+    "value": "FPP Control Center",
+    "description": "Site display name",
+    "category": "general",
+    "updated_at": "2026-10-28 22:31:40"
+   },
+   {
+    "id": 11,
+    "key": "timezone",
+    "value": "America/Chicago",
+    "description": "Server timezone",
+    "category": "general",
+    "updated_at": "2026-10-28 22:31:40"
+   },
+   {
+    "id": 12,
+    "key": "jukebox_rate_limit",
+    "value": "3",
+    "description": null,
+    "category": "general",
+    "updated_at": "2026-10-28 22:31:40"
+   },
+   {
+    "id": 13,
+    "key": "jukebox_insert_mode",
+    "value": "after_current",
+    "description": null,
+    "category": "general",
+    "updated_at": "2026-10-28 22:31:40"
+   },
+   {
+    "id": 14,
+    "key": "santa_daily_cap",
+    "value": "50",
+    "description": "Maximum Santa letters accepted per day from all visitors",
+    "category": "santa",
+    "updated_at": "2026-10-28 22:31:40"
+   },
+   {
+    "id": 15,
+    "key": "trivia_questions_per_game",
+    "value": "10",
+    "description": "Questions in each trivia game",
+    "category": "trivia",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 16,
+    "key": "trivia_seconds_per_question",
+    "value": "20",
+    "description": "Seconds a visitor has to answer each trivia question",
+    "category": "trivia",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 18,
+    "key": "display_show_name",
+    "value": "Christmas Light Show",
+    "description": "Show name shown on the idle screen",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 19,
+    "key": "display_show_qr",
+    "value": "true",
+    "description": "Show QR code on the display",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 20,
+    "key": "display_queue_count",
+    "value": "4",
+    "description": "Number of upcoming songs to show (1-5)",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 21,
+    "key": "display_enabled",
+    "value": "true",
+    "description": "Enable the /display page (digital sign)",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 22,
+    "key": "display_color_theme",
+    "value": "christmas",
+    "description": "Color theme preset",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 23,
+    "key": "display_accent_color",
+    "value": "#ef4444",
+    "description": "Custom accent color (hex)",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 24,
+    "key": "display_background_style",
+    "value": "gradient",
+    "description": "Background style: solid/gradient/particles",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 25,
+    "key": "display_font_style",
+    "value": "modern",
+    "description": "Font style: modern/display/serif",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 26,
+    "key": "display_font_scale",
+    "value": "100",
+    "description": "Global font scale percentage (75-150)",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 27,
+    "key": "display_layout_variant",
+    "value": "sidebar",
+    "description": "Layout: sidebar/centered/minimal",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 28,
+    "key": "display_album_art_size",
+    "value": "34",
+    "description": "Album art column width percent (20-50)",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 29,
+    "key": "display_queue_position",
+    "value": "bottom",
+    "description": "Queue position: bottom/right/hidden",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 30,
+    "key": "display_idle_message",
+    "value": "The show will begin shortly",
+    "description": "Subtitle on idle screen",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 31,
+    "key": "display_logo_url",
+    "value": "",
+    "description": "URL of logo image (replaces tree emoji)",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 32,
+    "key": "display_sponsor_text",
+    "value": "",
+    "description": "Sponsor or attribution text at bottom",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 33,
+    "key": "display_fm_frequency",
+    "value": "",
+    "description": "FM radio frequency badge (e.g. 90.1)",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 34,
+    "key": "display_idle_animation",
+    "value": "snowflakes",
+    "description": "Idle animation: snowflakes/notes/stars/none",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 35,
+    "key": "display_show_clock",
+    "value": "true",
+    "description": "Show large clock on idle screen",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 36,
+    "key": "display_idle_background_url",
+    "value": "",
+    "description": "URL for idle screen background image",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 37,
+    "key": "display_ticker_text",
+    "value": "",
+    "description": "Scrolling ticker text at the bottom",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 38,
+    "key": "display_announcement_text",
+    "value": "",
+    "description": "Active announcement text",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 39,
+    "key": "display_announcement_expires",
+    "value": "0",
+    "description": "Announcement expiry (unix timestamp)",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 40,
+    "key": "display_zone_config",
+    "value": "{\"enabled\":false,\"template\":\"two-column\",\"slots\":{}}",
+    "description": "Zone layout JSON config",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 41,
+    "key": "display_slideshow_images",
+    "value": "[]",
+    "description": "Local image slideshow JSON array of URLs",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 42,
+    "key": "display_slideshow_interval",
+    "value": "8",
+    "description": "Seconds between slideshow images (3-30)",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 43,
+    "key": "display_countdown_enabled",
+    "value": "false",
+    "description": "Show countdown timer on idle screen",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 44,
+    "key": "display_countdown_time",
+    "value": "20:00",
+    "description": "Show start time for countdown HH:MM",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   },
+   {
+    "id": 45,
+    "key": "display_countdown_label",
+    "value": "Next show starts in",
+    "description": "Countdown label text",
+    "category": "display",
+    "updated_at": "2026-10-28 22:31:41"
+   }
+  ],
+  "setup_checklist": [],
+  "spotify_metadata": [],
+  "theme_assets": [],
+  "theme_settings": [
+   {
+    "id": 1,
+    "active_theme_id": "default",
+    "custom_particles": null,
+    "updated_at": "2026-10-28 22:31:40"
+   }
+  ],
+  "trivia_games": [],
+  "trivia_questions": [],
+  "visitors": [],
+  "votes": [],
+  "youtube_videos": []
+ }
+}
