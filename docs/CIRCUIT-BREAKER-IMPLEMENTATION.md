@@ -121,13 +121,12 @@ HALF_OPEN (Testing)
 
 ---
 
-### 4. Updated Queue Processor (`app/api/jukebox/process-queue/route.ts`)
+### 4. Updated Queue Processor (`lib/jukebox-queue-processor.ts`)
 **Updated 1 section** - Respects circuit breaker
 
 **Changes:**
 - ✅ Checks circuit breaker before processing queue
-- ✅ Returns 503 Service Unavailable when FPP offline
-- ✅ Provides retry-after information
+- ✅ Skips the pass when FPP is offline
 - ✅ Prevents unnecessary FPP API calls
 
 **Before:**
@@ -143,7 +142,7 @@ if (!fppStatus) {
 ```typescript
 // Check circuit breaker first
 if (circuitBreaker.isFPPOffline()) {
-  return 503 with retry-after info
+  return // skip this pass
 }
 // Only process if FPP is online
 ```
@@ -304,7 +303,7 @@ node -r esbuild-register scripts/test-circuit-breaker.js
 
 ### Modified (3 files)
 - `lib/fpp-poller.ts` - Integrated circuit breaker (6 sections updated)
-- `app/api/jukebox/process-queue/route.ts` - Added circuit breaker check
+- `lib/jukebox-queue-processor.ts` - Added circuit breaker check
 - `app/admin/page.tsx` - Added CircuitBreakerWidget to dashboard
 
 **Total Lines Added:** ~1,062 lines of production code
@@ -367,7 +366,7 @@ pm2 save
 ### Circuit OPEN (FPP Offline)
 1. Poll interval increases to 60 seconds
 2. Minimal database writes
-3. Queue processor pauses (returns 503)
+3. Queue processor pauses (skips each pass)
 4. Resources saved (83% reduction)
 5. After 60 seconds → Attempt recovery
 

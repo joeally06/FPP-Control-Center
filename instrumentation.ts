@@ -16,9 +16,11 @@ export async function register() {
       const { startQueueProcessor } = await import('./lib/santa-queue-processor');
       const { startDeviceMonitoring } = await import('./lib/device-monitor');
       const { startMaintenanceScheduler } = await import('./lib/db-scheduler');
+      const { startJukeboxQueueProcessor } = await import('./lib/jukebox-queue-processor');
 
       // Start services
       startQueueProcessor();
+      startJukeboxQueueProcessor();
       
       // Delay device monitor slightly to ensure server is ready
       setTimeout(() => {

@@ -470,15 +470,6 @@ export default function JukeboxPage() {
       }
     }, TIMING.POLL_INTERVAL_MEDIUM);
 
-    // Background queue processor - check every 10 seconds (runs for everyone)
-    const queueProcessorInterval = setInterval(async () => {
-      try {
-        await fetch('/api/jukebox/process-queue', { method: 'POST' });
-      } catch (error) {
-        console.error('Queue processor failed:', error);
-      }
-    }, 10000); // 10 seconds
-
     // Admin-only background operations
     let cacheRefreshInterval: NodeJS.Timeout | undefined;
 
@@ -512,7 +503,6 @@ export default function JukeboxPage() {
       clearInterval(interval);
       clearInterval(scheduleInterval);
       clearInterval(requestStatusInterval);
-      clearInterval(queueProcessorInterval);
       if (cacheRefreshInterval) clearInterval(cacheRefreshInterval);
     };
   }, [isAdmin]);

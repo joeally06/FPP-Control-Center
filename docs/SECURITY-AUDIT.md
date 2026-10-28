@@ -53,7 +53,7 @@
 6. `/api/fpp/health` - FPP health monitoring
 
 #### **High Priority (Background Operations)**
-7. `/api/jukebox/process-queue` - Queue processor (admin background job)
+7. `/api/jukebox/process-queue` - removed; the queue is now processed by a server-side background job (`lib/jukebox-queue-processor.ts`)
 8. `/api/jukebox/refresh-cache` - Cache refresh (admin operation)
 9. `/api/santa/process-queue` - Santa queue processor
 10. `/api/santa/trigger-queue` - Manual queue trigger
@@ -102,7 +102,7 @@
 
 ### Phase 3: Batch 2 - Background Operations (Task 6)
 **Routes to secure:**
-- `/api/jukebox/process-queue` (POST)
+- `/api/jukebox/process-queue` (POST) — removed; now a server-side background job
 - `/api/jukebox/refresh-cache` (POST)
 - `/api/santa/process-queue` (POST)
 - `/api/santa/trigger-queue` (GET, POST)
@@ -250,7 +250,7 @@ export async function POST(request: NextRequest) {
 - `/api/fppd/[...slug]` (all methods)
 
 #### Jukebox Admin
-- `/api/jukebox/process-queue` (POST)
+- `/api/jukebox/process-queue` (POST) — removed; now a server-side background job
 - `/api/jukebox/refresh-cache` (POST)
 - `/api/jukebox/status` (PUT only)
 
@@ -373,7 +373,7 @@ export async function POST(request: NextRequest) {
 - [ ] Commit: "feat: Secure critical admin routes (models, FPP, Santa settings)"
 
 ### Batch 2: Background Operations
-- [ ] `/api/jukebox/process-queue/route.ts` - Add requireAdmin()
+- [x] `/api/jukebox/process-queue/route.ts` - Removed; the queue runs as a server-side background job
 - [ ] `/api/jukebox/refresh-cache/route.ts` - Add requireAdmin()
 - [ ] `/api/santa/process-queue/route.ts` - Add requireAdmin()
 - [ ] `/api/santa/trigger-queue/route.ts` - Add requireAdmin()

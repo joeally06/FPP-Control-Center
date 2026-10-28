@@ -1,18 +1,16 @@
-import { NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/auth-helpers';
-import { getCircuitBreaker } from '@/lib/circuit-breaker';
-import { getFppUrl } from '@/lib/fpp-config';
-import { 
-  getQueue, 
+import { getCircuitBreaker } from './circuit-breaker';
+import { getFppUrl } from './fpp-config';
+import db, {
+  getQueue,
   updateQueueStatus,
   updateStartTimeAndDuration,
   getProcessorState,
   updateProcessorState,
   resetProcessorState
-} from '@/lib/database';
-import { insertStartDeadline, queueItemProgress } from '@/lib/jukebox-queue';
-import Database from 'better-sqlite3';
-import path from 'path';
+} from './database';
+import { insertStartDeadline, queueItemProgress } from './jukebox-queue';
+import { singleFlight } from './single-flight';
+import { TIMING } from './constants';
 
 interface QueueItem {
   id: number;
@@ -52,33 +50,17 @@ interface ProcessorState {
   last_updated: string;
 }
 
-// Simplified state machine for queue processing using Insert Playlist Immediate
-type ProcessingState = 'IDLE' | 'MONITORING_SEQUENCE';
-
-// ✅ RACE CONDITION FIX: State is now stored in database instead of module-level variables
-// This prevents concurrent requests from overwriting each other's state
-// Old approach (race condition):
-//   let processingState: ProcessingState = 'IDLE';
-//   let sequenceStartTime: number | null = null;
-//   let currentQueueItemId: number | null = null;
-
-// Helper function to sleep
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+// State lives in the queue_processor_state table, so it survives a restart
 
 // Get jukebox insert mode from settings
 // Returns: 'interrupt', 'after_current', or 'end_of_playlist'
 // Default: 'after_current' (safest, best UX)
 function getInsertMode(): string {
   try {
-    const dbPath = path.join(process.cwd(), 'votes.db');
-    const db = new Database(dbPath, { readonly: true });
-    
     const setting = db.prepare(
       'SELECT value FROM settings WHERE key = ?'
     ).get('jukebox_insert_mode') as { value: string } | undefined;
-    
-    db.close();
-    
+
     if (setting && ['interrupt', 'after_current', 'end_of_playlist'].includes(setting.value)) {
       return setting.value;
     }
@@ -103,18 +85,12 @@ function getFppCommand(insertMode: string): string {
 
 // Playlist length from the cache filled on song-cache refresh, for the playing-too-long safety cap
 function getPlaylistDuration(name: string): number | null {
-  const dbPath = path.join(process.cwd(), 'votes.db');
-  const db = new Database(dbPath, { readonly: true });
-  try {
-    const row = db.prepare('SELECT duration_seconds FROM jukebox_playlists WHERE name = ?').get(name) as { duration_seconds: number | null } | undefined;
-    return row?.duration_seconds ?? null;
-  } finally {
-    db.close();
-  }
+  const row = db.prepare('SELECT duration_seconds FROM jukebox_playlists WHERE name = ?').get(name) as { duration_seconds: number | null } | undefined;
+  return row?.duration_seconds ?? null;
 }
 
 // Helper to make FPP API calls
-async function makeFppCall(endpoint: string, method: string = 'GET', body?: any): Promise<any> {
+async function makeFppCall<T = { response?: string }>(endpoint: string, method: string = 'GET', body?: unknown): Promise<T | null> {
   const fppUrl = getFppUrl();
   const url = `${fppUrl}${endpoint}`;
   
@@ -123,7 +99,9 @@ async function makeFppCall(endpoint: string, method: string = 'GET', body?: any)
       method,
       headers: {
         'Content-Type': 'application/json',
-      }
+      },
+      // A hung FPP call would otherwise hold the single-flight guard for Node's 5-minute default
+      signal: AbortSignal.timeout(TIMING.FETCH_TIMEOUT_LONG)
     };
     
     if (body) {
@@ -141,12 +119,12 @@ async function makeFppCall(endpoint: string, method: string = 'GET', body?: any)
     if (text) {
       try {
         return JSON.parse(text);
-      } catch (e) {
-        return { success: true, response: text };
+      } catch {
+        return { success: true, response: text } as T;
       }
     }
     
-    return { success: true };
+    return { success: true } as T;
   } catch (error) {
     console.error(`[FPP API Exception] ${endpoint}:`, error);
     return null;
@@ -250,10 +228,7 @@ async function processQueueStateMachine(fppStatus: FppStatus): Promise<void> {
       }
 
       // Get the queue item we're monitoring (might still be 'pending' or 'playing')
-      const dbPath = path.join(process.cwd(), 'votes.db');
-      const db = new Database(dbPath, { readonly: true });
       const currentItem = db.prepare('SELECT * FROM jukebox_queue WHERE id = ?').get(currentQueueItemId) as QueueItem | undefined;
-      db.close();
 
       if (!currentItem) {
         resetProcessorState.run();
@@ -297,56 +272,34 @@ async function processQueueStateMachine(fppStatus: FppStatus): Promise<void> {
 }
 
 /**
- * POST /api/jukebox/process-queue
- * Process the jukebox queue (background job)
- * PUBLIC - Processes queue items automatically (anyone can request songs)
- * 
+ * One pass of the jukebox queue state machine. Only one pass runs at a time, so an insert into
+ * FPP can't be sent twice for the same queue item.
+ *
  * CIRCUIT BREAKER: Skips processing when FPP is offline to save resources
  */
-export async function POST() {
-  try {
-    // ✅ CIRCUIT BREAKER: Check if FPP is online before processing
-    const circuitBreaker = getCircuitBreaker();
-    
-    if (circuitBreaker.isFPPOffline()) {
-      console.log('[Queue] ⚠️  Circuit breaker OPEN - FPP offline, skipping queue processing');
-      return NextResponse.json({ 
-        success: false, 
-        message: 'FPP offline - queue processing paused',
-        circuitState: circuitBreaker.getState(),
-        retryAfter: circuitBreaker.getStats().nextRetryIn
-      }, { status: 503 });
-    }
-    
-    // Note: No auth required - this processes public queue requests
-    // Queue items are added by anyone, this just plays them in order
-    
-    console.log('[Queue] Starting queue processing...');
-
-    // Get FPP status
-    const fppStatus = await makeFppCall('/api/fppd/status') as FppStatus;
-    if (!fppStatus) {
-      console.error('[Queue] Could not fetch FPP status');
-      // Circuit breaker will handle this failure via poller
-      return NextResponse.json({ error: 'Could not connect to FPP' }, { status: 500 });
-    }
-
-    // Run state machine
-    await processQueueStateMachine(fppStatus);
-
-    // ✅ Get final state from database
-    const finalState = getProcessorState.get() as ProcessorState;
-    return NextResponse.json({ success: true, state: finalState.processing_state });
-
-  } catch (error: any) {
-    if (error.message?.includes('Authentication required')) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-    if (error.message?.includes('Admin access required')) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-    }
-    console.error('[Queue] Unexpected error:', error);
-    return NextResponse.json({ error: 'Queue processing failed' }, { status: 500 });
+const processQueueOnce = singleFlight(async (): Promise<void> => {
+  const circuitBreaker = getCircuitBreaker();
+  if (circuitBreaker.isFPPOffline()) {
+    return;
   }
-}
 
+  const fppStatus = await makeFppCall<FppStatus>('/api/fppd/status');
+  if (!fppStatus) {
+    console.error('[Queue] Could not fetch FPP status');
+    return;
+  }
+
+  await processQueueStateMachine(fppStatus);
+});
+
+const PROCESS_INTERVAL_MS = 10000;
+let processInterval: NodeJS.Timeout | null = null;
+
+/** Runs the queue every 10 s on the server, started from instrumentation.ts. */
+export function startJukeboxQueueProcessor(): void {
+  if (processInterval) return;
+  console.log(`[Queue] Starting jukebox queue processor (interval: ${PROCESS_INTERVAL_MS / 1000}s)`);
+  processInterval = setInterval(() => {
+    processQueueOnce().catch((error) => console.error('[Queue] Unexpected error:', error));
+  }, PROCESS_INTERVAL_MS);
+}
