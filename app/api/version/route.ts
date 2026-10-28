@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { VERSION_HISTORY } from '@/lib/version';
-import { execSync } from 'child_process';
+import { getBuildHash } from '@/lib/build-hash';
 import path from 'path';
 import fs from 'fs';
 
@@ -29,13 +29,7 @@ export async function GET() {
     console.error('[Version API] Failed to read package.json:', error);
   }
   
-  // Try to get current git commit hash
-  let buildHash: string | null = null;
-  try {
-    buildHash = execSync('git rev-parse --short HEAD').toString().trim();
-  } catch (error) {
-    // Not in a git repository or git not available
-  }
+  const buildHash = getBuildHash();
 
   return NextResponse.json({
     version,
