@@ -27,8 +27,9 @@ module.exports = {
     {
       name: 'fpp-poller',
       script: './lib/fpp-poller.ts',
-      interpreter: 'npx',
-      interpreter_args: 'tsx',
+      // TypeScript via esbuild-register, already a dependency (same as `npm run poller:start`)
+      interpreter: 'node',
+      node_args: ['-r', 'esbuild-register'],
       cwd: './',
       instances: 1,
       exec_mode: 'fork',
