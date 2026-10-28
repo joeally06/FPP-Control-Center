@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { addToQueue, getQueue, incrementSequenceRequests, getMediaNameForSequence, getActiveTheme, getFPPState } from '@/lib/database';
+import { addToQueue, getQueue, incrementSequenceRequests, getActiveTheme, getFPPState } from '@/lib/database';
 import { addToQueueTransactional, countRecentRequests } from '@/lib/jukebox-queue';
 import { getClientIP, getSongRequestRateLimit } from '@/lib/rate-limit';
 import { getUtcNow, getUtcOffset } from '@/lib/time-utils';
 import { debugLog } from '@/lib/logging';
 import db from '@/lib/database';
-import { getFppUrl } from '@/lib/fpp-config';
+import { isRequestableSong, lookupMediaName } from '@/lib/jukebox-catalog';
 import { getDistanceInMiles } from '@/lib/location-utils';
 import { toPublicQueueItem } from '@/lib/jukebox-display';
 import { listVisitorPlaylists } from '@/lib/jukebox-playlists';
@@ -72,6 +72,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ 
         error: 'Invalid characters in sequence name' 
       }, { status: 400 });
+    }
+
+    // Songs must be ones the admin synced from FPP; hidden sequences can't be queued
+    if (!isPlaylist && !isRequestableSong(db, sequence_name)) {
+      return NextResponse.json({ error: "That song isn't available right now" }, { status: 404 });
     }
 
     // SECURITY: Validate requester_name input
@@ -153,56 +158,8 @@ export async function POST(request: NextRequest) {
 
     
 
-    // Add .fseq extension back to get the full sequence name
-    const fullSequenceName = sequence_name + '.fseq';
-
-    // Look up the media name from FPP playlists (songs only)
-    let media_name = null;
-    if (!isPlaylist) try {
-      // Get scheduled playlists
-      const scheduleResponse = await fetch(`${getFppUrl()}/api/schedule`);
-      if (scheduleResponse.ok) {
-        const schedule = await scheduleResponse.json();
-        const playlistNames = new Set<string>();
-        schedule.forEach((entry: any) => {
-          if (entry.playlist) {
-            playlistNames.add(entry.playlist);
-          }
-        });
-
-        // Check each playlist for the sequence
-        for (const playlistName of playlistNames) {
-          try {
-            const playlistResponse = await fetch(`${getFppUrl()}/api/playlist/${encodeURIComponent(playlistName)}`);
-            if (playlistResponse.ok) {
-              const playlist = await playlistResponse.json();
-              
-              // Check leadIn
-              if (playlist.leadIn) {
-                const item = playlist.leadIn.find((item: any) => item.sequenceName === fullSequenceName);
-                if (item && item.mediaName) {
-                  media_name = item.mediaName;
-                  break;
-                }
-              }
-              
-              // Check mainPlaylist
-              if (playlist.mainPlaylist) {
-                const item = playlist.mainPlaylist.find((item: any) => item.sequenceName === fullSequenceName);
-                if (item && item.mediaName) {
-                  media_name = item.mediaName;
-                  break;
-                }
-              }
-            }
-          } catch (err) {
-            // Continue checking other playlists
-          }
-        }
-      }
-    } catch (error) {
-      console.warn('Could not lookup media name from FPP:', error);
-    }
+    // Songs only: the audio name comes from the cached FPP playlists, not a live FPP call
+    const media_name = isPlaylist ? null : lookupMediaName(db, sequence_name);
 
     // Track sequence requests
     
