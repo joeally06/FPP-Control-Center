@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { snapshotDatabase, pruneBackups } = require('./backup-db');
 
 console.log('💾 Creating backup...\n');
 
@@ -24,25 +25,17 @@ let fileCount = 0;
 // Backup database
 const dbPath = path.join(process.cwd(), 'votes.db');
 if (fs.existsSync(dbPath)) {
-  fs.copyFileSync(dbPath, path.join(backupDir, 'votes.db'));
-  console.log('✅ Backed up: votes.db');
+  // One consistent snapshot; copying the -wal and -shm files separately can tear while the app writes
+  try {
+    snapshotDatabase(dbPath, path.join(backupDir, 'votes.db'));
+    console.log('✅ Backed up: votes.db');
+  } catch (error) {
+    // Same fallback as the update scripts: an as-is copy beats no backup
+    fs.rmSync(path.join(backupDir, 'votes.db'), { force: true });
+    fs.copyFileSync(dbPath, path.join(backupDir, 'votes.db'));
+    console.log(`⚠️  Snapshot failed (${error.message}) - copied votes.db as-is; it may miss recent writes`);
+  }
   fileCount++;
-
-  // Backup WAL file if exists
-  const walPath = dbPath + '-wal';
-  if (fs.existsSync(walPath)) {
-    fs.copyFileSync(walPath, path.join(backupDir, 'votes.db-wal'));
-    console.log('✅ Backed up: votes.db-wal');
-    fileCount++;
-  }
-
-  // Backup SHM file if exists
-  const shmPath = dbPath + '-shm';
-  if (fs.existsSync(shmPath)) {
-    fs.copyFileSync(shmPath, path.join(backupDir, 'votes.db-shm'));
-    console.log('✅ Backed up: votes.db-shm');
-    fileCount++;
-  }
 } else {
   console.log('⚠️  Database not found (skipped)');
 }
@@ -59,6 +52,13 @@ if (fs.existsSync(envPath)) {
 
 console.log(`\n✅ Backup completed: ${fileCount} file(s)`);
 console.log(`📂 Location: ${backupDir}`);
+
+// Keep only the newest backups (BACKUP_KEEP, default 10)
+const keep = process.env.BACKUP_KEEP ? Number(process.env.BACKUP_KEEP) : undefined;
+const pruned = pruneBackups(path.join(process.cwd(), 'backups'), keep);
+if (pruned.length > 0) {
+  console.log(`🧹 Removed ${pruned.length} old backup(s)`);
+}
 
 // List recent backups
 console.log('\n📋 Recent backups:');

@@ -8,6 +8,9 @@ import runMigrations from '../lib/migrations-runner';
   if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
   const dbPath = path.join(tmpDir, 'test-votes.db');
+  // Backups go to a throwaway folder, not the real backups/ directory
+  const backupDir = path.join(tmpDir, 'test-migrations-backups');
+  fs.rmSync(backupDir, { recursive: true, force: true });
   if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
 
   const db = new Database(dbPath);
@@ -19,9 +22,9 @@ import runMigrations from '../lib/migrations-runner';
 
     console.log('[test-migrations] Running runner against', dbPath);
 
-    const result1 = await runMigrations({ dbPath, backup: true });
+    const result1 = await runMigrations({ dbPath, backup: true, backupDir });
     console.log('[test-migrations] Runner result (first run):', result1);
-    const result2 = await runMigrations({ dbPath, backup: true });
+    const result2 = await runMigrations({ dbPath, backup: true, backupDir });
     console.log('[test-migrations] Runner result (second run):', result2);
 
     const table = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='game_scores'`).get();

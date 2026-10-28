@@ -1366,10 +1366,9 @@ crontab -e
 
 # Add daily backup at 2 AM
 0 2 * * * cd /path/to/FPP-Website && npm run backup
-
-# Add weekly cleanup (keep only 30 days)
-0 3 * * 0 find /path/to/FPP-Website/backups/ -name "*.db" -mtime +30 -delete
 ``
+
+Each backup is a consistent snapshot of the live database (safe to take while the show is running). `npm run backup` and the update scripts keep only the newest 10 backups and delete older ones; set `BACKUP_KEEP` (a whole number, 1 or more) to keep a different number. `npm run backup` and `update.sh` read it from the environment of the command (the crontab line or your shell profile); the admin Install Update button also picks it up from `.env.local`. Only the app's own timestamped backups are ever removed.
 
 ---
 

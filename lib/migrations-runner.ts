@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import Database from 'better-sqlite3';
 
-export async function runMigrations(opts: { dbPath?: string, backup?: boolean } = {}) {
+export async function runMigrations(opts: { dbPath?: string, backup?: boolean, backupDir?: string } = {}) {
   // Support override via environment variable for testing purposes
   const envDbPath = process.env.MOCK_DB_PATH;
   const dbPath = opts.dbPath || envDbPath || path.join(process.cwd(), 'votes.db');
@@ -13,12 +13,18 @@ export async function runMigrations(opts: { dbPath?: string, backup?: boolean } 
 
   if (opts.backup) {
     // Create backups directory
-    const backupsDir = path.join(process.cwd(), 'backups');
+    const backupsDir = opts.backupDir || path.join(process.cwd(), 'backups');
     if (!fs.existsSync(backupsDir)) fs.mkdirSync(backupsDir, { recursive: true });
 
     const now = new Date().toISOString().replace(/[:.]/g, '-');
     const backupFile = path.join(backupsDir, `${now}_votes.db.backup`);
-    fs.copyFileSync(dbPath, backupFile);
+    // A consistent snapshot; copying the file alone would miss what is still in the WAL
+    const source = new Database(dbPath);
+    try {
+      source.prepare('VACUUM INTO ?').run(backupFile);
+    } finally {
+      source.close();
+    }
     console.log(`🔒 Backup created: ${backupFile}`);
   }
 

@@ -36,14 +36,25 @@ echo ""
 echo "📂 Backup directory: $BACKUP_DIR"
 echo ""
 
-if [ -f "$BACKUP_DIR/votes.db" ]; then
+# Backups come as votes.db (npm run backup) or votes.db.backup (the update scripts)
+DB_BACKUP=""
+for candidate in "$BACKUP_DIR/votes.db" "$BACKUP_DIR/votes.db.backup"; do
+  if [ -f "$candidate" ]; then DB_BACKUP="$candidate"; break; fi
+done
+
+ENV_BACKUP=""
+for candidate in "$BACKUP_DIR/.env.local" "$BACKUP_DIR/.env.local.backup"; do
+  if [ -f "$candidate" ]; then ENV_BACKUP="$candidate"; break; fi
+done
+
+if [ -n "$DB_BACKUP" ]; then
   echo "✅ Database backup found"
 else
   echo "❌ Database backup not found in $BACKUP_DIR"
   exit 1
 fi
 
-if [ -f "$BACKUP_DIR/.env.local" ]; then
+if [ -n "$ENV_BACKUP" ]; then
   echo "✅ Configuration backup found"
 else
   echo "⚠️  Configuration backup not found (will skip .env.local restore)"
@@ -64,26 +75,25 @@ echo "🔄 Restoring from backup..."
 # Stop the server if running (optional - user should stop it manually)
 # pkill -f "next dev" || true
 
-# Restore database
-if [ -f "$BACKUP_DIR/votes.db" ]; then
-  cp "$BACKUP_DIR/votes.db" votes.db
-  echo "✅ Database restored"
-fi
+# Restore database. Remove the live WAL/SHM first: a newer WAL applied over an older
+# database file would corrupt it.
+rm -f votes.db-wal votes.db-shm
+cp "$DB_BACKUP" votes.db
+echo "✅ Database restored"
 
-# Restore WAL and SHM files if they exist
+# Backups made by an older backup.js kept the WAL beside the database; they go back together
 if [ -f "$BACKUP_DIR/votes.db-wal" ]; then
   cp "$BACKUP_DIR/votes.db-wal" votes.db-wal
   echo "✅ Database WAL file restored"
 fi
-
 if [ -f "$BACKUP_DIR/votes.db-shm" ]; then
   cp "$BACKUP_DIR/votes.db-shm" votes.db-shm
   echo "✅ Database SHM file restored"
 fi
 
 # Restore configuration
-if [ -f "$BACKUP_DIR/.env.local" ]; then
-  cp "$BACKUP_DIR/.env.local" .env.local
+if [ -n "$ENV_BACKUP" ]; then
+  cp "$ENV_BACKUP" .env.local
   echo "✅ Configuration restored"
 fi
 

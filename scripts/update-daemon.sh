@@ -156,10 +156,15 @@ BACKUP_DIR="$PROJECT_DIR/backups/$(date +%Y%m%d_%H%M%S)"
 mkdir -p "$BACKUP_DIR"
 
 # Backup database
+# (a consistent snapshot; a plain cp of a live WAL database can miss recent writes)
 if [ -f "votes.db" ]; then
-    cp votes.db "$BACKUP_DIR/votes.db.backup" && \
-        log "✅ Database backed up" || \
+    if node scripts/backup-db.js "$BACKUP_DIR/votes.db.backup" >> "$LOG_FILE" 2>&1; then
+        log "✅ Database backed up"
+    elif cp votes.db "$BACKUP_DIR/votes.db.backup"; then
+        log "⚠️  Snapshot failed - copied votes.db as-is (may miss recent writes)"
+    else
         log "⚠️  Database backup failed (non-critical)"
+    fi
 fi
 
 # Backup env file
@@ -170,6 +175,9 @@ if [ -f ".env.local" ]; then
 fi
 
 log "✅ Backup saved to: $BACKUP_DIR"
+
+# Keep only the newest backups (BACKUP_KEEP, default 10)
+node scripts/backup-db.js --prune >> "$LOG_FILE" 2>&1 || log "⚠️  Could not prune old backups (non-critical)"
 
 # Phase 3: Stop auxiliary services only
 log "⏸️  Phase 3: Stopping auxiliary services..."
