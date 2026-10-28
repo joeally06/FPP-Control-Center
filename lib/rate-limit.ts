@@ -1,8 +1,5 @@
 import Database from 'better-sqlite3';
-import path from 'path';
-
-// Separate database for settings (votes.db)
-const votesDbPath = path.join(process.cwd(), 'votes.db');
+import { getVotesDbPath } from './db-path';
 
 // ⚡ PERFORMANCE OPTIMIZATION: Shared read-only database connection
 // Old approach: Open/close connection on every call (10-20ms overhead)
@@ -11,7 +8,7 @@ let sharedReadOnlyDb: Database.Database | null = null;
 
 function getReadOnlyConnection(): Database.Database {
   if (!sharedReadOnlyDb || !sharedReadOnlyDb.open) {
-    sharedReadOnlyDb = new Database(votesDbPath, { readonly: true });
+    sharedReadOnlyDb = new Database(getVotesDbPath(), { readonly: true });
     console.log('[RATE LIMIT] 🔌 Initialized shared read-only database connection');
   }
   return sharedReadOnlyDb;

@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-helpers';
-import Database from 'better-sqlite3';
-import path from 'path';
-
-const dbPath = path.join(process.cwd(), 'votes.db');
+import { getDb } from '@/lib/database';
 
 /**
  * GET /api/analytics/sequence/[name]
@@ -28,7 +25,7 @@ export async function GET(
 
     console.log(`[Analytics] Request for sequence: "${sequenceName}"`);
 
-    const db = new Database(dbPath);
+    const db = getDb();
 
     // Get vote statistics
     const voteStats = db.prepare(`
@@ -81,7 +78,6 @@ export async function GET(
       WHERE sequence_name = ? AND status = 'completed'
     `).get(sequenceName) as any;
 
-    db.close();
 
     // Calculate derived metrics
     const totalVotes = voteStats.totalVotes || 0;
@@ -167,7 +163,7 @@ export async function HEAD(
     const { name } = await params;
     const sequenceName = decodeURIComponent(name);
 
-    const db = new Database(dbPath);
+    const db = getDb();
 
     // Quick stats query (note: jukebox_queue doesn't have rating column)
     const stats = db.prepare(`
@@ -177,7 +173,6 @@ export async function HEAD(
         (SELECT COUNT(*) FROM jukebox_queue WHERE sequence_name = ? AND status = 'completed') as plays
     `).get(sequenceName, sequenceName) as any;
 
-    db.close();
 
     return NextResponse.json({
       votes: stats.votes || 0,

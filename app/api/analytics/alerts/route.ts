@@ -1,16 +1,13 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-helpers';
-import Database from 'better-sqlite3';
-import path from 'path';
-
-const dbPath = path.join(process.cwd(), 'votes.db');
+import { getDb } from '@/lib/database';
 
 export async function GET() {
   try {
     // Require admin authentication
     await requireAdmin();
 
-    const db = new Database(dbPath);
+    const db = getDb();
 
     // Get current queue stats
     const queueStats = db.prepare(`
@@ -40,7 +37,6 @@ export async function GET() {
       WHERE created_at >= datetime('now', '-10 minutes')
     `).get() as { requests_per_minute: number };
 
-    db.close();
 
     // Define alert thresholds
     const QUEUE_LENGTH_WARNING = 10;

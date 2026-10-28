@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-helpers';
 import { fetchSpotifyUrl } from '@/lib/spotify-url-helper';
-import Database from 'better-sqlite3';
-import path from 'path';
-
-const dbPath = path.join(process.cwd(), 'votes.db');
+import { getDb } from '@/lib/database';
 
 /**
  * POST /api/spotify/metadata/[name]/override
@@ -15,8 +12,6 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ name: string }> }
 ) {
-  let db: Database.Database | null = null;
-  
   try {
     // Require admin authentication
     await requireAdmin();
@@ -45,7 +40,7 @@ export async function POST(
       }
     }
 
-    db = new Database(dbPath);
+    const db = getDb();
 
     // Store manual override in database
     // Use 'none' for match_confidence since manual entries don't have a confidence score
@@ -79,9 +74,6 @@ export async function POST(
       'MANUAL_OVERRIDE'
     );
 
-    db.close();
-    db = null;
-
     console.log('[Spotify Override] ✅ Metadata saved successfully');
 
     return NextResponse.json({
@@ -100,13 +92,5 @@ export async function POST(
       { error: 'Failed to update metadata', details: error.message },
       { status: 500 }
     );
-  } finally {
-    if (db) {
-      try {
-        db.close();
-      } catch (e) {
-        console.error('[Spotify Override] Error closing database:', e);
-      }
-    }
   }
 }

@@ -1,10 +1,6 @@
 // Ollama LLM Client for Santa Letter Responses
 
-import Database from 'better-sqlite3';
-import path from 'path';
-
-// Separate database for settings (votes.db)
-const votesDbPath = path.join(process.cwd(), 'votes.db');
+import { getReadOnlyDb } from './database';
 
 /**
  * Get the Ollama model from settings
@@ -12,10 +8,9 @@ const votesDbPath = path.join(process.cwd(), 'votes.db');
  */
 function getOllamaModel(): string {
   try {
-    const db = new Database(votesDbPath, { readonly: true });
+    const db = getReadOnlyDb();
     const row = db.prepare('SELECT value FROM settings WHERE key = ?')
       .get('ollama_model') as { value: string } | undefined;
-    db.close();
     
     if (row && row.value) {
       return row.value;

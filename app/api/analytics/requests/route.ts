@@ -1,16 +1,13 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-helpers';
-import Database from 'better-sqlite3';
-import path from 'path';
-
-const dbPath = path.join(process.cwd(), 'votes.db');
+import { getDb } from '@/lib/database';
 
 export async function GET() {
   try {
     // Require admin authentication
     await requireAdmin();
 
-    const db = new Database(dbPath);
+    const db = getDb();
 
     // Most requested songs
     const mostRequested = db.prepare(`
@@ -80,7 +77,6 @@ export async function GET() {
       WHERE played_at IS NOT NULL
     `).get() as { avg_wait_seconds: number | null };
 
-    db.close();
 
     return NextResponse.json({
       mostRequested,

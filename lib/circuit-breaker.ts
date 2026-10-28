@@ -20,9 +20,9 @@
  */
 
 import Database from 'better-sqlite3';
-import path from 'path';
 import EventEmitter from 'events';
 import { CIRCUIT_BREAKER } from './constants';
+import { getVotesDbPath } from './db-path';
 
 export enum CircuitState {
   CLOSED = 'CLOSED',       // Normal operation - FPP online
@@ -60,7 +60,7 @@ export class FPPCircuitBreaker extends EventEmitter {
   private config: CircuitBreakerConfig;
   private db: Database.Database;
 
-  constructor(config?: Partial<CircuitBreakerConfig>, dbPath: string = path.join(process.cwd(), 'votes.db')) {
+  constructor(config?: Partial<CircuitBreakerConfig>, dbPath: string = getVotesDbPath()) {
     super();
     
     // SECURITY: Validate configuration values

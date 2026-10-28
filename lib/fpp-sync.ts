@@ -1,9 +1,6 @@
-import Database from 'better-sqlite3';
-import path from 'path';
 import { getFppUrl } from './fpp-config';
 import { TIMING } from './constants';
-
-const dbPath = path.join(process.cwd(), 'votes.db');
+import { getDb } from './database';
 
 export interface SyncResult {
   success: boolean;
@@ -27,7 +24,7 @@ export interface SyncStatus {
  */
 export async function syncFppData(): Promise<SyncResult> {
   const timestamp = new Date().toISOString();
-  let db: Database.Database | null = null;
+  const db = getDb();
 
   try {
     console.log('[FPP Sync] Starting sync from FPP device...');
@@ -91,21 +88,14 @@ export async function syncFppData(): Promise<SyncResult> {
     console.log('[FPP Sync] Found', sequences.length, 'sequences');
     console.log('[FPP Sync] Sample sequence:', sequences[0]);
 
-    // Open database
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[FPP Sync] Opening database:', dbPath);
-    }
-    db = new Database(dbPath);
-    db.pragma('journal_mode = WAL');
-
     // Start transaction
     const transaction = db.transaction(() => {
       // Clear old data
-      db!.prepare('DELETE FROM fpp_playlists').run();
-      db!.prepare('DELETE FROM fpp_sequences').run();
+      db.prepare('DELETE FROM fpp_playlists').run();
+      db.prepare('DELETE FROM fpp_sequences').run();
 
       // Insert playlists
-      const insertPlaylist = db!.prepare(`
+      const insertPlaylist = db.prepare(`
         INSERT INTO fpp_playlists (name, description, item_count, duration, raw_data, synced_at)
         VALUES (?, ?, ?, ?, ?, ?)
       `);
@@ -124,7 +114,7 @@ export async function syncFppData(): Promise<SyncResult> {
       }
 
       // Insert sequences
-      const insertSequence = db!.prepare(`
+      const insertSequence = db.prepare(`
         INSERT INTO fpp_sequences (name, filename, length_ms, channel_count, raw_data, synced_at)
         VALUES (?, ?, ?, ?, ?, ?)
       `);
@@ -151,7 +141,7 @@ export async function syncFppData(): Promise<SyncResult> {
       }
 
       // Update sync status
-      db!.prepare(`
+      db.prepare(`
         UPDATE fpp_sync_status 
         SET last_sync = ?,
             last_success = ?,
@@ -181,32 +171,15 @@ export async function syncFppData(): Promise<SyncResult> {
     console.error('[FPP Sync] Stack trace:', errorStack);
 
     // Update sync status with error
-    if (db) {
-      try {
-        db.prepare(`
-          UPDATE fpp_sync_status 
-          SET last_sync = ?,
-              last_error = ?
-          WHERE id = 1
-        `).run(timestamp, errorMessage);
-      } catch (dbError) {
-        console.error('[FPP Sync] Failed to update error status:', dbError);
-      }
-    } else {
-      // Try to open DB to record error
-      try {
-        const dbPath = path.join(process.cwd(), 'votes.db');
-        const errorDb = new Database(dbPath);
-        errorDb.prepare(`
-          UPDATE fpp_sync_status 
-          SET last_sync = ?,
-              last_error = ?
-          WHERE id = 1
-        `).run(timestamp, errorMessage);
-        errorDb.close();
-      } catch (dbError) {
-        console.error('[FPP Sync] Failed to open DB for error logging:', dbError);
-      }
+    try {
+      db.prepare(`
+        UPDATE fpp_sync_status 
+        SET last_sync = ?,
+            last_error = ?
+        WHERE id = 1
+      `).run(timestamp, errorMessage);
+    } catch (dbError) {
+      console.error('[FPP Sync] Failed to update error status:', dbError);
     }
 
     return {
@@ -216,11 +189,6 @@ export async function syncFppData(): Promise<SyncResult> {
       error: errorMessage,
       timestamp
     };
-
-  } finally {
-    if (db) {
-      db.close();
-    }
   }
 }
 
@@ -228,10 +196,8 @@ export async function syncFppData(): Promise<SyncResult> {
  * Get current sync status from database
  */
 export function getSyncStatus(): SyncStatus {
-  let db: Database.Database | null = null;
-  
   try {
-    db = new Database(dbPath);
+    const db = getDb();
     
     const status = db.prepare(`
       SELECT last_sync, last_success, last_error, playlists_count, sequences_count
@@ -266,9 +232,5 @@ export function getSyncStatus(): SyncStatus {
       playlistsCount: 0,
       sequencesCount: 0
     };
-  } finally {
-    if (db) {
-      db.close();
-    }
   }
 }

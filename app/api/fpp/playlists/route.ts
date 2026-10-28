@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-helpers';
-import Database from 'better-sqlite3';
-import path from 'path';
-
-const dbPath = path.join(process.cwd(), 'votes.db');
+import { getDb } from '@/lib/database';
 
 /**
  * GET /api/fpp/playlists
@@ -11,22 +8,17 @@ const dbPath = path.join(process.cwd(), 'votes.db');
  * ADMIN ONLY - Playlists are used for show management
  */
 export async function GET() {
-  let db: Database.Database | null = null;
-  
   try {
     await requireAdmin();
 
     // Try to read playlists from database cache first
-    db = new Database(dbPath);
+    const db = getDb();
     
     const cachedPlaylists = db.prepare(`
       SELECT name, description, item_count, duration, raw_data, synced_at
       FROM fpp_playlists
       ORDER BY name ASC
     `).all();
-
-    db.close();
-    db = null;
 
     if (cachedPlaylists.length > 0) {
       console.log(`[FPP Playlists] Returning ${cachedPlaylists.length} playlists from cache`);
@@ -77,9 +69,5 @@ export async function GET() {
       details: error.message,
       playlists: []
     }, { status: 500 });
-  } finally {
-    if (db) {
-      db.close();
-    }
   }
 }

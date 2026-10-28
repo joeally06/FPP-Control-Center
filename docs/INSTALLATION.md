@@ -1410,6 +1410,11 @@ SMTP_SECURE=false
 SMTP_USER=yourname@gmail.com
 SMTP_PASS=your-app-password
 
+# Database file location (default: votes.db in the project folder). The web app and the
+# poller both follow it; the setup/migrate scripts (npm run setup, scripts/migrate-database.js)
+# always use ./votes.db, so leave this unset unless you know you need it.
+# VOTES_DB_PATH=/path/to/votes.db
+
 # Monitoring schedule (24-hour format)
 MONITORING_START_TIME=16:00
 MONITORING_END_TIME=22:00

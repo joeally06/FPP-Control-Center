@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCircuitBreaker } from '@/lib/circuit-breaker';
-import Database from 'better-sqlite3';
-import path from 'path';
+import { getDb } from '@/lib/database';
 
 const FPP_URL = process.env.FPP_URL || 'http://fpp.local';
 const HEALTH_CHECK_TIMEOUT = 5000; // 5 seconds
@@ -20,8 +19,7 @@ export async function GET() {
     
     // If circuit is OPEN, return cached state immediately (no timeout)
     if (circuitState === 'OPEN') {
-      const dbPath = path.join(process.cwd(), 'votes.db');
-      const db = new Database(dbPath);
+      const db = getDb();
       
       try {
         const cachedState = db.prepare(`
@@ -31,7 +29,6 @@ export async function GET() {
           LIMIT 1
         `).get() as any;
         
-        db.close();
         
         if (cachedState) {
           return NextResponse.json({
@@ -47,7 +44,6 @@ export async function GET() {
         }
       } catch (dbError: any) {
         console.error('[FPP Health Check] Database error:', dbError.message);
-        db.close();
       }
       
       // Fallback if no cached state

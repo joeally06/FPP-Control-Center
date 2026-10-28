@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import Database from 'better-sqlite3';
-import path from 'path';
 import { isAdminSession } from '@/lib/auth-helpers';
-
-const dbPath = path.join(process.cwd(), 'votes.db');
+import { getDb } from '@/lib/database';
 
 /**
  * GET /api/location-restrictions
@@ -14,7 +11,7 @@ const dbPath = path.join(process.cwd(), 'votes.db');
  */
 export async function GET() {
   try {
-    const db = new Database(dbPath);
+    const db = getDb();
     
     const settings = db.prepare(`
       SELECT 
@@ -27,7 +24,6 @@ export async function GET() {
       WHERE id = 1
     `).get() as any;
     
-    db.close();
     
     // Ensure enabled is a boolean (SQLite returns 0/1)
     const result = settings ? {
@@ -70,7 +66,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { enabled, max_distance_miles, show_latitude, show_longitude, location_name } = body;
 
-    const db = new Database(dbPath);
+    const db = getDb();
     
     db.prepare(`
       UPDATE location_restrictions
@@ -91,7 +87,6 @@ export async function PUT(request: NextRequest) {
       session.user.email
     );
     
-    db.close();
     
     console.log(`[Location] Settings updated by ${session.user.email}`);
     

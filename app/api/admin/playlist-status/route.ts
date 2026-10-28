@@ -4,14 +4,12 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { readFile, readdir, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
-import Database from 'better-sqlite3';
-import path from 'path';
 import { isAdminSession } from '@/lib/auth-helpers';
+import { getDb } from '@/lib/database';
 
 const DATA_DIR = join(process.cwd(), 'data');
 const MAPPING_FILE = join(DATA_DIR, 'audio-mapping.json');
 const AUDIO_DIR = join(process.cwd(), 'public', 'audio');
-const dbPath = path.join(process.cwd(), 'votes.db');
 
 interface AudioMapping {
   [sequence: string]: string;
@@ -82,8 +80,6 @@ function normalizeFilename(filename: string): string {
  *   - items: Array of PlaylistItem with status
  */
 export async function GET(request: NextRequest) {
-  let db: Database.Database | null = null;
-  
   try {
     // SECURITY: Verify admin authentication
     const session = await getServerSession(authOptions);
@@ -118,14 +114,11 @@ export async function GET(request: NextRequest) {
     const sanitizedName = playlistName.replace(/[<>"'`;]/g, '').substring(0, 255);
 
     // Get playlist data from database cache
-    db = new Database(dbPath);
+    const db = getDb();
     
     const cachedPlaylist = db.prepare(`
       SELECT raw_data FROM fpp_playlists WHERE name = ?
     `).get(sanitizedName) as { raw_data: string } | undefined;
-
-    db.close();
-    db = null;
 
     if (!cachedPlaylist) {
       return NextResponse.json(
@@ -224,13 +217,5 @@ export async function GET(request: NextRequest) {
       { error: 'Failed to get playlist status' },
       { status: 500 }
     );
-  } finally {
-    if (db) {
-      try {
-        db.close();
-      } catch (e) {
-        // Ignore close errors
-      }
-    }
   }
 }

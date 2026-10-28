@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
-import Database from 'better-sqlite3';
-import path from 'path';
+import { getDb } from '@/lib/database';
 
 const FPP_URL = process.env.FPP_URL || 'http://fpp.local';
-const dbPath = path.join(process.cwd(), 'votes.db');
 
 /**
  * GET /api/fpp/playlists/[name]
@@ -13,8 +11,6 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ name: string }> }
 ) {
-  let db: Database.Database | null = null;
-  
   try {
     const { name: playlistName } = await params;
     
@@ -26,7 +22,7 @@ export async function GET(
     }
 
     // Try to get from database cache first
-    db = new Database(dbPath);
+    const db = getDb();
     const cached = db.prepare(`
       SELECT raw_data, synced_at 
       FROM fpp_playlists 
@@ -39,7 +35,6 @@ export async function GET(
         // Older versions cached FPP's "" for names that aren't playlists; ignore those rows
         if (data && typeof data === 'object' && !Array.isArray(data)) {
           console.log(`[Playlist Details] Returning cached data for: ${playlistName}`);
-          db.close();
           return NextResponse.json(data);
         }
       } catch (parseError) {
@@ -47,9 +42,6 @@ export async function GET(
         // Continue to fetch from FPP
       }
     }
-
-    db.close();
-    db = null;
 
     // Not in cache or parse failed, fetch from FPP
     console.log(`[Playlist Details] Fetching from FPP: ${playlistName}`);
@@ -77,13 +69,10 @@ export async function GET(
 
     // Cache the result in database
     try {
-      db = new Database(dbPath);
       db.prepare(`
         INSERT OR REPLACE INTO fpp_playlists (name, raw_data, synced_at, updated_at)
         VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       `).run(playlistName, JSON.stringify(data));
-      db.close();
-      db = null;
       console.log(`[Playlist Details] Cached data for: ${playlistName}`);
     } catch (cacheError) {
       console.warn(`[Playlist Details] Failed to cache data:`, cacheError);
@@ -105,13 +94,5 @@ export async function GET(
       { error: 'Failed to fetch playlist details', details: error.message },
       { status: 500 }
     );
-  } finally {
-    if (db) {
-      try {
-        db.close();
-      } catch (e) {
-        // Ignore close errors
-      }
-    }
   }
 }

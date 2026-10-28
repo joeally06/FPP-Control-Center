@@ -1,11 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 import Database from 'better-sqlite3';
+import { getVotesDbPath } from './db-path';
 
 export async function runMigrations(opts: { dbPath?: string, backup?: boolean, backupDir?: string } = {}) {
   // Support override via environment variable for testing purposes
   const envDbPath = process.env.MOCK_DB_PATH;
-  const dbPath = opts.dbPath || envDbPath || path.join(process.cwd(), 'votes.db');
+  const dbPath = opts.dbPath || envDbPath || getVotesDbPath();
 
   if (!fs.existsSync(dbPath)) {
     throw new Error(`Database file not found: ${dbPath}`);

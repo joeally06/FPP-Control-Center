@@ -1,13 +1,13 @@
 import Database from 'better-sqlite3';
-import path from 'path';
 import { DateTime } from 'luxon';
 import { NEXT_QUEUED_LETTER_SQL } from './santa-confirmation';
 import { isInDailyWindow } from './show-schedule';
 import { APP_TIMEZONE } from './time-utils';
 import { addMissingColumns } from './db-columns';
+import { getVotesDbPath } from './db-path';
 
 // Initialize database
-const dbPath = process.env.VOTES_DB_PATH || path.join(process.cwd(), 'votes.db');
+const dbPath = getVotesDbPath();
 const db = new Database(dbPath);
 
 // The schema comes from migrations (npm run setup / the updater); this file only tops it up.
@@ -711,6 +711,15 @@ db.exec(`
 
 /** Returns the singleton better-sqlite3 instance for routes that need raw queries. */
 export function getDb() { return db; }
+
+// One shared read-only connection for public endpoints that only read. SQLite itself refuses
+// writes on it, so a bug in those routes can't change data. (Don't set query_only on getDb():
+// that connection is shared by the whole app.)
+let readOnlyDb: Database.Database | null = null;
+export function getReadOnlyDb() {
+  if (!readOnlyDb) readOnlyDb = new Database(dbPath, { readonly: true, fileMustExist: true });
+  return readOnlyDb;
+}
 
 /** Returns the highest-priority schedule rule whose time window is currently active, or null. */
 export function getActiveScheduleRule(): import('@/types/display').ScheduleRule | null {

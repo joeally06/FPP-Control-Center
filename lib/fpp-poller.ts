@@ -28,6 +28,7 @@ import { getCircuitBreaker, CircuitState } from './circuit-breaker';
 import { getFppHost, getFppPort, FPP_DEFAULTS } from './fpp-config';
 import { POLLER } from './constants';
 import { nextPollDelay } from './poll-timing';
+import { getVotesDbPath } from './db-path';
 
 // Load environment variables from .env.local
 const envPath = path.join(process.cwd(), '.env.local');
@@ -86,7 +87,7 @@ if (initialStats.state === CircuitState.OPEN && initialStats.nextRetryIn !== nul
 // Database Setup
 // ============================================================================
 
-const dbPath = path.join(process.cwd(), 'votes.db');
+const dbPath = getVotesDbPath();
 let db: Database.Database;
 
 try {

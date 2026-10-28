@@ -1,8 +1,5 @@
 import { NextResponse } from 'next/server';
-import Database from 'better-sqlite3';
-import path from 'path';
-
-const dbPath = path.join(process.cwd(), 'votes.db');
+import { getReadOnlyDb } from '@/lib/database';
 
 /**
  * GET /api/santa/settings
@@ -11,9 +8,8 @@ const dbPath = path.join(process.cwd(), 'votes.db');
  */
 export async function GET() {
   try {
-    const db = new Database(dbPath, { readonly: true });
+    const db = getReadOnlyDb();
     const setting = db.prepare('SELECT value FROM settings WHERE key = ?').get('santa_daily_limit') as { value: string } | undefined;
-    db.close();
     
     const limit = setting ? parseInt(setting.value, 10) : 1;
     

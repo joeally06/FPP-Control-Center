@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import Database from 'better-sqlite3';
-import path from 'path';
 import {
   searchSpotifyTrack,
   calculateMatchConfidence,
@@ -10,8 +8,7 @@ import {
   cleanSequenceName
 } from '@/lib/spotify-token';
 import { isAdminSession } from '@/lib/auth-helpers';
-
-const dbPath = path.join(process.cwd(), 'votes.db');
+import { getDb } from '@/lib/database';
 
 const CACHE_TTL_DAYS = 30;
 
@@ -45,7 +42,7 @@ export async function GET(
 
     console.log(`[Spotify Metadata] Request for: "${sequenceName}"`);
 
-    const db = new Database(dbPath);
+    const db = getDb();
 
     // Check cache first (only if updated within TTL)
     const cached = db.prepare(
@@ -57,7 +54,6 @@ export async function GET(
     if (cached.length > 0) {
       console.log(`[Spotify Metadata] Cache HIT for "${sequenceName}"`);
       const entry = cached[0] as any;
-      db.close();
       
       return NextResponse.json({
         albumArt: entry.album_art_url,
@@ -92,7 +88,6 @@ export async function GET(
            VALUES (?, ?, 'none', datetime('now'))`
         ).run(sequenceName, cleanQuery);
 
-        db.close();
 
         return NextResponse.json({
           albumArt: null,
@@ -138,7 +133,6 @@ export async function GET(
         confidence
       );
 
-      db.close();
 
       return NextResponse.json({
         albumArt: metadata.albumArt,
@@ -204,13 +198,12 @@ export async function DELETE(
     const { name } = await params;
     const sequenceName = decodeURIComponent(name);
 
-    const db = new Database(dbPath);
+    const db = getDb();
 
     db.prepare(
       'DELETE FROM spotify_metadata WHERE sequence_name = ?'
     ).run(sequenceName);
 
-    db.close();
 
     console.log(`[Spotify Metadata] Cache cleared for "${sequenceName}"`);
 

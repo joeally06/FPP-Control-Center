@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-helpers';
-import Database from 'better-sqlite3';
-import path from 'path';
-
-const dbPath = path.join(process.cwd(), 'votes.db');
+import { getDb } from '@/lib/database';
 
 /**
  * GET /api/settings/santa-letters
@@ -14,11 +11,10 @@ export async function GET() {
   try {
     await requireAdmin();
     
-    const db = new Database(dbPath);
+    const db = getDb();
 
     const setting = db.prepare('SELECT value FROM settings WHERE key = ?').get('santa_daily_limit') as { value: string } | undefined;
 
-    db.close();
 
     const limit = setting ? parseInt(setting.value, 10) : 1;
 

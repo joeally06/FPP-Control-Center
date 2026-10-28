@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminWithRateLimit } from '@/lib/auth-helpers';
-import Database from 'better-sqlite3';
-import path from 'path';
-
-const dbPath = path.join(process.cwd(), 'votes.db');
+import { getDb } from '@/lib/database';
 
 /**
  * POST /api/admin/media-library/refresh-urls
@@ -11,8 +8,6 @@ const dbPath = path.join(process.cwd(), 'votes.db');
  * ADMIN ONLY
  */
 export async function POST(request: NextRequest) {
-  let db: Database.Database | null = null;
-
   try {
     // Require admin authentication with rate limiting
     await requireAdminWithRateLimit(request);
@@ -25,7 +20,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    db = new Database(dbPath);
+    const db = getDb();
 
     // Get all entries missing Spotify URLs
     const entries = db.prepare(`
@@ -42,7 +37,6 @@ export async function POST(request: NextRequest) {
     }>;
 
     if (entries.length === 0) {
-      db.close();
       return NextResponse.json({
         success: true,
         message: 'All entries already have Spotify URLs',
@@ -67,7 +61,6 @@ export async function POST(request: NextRequest) {
     });
 
     if (!authResponse.ok) {
-      db.close();
       throw new Error('Failed to authenticate with Spotify');
     }
 
@@ -165,9 +158,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    db.close();
-    db = null;
-
     console.log(`[Media Library Refresh] Complete: ${updated}/${entries.length} updated`);
 
     return NextResponse.json({
@@ -192,13 +182,5 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     );
-  } finally {
-    if (db) {
-      try {
-        db.close();
-      } catch (e) {
-        console.error('[Media Library Refresh] Error closing database:', e);
-      }
-    }
   }
 }

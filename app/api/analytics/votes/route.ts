@@ -1,16 +1,13 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-helpers';
-import Database from 'better-sqlite3';
-import path from 'path';
-
-const dbPath = path.join(process.cwd(), 'votes.db');
+import { getDb } from '@/lib/database';
 
 export async function GET() {
   try {
     // Require admin authentication
     await requireAdmin();
 
-    const db = new Database(dbPath);
+    const db = getDb();
 
     // ⚡ PERFORMANCE OPTIMIZATION: Combine top voted and controversial into one CTE-based query
     // Old approach: 2 separate complex queries
@@ -112,7 +109,6 @@ export async function GET() {
       ORDER BY hour
     `).all();
 
-    db.close();
 
     return NextResponse.json({
       topVoted,

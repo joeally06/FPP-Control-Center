@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Database from 'better-sqlite3';
-import path from 'path';
 import { anonymizeIP, getClientIP, getGeolocation } from '@/lib/visitor-tracking';
-
-const dbPath = path.join(process.cwd(), 'votes.db');
+import { getDb } from '@/lib/database';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +11,7 @@ export async function POST(request: NextRequest) {
     const visitorHash = anonymizeIP(ip);
     const userAgent = request.headers.get('user-agent') || 'Unknown';
 
-    const db = new Database(dbPath);
+    const db = getDb();
 
     if (action === 'visit') {
       // Check if visitor exists
@@ -55,7 +52,6 @@ export async function POST(request: NextRequest) {
         VALUES (?, ?)
       `).run(newSessionId, page || '/jukebox');
 
-      db.close();
 
       return NextResponse.json({ 
         success: true, 
@@ -77,7 +73,6 @@ export async function POST(request: NextRequest) {
         WHERE id = ?
       `).run(sessionId);
 
-      db.close();
 
       return NextResponse.json({ success: true });
 
@@ -100,12 +95,10 @@ export async function POST(request: NextRequest) {
         `).run(durationSeconds, sessionId);
       }
 
-      db.close();
 
       return NextResponse.json({ success: true });
     }
 
-    db.close();
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
 
   } catch (error) {

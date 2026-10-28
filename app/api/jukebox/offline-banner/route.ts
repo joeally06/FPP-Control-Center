@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import Database from 'better-sqlite3';
-import path from 'path';
 import { isAdminSession } from '@/lib/auth-helpers';
-
-const dbPath = path.join(process.cwd(), 'votes.db');
+import { getDb, getReadOnlyDb } from '@/lib/database';
 
 /**
  * GET /api/jukebox/offline-banner
@@ -13,7 +10,7 @@ const dbPath = path.join(process.cwd(), 'votes.db');
  */
 export async function GET() {
   try {
-    const db = new Database(dbPath, { readonly: true });
+    const db = getReadOnlyDb();
 
     const heading = db.prepare('SELECT value FROM settings WHERE key = ?')
       .get('jukebox_offline_heading') as { value: string } | undefined;
@@ -24,7 +21,6 @@ export async function GET() {
     const showOffSeason = db.prepare('SELECT value FROM settings WHERE key = ?')
       .get('jukebox_show_offseason') as { value: string } | undefined;
 
-    db.close();
 
     return NextResponse.json({
       heading: heading?.value || 'Show is Currently Inactive',
@@ -57,7 +53,7 @@ export async function POST(request: Request) {
 
     const { heading, subtitle, showOffSeason } = await request.json();
 
-    const db = new Database(dbPath);
+    const db = getDb();
 
     // Update or insert heading
     const existingHeading = db.prepare('SELECT value FROM settings WHERE key = ?')
@@ -95,7 +91,6 @@ export async function POST(request: Request) {
         .run('jukebox_show_offseason', showOffSeason ? 'true' : 'false');
     }
 
-    db.close();
 
     console.log(`[Offline Banner] Updated - Heading: "${heading}", Subtitle: "${subtitle}", Show Off-Season: ${showOffSeason}`);
 

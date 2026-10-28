@@ -20,23 +20,17 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import Database from 'better-sqlite3';
-import path from 'path';
+import { getReadOnlyDb } from '@/lib/database';
 
-// Database connection (read-only for security)
-const dbPath = path.join(process.cwd(), 'votes.db');
-let db: Database.Database | null = null;
+// Read-only connection, shared with the other public read-only routes
+type Db = ReturnType<typeof getReadOnlyDb>;
 
-function getDatabase(): Database.Database {
-  if (!db) {
-    db = new Database(dbPath, { readonly: true });
-    db.pragma('query_only = ON'); // Extra security: prevent writes
-  }
-  return db;
+function getDatabase(): Db {
+  return getReadOnlyDb();
 }
 
 // Prepared statements
-const getAllVideosStmt = (db: Database.Database) => db.prepare(`
+const getAllVideosStmt = (db: Db) => db.prepare(`
   SELECT 
     id,
     title,
@@ -51,7 +45,7 @@ const getAllVideosStmt = (db: Database.Database) => db.prepare(`
   LIMIT ?
 `);
 
-const getVideosByThemeStmt = (db: Database.Database) => db.prepare(`
+const getVideosByThemeStmt = (db: Db) => db.prepare(`
   SELECT 
     id,
     title,
