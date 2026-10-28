@@ -4,10 +4,21 @@ import { DateTime } from 'luxon';
 import { NEXT_QUEUED_LETTER_SQL } from './santa-confirmation';
 import { isInDailyWindow } from './show-schedule';
 import { APP_TIMEZONE } from './time-utils';
+import { addMissingColumns } from './db-columns';
 
 // Initialize database
 const dbPath = process.env.VOTES_DB_PATH || path.join(process.cwd(), 'votes.db');
 const db = new Database(dbPath);
+
+// The schema comes from migrations (npm run setup / the updater); this file only tops it up.
+// Fail with a clear message instead of a cryptic "no such table" further down.
+if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'settings'").get()) {
+  db.close();
+  throw new Error(
+    `[Database] ${dbPath} has not been set up yet (it has no settings table). ` +
+    'Run "node scripts/init-database.js" first. It sets up ./votes.db (the setup scripts ignore VOTES_DB_PATH).'
+  );
+}
 
 // ========================================
 // SQLite Performance Optimizations
@@ -161,13 +172,10 @@ const migrations: Array<{ table: string; column: string; definition: string }> =
   { table: 'votes', column: 'distance_from_show', definition: 'REAL' },
 ];
 
-// Apply all migrations
-for (const migration of migrations) {
-  try {
-    db.exec(`ALTER TABLE ${migration.table} ADD COLUMN ${migration.column} ${migration.definition};`);
-  } catch (error) {
-    // Column already exists, continue
-  }
+// Add any column that is missing; real failures are thrown, not swallowed
+const columnResult = addMissingColumns(db, migrations);
+if (columnResult.skippedTables.length > 0) {
+  console.warn(`[Database] Skipped columns for tables that don't exist yet: ${columnResult.skippedTables.join(', ')}`);
 }
 
 // Create location restrictions table for geolocation-based access control
