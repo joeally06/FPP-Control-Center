@@ -1,33 +1,7 @@
 export type ColorTheme     = 'christmas' | 'winter' | 'classic' | 'custom';
 export type BackgroundStyle = 'solid' | 'gradient' | 'particles';
 export type FontStyle       = 'modern' | 'display' | 'serif';
-export type LayoutVariant   = 'sidebar' | 'centered' | 'minimal';
-export type QueuePosition   = 'bottom' | 'right' | 'hidden';
 export type IdleAnimation   = 'snowflakes' | 'notes' | 'stars' | 'none';
-
-// ─── Zone Layout (Plan C) ────────────────────────────────────────────────────
-export type ZoneTemplate   = 'two-column' | 'pip' | 'banner-main' | 'sidebar-main';
-export type ZoneWidgetType = 'now-playing' | 'queue' | 'clock' | 'message' | 'image' | 'slides' | 'qr' | 'empty';
-
-export const ZONE_TEMPLATE_SLOTS: Record<ZoneTemplate, string[]> = {
-  'two-column':   ['left', 'right'],
-  'pip':          ['main', 'overlay'],
-  'banner-main':  ['banner', 'main'],
-  'sidebar-main': ['sidebar', 'main'],
-};
-
-export interface ZoneWidgetConfig {
-  type: ZoneWidgetType;
-  text?: string;
-  imageUrl?: string;
-  slidesUrl?: string;
-}
-
-export interface ZoneConfig {
-  enabled: boolean;
-  template: ZoneTemplate;
-  slots: Record<string, ZoneWidgetConfig>;
-}
 
 // ─── Schedule (Plan B) ───────────────────────────────────────────────────────
 export type ScheduleActionType = 'slideshow' | 'theme' | 'announcement' | 'custom_display';
@@ -59,10 +33,6 @@ export interface DisplayConfig {
   // Typography
   fontStyle: FontStyle;
   fontScale: number;
-  // Layout
-  layoutVariant: LayoutVariant;
-  albumArtSize: number;
-  queuePosition: QueuePosition;
   // Text & branding
   idleMessage: string;
   logoUrl: string;
@@ -83,17 +53,6 @@ export interface DisplayConfig {
   countdownEnabled: boolean;
   countdownTime: string;           // HH:MM 24h local time
   countdownLabel: string;          // e.g. "Next show starts in"
-  // Zone layout (Plan C)
-  zoneConfig?: ZoneConfig;
-}
-
-// ─── Display Profile (Option 4) ──────────────────────────────────────────────
-export interface DisplayProfile {
-  id: number;
-  name: string;
-  isActive: boolean;
-  config: DisplayConfig;
-  createdAt: string;
 }
 
 export interface UpcomingQueueItem {

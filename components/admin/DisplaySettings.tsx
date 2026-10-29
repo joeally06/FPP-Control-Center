@@ -2,15 +2,11 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type {
-  DisplayConfig, DisplayProfile, ColorTheme, BackgroundStyle, FontStyle, LayoutVariant,
-  QueuePosition, IdleAnimation, ZoneConfig, ZoneTemplate, ZoneWidgetType,
-  ZoneWidgetConfig, ScheduleRule,
+  DisplayConfig, ColorTheme, BackgroundStyle, FontStyle, IdleAnimation, ScheduleRule,
 } from '@/types/display';
-import { ZONE_TEMPLATE_SLOTS } from '@/types/display';
 import { Eye, Plus, Trash2 } from 'lucide-react';
 import { card, button, accentButton, notice } from '@/components/admin/ui-classes';
 import ImageUpload from '@/components/admin/display/ImageUpload';
-import DisplayProfiles from '@/components/admin/display/DisplayProfiles';
 import DisplaySchedule from '@/components/admin/display/DisplaySchedule';
 import { inputClass, selectClass, labelClass, sectionClass, sectionTitle, checkClass, subBox, hint } from '@/components/admin/display/styles';
 
@@ -24,9 +20,6 @@ const DEFAULT_CONFIG: DisplayConfig = {
   backgroundStyle: 'gradient',
   fontStyle: 'modern',
   fontScale: 100,
-  layoutVariant: 'sidebar',
-  albumArtSize: 34,
-  queuePosition: 'bottom',
   idleMessage: 'The show will begin shortly',
   logoUrl: '',
   sponsorText: '',
@@ -41,7 +34,6 @@ const DEFAULT_CONFIG: DisplayConfig = {
   countdownEnabled: false,
   countdownTime: '20:00',
   countdownLabel: 'Next show starts in',
-  zoneConfig: { enabled: false, template: 'two-column', slots: {} },
 };
 
 export default function DisplaySettings() {
@@ -58,14 +50,6 @@ export default function DisplaySettings() {
   const [slideshowUploading, setSlideshowUploading] = useState(false);
   const [slideshowError, setSlideshowError] = useState('');
   const slideshowInputRef = useRef<HTMLInputElement>(null);
-
-  // Option 4: profiles
-  const [profiles, setProfiles] = useState<Array<{ id: number; name: string; is_active: number; created_at: string }>>([]);
-
-  const fetchProfiles = useCallback(async () => {
-    const res = await fetch('/api/display/profiles');
-    if (res.ok) { const d = await res.json(); setProfiles(d.profiles ?? []); }
-  }, []);
 
   async function uploadSlideshowImage(file: File) {
     setSlideshowError('');
@@ -108,8 +92,7 @@ export default function DisplaySettings() {
       .then((data) => { setConfig({ ...DEFAULT_CONFIG, ...data }); setLoading(false); })
       .catch(() => setLoading(false));
     fetchRules();
-    fetchProfiles();
-  }, [fetchRules, fetchProfiles]);
+  }, [fetchRules]);
 
   async function save() {
     setSaving(true);
@@ -322,48 +305,12 @@ export default function DisplaySettings() {
         </div>
       </div>
 
-      {/* Layout */}
+      {/* Up next & QR */}
       <div className={sectionClass}>
-        <h3 className={sectionTitle}>Layout</h3>
+        <h3 className={sectionTitle}>Up Next &amp; QR Code</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className={labelClass}>Layout variant</label>
-            <select
-              value={config.layoutVariant}
-              onChange={(e) => set('layoutVariant', e.target.value as LayoutVariant)}
-              className={selectClass}
-            >
-              <option value="sidebar">Sidebar</option>
-              <option value="centered">Centered</option>
-              <option value="minimal">Minimal</option>
-            </select>
-          </div>
-          <div>
-            <label className={labelClass}>Album art size ({config.albumArtSize}%)</label>
-            <input
-              type="range"
-              min={20}
-              max={50}
-              step={1}
-              value={config.albumArtSize}
-              onChange={(e) => set('albumArtSize', Number(e.target.value))}
-              className="w-full accent-adm-accent"
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Queue position</label>
-            <select
-              value={config.queuePosition}
-              onChange={(e) => set('queuePosition', e.target.value as QueuePosition)}
-              className={selectClass}
-            >
-              <option value="bottom">Bottom</option>
-              <option value="right">Right</option>
-              <option value="hidden">Hidden</option>
-            </select>
-          </div>
-          <div>
-            <label className={labelClass}>Queue count (1–5)</label>
+            <label className={labelClass}>Songs shown under &quot;Up next&quot; (1–5)</label>
             <input
               type="number"
               min={1}
@@ -597,105 +544,8 @@ export default function DisplaySettings() {
         )}
       </div>{/* end Idle Screen section */}
 
-      {/* Profiles (Option 4) */}
-      <DisplayProfiles
-        profiles={profiles}
-        onRefresh={fetchProfiles}
-        onMessage={setMessage}
-        onProfileActivated={(profileConfig) => { if (profileConfig) setConfig({ ...DEFAULT_CONFIG, ...profileConfig }); }}
-      />
-
       {/* Schedule rules (Plan B) */}
       <DisplaySchedule rules={rules} onRefresh={fetchRules} />
-
-      {/* ─── Zone Layout (Plan C) ──────────────────────────────────────────── */}
-      <div className={sectionClass}>
-        <h3 className={sectionTitle}>Zone Layout</h3>
-        <p className="text-xs text-adm-muted">Divide the screen into multiple zones, each showing a different widget.</p>
-
-        <div className="flex items-center gap-3">
-          <input type="checkbox" id="zone-enabled"
-            checked={config.zoneConfig?.enabled ?? false}
-            onChange={(e) => set('zoneConfig', { ...(config.zoneConfig ?? { template: 'two-column', slots: {} }), enabled: e.target.checked })}
-            className={checkClass} />
-          <label htmlFor="zone-enabled" className="text-sm text-adm-text">Enable zone layout</label>
-        </div>
-
-        {config.zoneConfig?.enabled && (
-          <div className="space-y-4">
-            {/* Template selector */}
-            <div>
-              <label className={labelClass}>Layout template</label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {([
-                  { value: 'two-column',   label: '◫ Two Column',    desc: 'Left / Right' },
-                  { value: 'pip',          label: '⬜ Picture-in-Pic', desc: 'Main + corner' },
-                  { value: 'banner-main',  label: '⬛ Banner + Main', desc: 'Top bar + main' },
-                  { value: 'sidebar-main', label: '▮ Sidebar + Main', desc: 'Left bar + main' },
-                ] as { value: ZoneTemplate; label: string; desc: string }[]).map(({ value, label, desc }) => (
-                  <button key={value} type="button"
-                    onClick={() => set('zoneConfig', { ...(config.zoneConfig ?? { enabled: true, slots: {} }), template: value, slots: {} })}
-                    className={`rounded-lg border p-2 text-left text-xs transition-colors ${
-                      config.zoneConfig?.template === value
-                        ? 'border-adm-accent bg-adm-warn-bg text-adm-text'
-                        : 'border-adm-control-line bg-adm-surface text-adm-muted hover:bg-adm-hover'
-                    }`}>
-                    <span className="block font-semibold">{label}</span>
-                    <span className="text-adm-faint">{desc}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Slot configuration */}
-            <div className="space-y-3">
-              <label className={labelClass}>Configure slots</label>
-              {ZONE_TEMPLATE_SLOTS[config.zoneConfig.template ?? 'two-column']?.map((slotKey) => {
-                const widget = config.zoneConfig?.slots?.[slotKey] ?? { type: 'empty' as ZoneWidgetType };
-                const updateSlot = (w: ZoneWidgetConfig) => {
-                  const newSlots = { ...(config.zoneConfig?.slots ?? {}), [slotKey]: w };
-                  set('zoneConfig', { ...(config.zoneConfig!), slots: newSlots });
-                };
-                return (
-                  <div key={slotKey} className="space-y-2 rounded-lg border border-adm-line bg-adm-surface p-3">
-                    <p className="text-xs font-semibold capitalize text-adm-soft">{slotKey} slot</p>
-                    <select value={widget.type} className={selectClass}
-                      onChange={(e) => updateSlot({ ...widget, type: e.target.value as ZoneWidgetType })}>
-                      <option value="empty">Empty</option>
-                      <option value="now-playing">Now Playing</option>
-                      <option value="queue">Upcoming Queue</option>
-                      <option value="clock">Clock</option>
-                      <option value="message">Custom Message</option>
-                      <option value="image">Image</option>
-                      <option value="slides">Google Slides</option>
-                      <option value="qr">QR Code</option>
-                    </select>
-                    {widget.type === 'message' && (
-                      <input type="text" value={widget.text ?? ''} maxLength={300} className={inputClass}
-                        placeholder="Message text…"
-                        onChange={(e) => updateSlot({ ...widget, text: e.target.value })} />
-                    )}
-                    {widget.type === 'image' && (
-                      <input type="url" value={widget.imageUrl ?? ''} maxLength={500} className={inputClass}
-                        placeholder="https://…/image.jpg"
-                        onChange={(e) => updateSlot({ ...widget, imageUrl: e.target.value })} />
-                    )}
-                    {widget.type === 'slides' && (
-                      <input type="url" value={widget.slidesUrl ?? ''} maxLength={500} className={inputClass}
-                        placeholder="https://docs.google.com/presentation/…/pub?…"
-                        onChange={(e) => updateSlot({ ...widget, slidesUrl: e.target.value })} />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            <p className={hint}>
-              When Zone Layout is enabled it replaces the standard Now Playing / Idle views. Ticker and announcements still appear.
-            </p>
-          </div>
-        )}
-      </div>
 
       <button
         onClick={save}

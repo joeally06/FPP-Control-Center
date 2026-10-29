@@ -3,6 +3,8 @@ interface Props {
   secondsRemaining: number;
   barFrom?: string;
   barTo?: string;
+  /** Multiplier for the time labels (the sign's font scale / 100) */
+  scale?: number;
 }
 
 function formatTime(totalSeconds: number): string {
@@ -17,13 +19,14 @@ export default function ProgressBar({
   secondsRemaining,
   barFrom = '#dc2626',
   barTo   = '#16a34a',
+  scale   = 1,
 }: Props) {
   const total   = secondsPlayed + secondsRemaining;
   const percent = total > 0 ? Math.min(100, (secondsPlayed / total) * 100) : 0;
 
   return (
     <div className="w-full">
-      <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden">
+      <div className="w-full rounded-full overflow-hidden bg-white/20" style={{ height: '1.7vh' }}>
         <div
           className="h-full rounded-full transition-all duration-1000 ease-linear"
           style={{
@@ -32,7 +35,10 @@ export default function ProgressBar({
           }}
         />
       </div>
-      <div className="flex justify-between mt-1.5 text-sm text-gray-500">
+      <div
+        className="flex justify-between text-white/70"
+        style={{ marginTop: '0.8vh', fontSize: `${1.55 * scale}vw` }}
+      >
         <span>{formatTime(secondsPlayed)}</span>
         <span>−{formatTime(secondsRemaining)}</span>
       </div>

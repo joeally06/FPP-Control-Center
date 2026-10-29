@@ -28,6 +28,7 @@ import { getCircuitBreaker, CircuitState } from './circuit-breaker';
 import { getFppHost, getFppPort, FPP_DEFAULTS } from './fpp-config';
 import { POLLER } from './constants';
 import { nextPollDelay } from './poll-timing';
+import { markFppOffline } from './fpp-state';
 import { getVotesDbPath } from './db-path';
 
 // Load environment variables from .env.local
@@ -523,6 +524,8 @@ function handleError(error: string, responseTime: number): void {
     const cbState = circuitBreaker.getState();
     
     if (cbState === CircuitState.OPEN) {
+      // FPP is down, not just slow: stop showing the last song as still playing
+      markFppOffline(db);
       // Circuit is OPEN - minimal polling to save resources
       currentPollInterval = MAX_POLL_INTERVAL; // 60 seconds
       const stats = circuitBreaker.getStats();

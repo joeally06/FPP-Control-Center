@@ -3,9 +3,11 @@
 interface Props {
   text: string;
   accent?: string;
+  /** CSS font size; defaults to the idle screen's small text */
+  fontSize?: string;
 }
 
-export default function TickerBar({ text, accent = '#ef4444' }: Props) {
+export default function TickerBar({ text, accent = '#ef4444', fontSize }: Props) {
   if (!text.trim()) return null;
 
   // Repeat content 4× so the loop is seamless regardless of text length
@@ -28,7 +30,7 @@ export default function TickerBar({ text, accent = '#ef4444' }: Props) {
         className="overflow-hidden flex-shrink-0 py-1.5"
         style={{ backgroundColor: `${accent}18`, borderTop: `1px solid ${accent}33` }}
       >
-        <div className="ticker-inner text-sm font-medium" style={{ color: accent }}>
+        <div className="ticker-inner text-sm font-medium" style={{ color: accent, ...(fontSize ? { fontSize } : {}) }}>
           {content}{content}
         </div>
       </div>

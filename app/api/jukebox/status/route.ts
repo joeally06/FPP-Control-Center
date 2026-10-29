@@ -4,6 +4,15 @@ import { toErrorMessage } from '@/lib/api-errors';
 import { getCurrentlyPlaying, updateQueueStatus, getFPPState } from '@/lib/database';
 import { getFppUrl } from '@/lib/fpp-config';
 import { toPublicQueueItem } from '@/lib/jukebox-display';
+import { isFreshPlaying } from '@/lib/fpp-state';
+import { parseDbTimestamp } from '@/lib/time-utils';
+
+// last_updated is SQLite CURRENT_TIMESTAMP (UTC, no zone); new Date() would read it as local time.
+// No usable timestamp counts as very old.
+function cacheAgeSeconds(lastUpdated: string | null | undefined): number {
+  const updatedMs = parseDbTimestamp(lastUpdated)?.toMillis();
+  return updatedMs === undefined ? Infinity : Math.floor((Date.now() - updatedMs) / 1000);
+}
 
 export async function GET() {
   try {
@@ -34,7 +43,7 @@ export async function GET() {
     try {
       const fppState = getFPPState.get() as any;
 
-      if (fppState && fppState.status === 'playing' && fppState.current_sequence) {
+      if (isFreshPlaying(fppState)) {
         // Return cached FPP status
         usedCache = true;
         return NextResponse.json({
@@ -46,17 +55,13 @@ export async function GET() {
           status: 'playing',
           // Include cache metadata for debugging
           cached: true,
-          cache_age_seconds: Math.floor(
-            (Date.now() - new Date(fppState.last_updated).getTime()) / 1000
-          )
+          cache_age_seconds: cacheAgeSeconds(fppState.last_updated)
         });
       }
 
       // If FPP state exists but not playing, check if cache is stale
       if (fppState) {
-        const cacheAge = Math.floor(
-          (Date.now() - new Date(fppState.last_updated).getTime()) / 1000
-        );
+        const cacheAge = cacheAgeSeconds(fppState.last_updated);
 
         // If cache is very stale (> 60 seconds) or status is unknown, fall through to direct query
         if (cacheAge > 60 || fppState.status === 'unknown') {

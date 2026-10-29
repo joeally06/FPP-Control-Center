@@ -10,7 +10,8 @@ import {
 import { getFppUrl } from '@/lib/fpp-config';
 import { getSetting } from '@/lib/settings';
 import { createLazyPoller } from '@/lib/lazy-poller';
-import type { DisplayConfig, DisplayState, UpcomingQueueItem, ColorTheme, BackgroundStyle, FontStyle, LayoutVariant, QueuePosition, IdleAnimation, ZoneConfig } from '@/types/display';
+import { isFreshPlaying } from '@/lib/fpp-state';
+import type { DisplayConfig, DisplayState, UpcomingQueueItem, ColorTheme, BackgroundStyle, FontStyle, IdleAnimation } from '@/types/display';
 
 // ─── Singleton state & clients ──────────────────────────────────────────────
 
@@ -33,9 +34,6 @@ function readConfig(): DisplayConfig {
     backgroundStyle:    s('display_background_style',    'gradient') as BackgroundStyle,
     fontStyle:          s('display_font_style',          'modern') as FontStyle,
     fontScale:          n('display_font_scale',          100),
-    layoutVariant:      s('display_layout_variant',      'sidebar') as LayoutVariant,
-    albumArtSize:       n('display_album_art_size',      34),
-    queuePosition:      s('display_queue_position',      'bottom') as QueuePosition,
     idleMessage:        s('display_idle_message',        'The show will begin shortly'),
     logoUrl:            s('display_logo_url',            ''),
     sponsorText:        s('display_sponsor_text',        ''),
@@ -50,7 +48,6 @@ function readConfig(): DisplayConfig {
     countdownEnabled:   b('display_countdown_enabled',   false),
     countdownTime:      s('display_countdown_time',      '20:00'),
     countdownLabel:     s('display_countdown_label',     'Next show starts in'),
-    zoneConfig:         (() => { try { return JSON.parse(s('display_zone_config', '{}')); } catch { return undefined; } })(),
   };
 }
 
@@ -190,24 +187,21 @@ async function resolveFPPStatus(): Promise<{
   // 1. Try DB cache first
   try {
     const fppState = getFPPState.get() as any;
-    if (fppState && fppState.status === 'playing' && fppState.current_sequence) {
-      const cacheAgeMs = Date.now() - new Date(fppState.last_updated).getTime();
-      // Accept cache if fresher than 30 seconds
-      if (cacheAgeMs < 30_000) {
-        return {
-          statusName: fppState.status,
-          currentSequence: fppState.current_sequence,
-          secondsPlayed: Number(fppState.seconds_played) || 0,
-          secondsRemaining: Number(fppState.seconds_remaining) || 0,
-          currentPlaylist: fppState.current_playlist ?? null,
-          trackIndex: fppState.current_playlist_index != null
-            ? Number(fppState.current_playlist_index) + 1
-            : null,
-          trackCount: fppState.current_playlist_count != null
-            ? Number(fppState.current_playlist_count)
-            : null,
-        };
-      }
+    // Accept the cache only if it says playing and is fresher than 30 seconds
+    if (isFreshPlaying(fppState, Date.now(), 30)) {
+      return {
+        statusName: fppState.status,
+        currentSequence: fppState.current_sequence,
+        secondsPlayed: Number(fppState.seconds_played) || 0,
+        secondsRemaining: Number(fppState.seconds_remaining) || 0,
+        currentPlaylist: fppState.current_playlist ?? null,
+        trackIndex: fppState.current_playlist_index != null
+          ? Number(fppState.current_playlist_index) + 1
+          : null,
+        trackCount: fppState.current_playlist_count != null
+          ? Number(fppState.current_playlist_count)
+          : null,
+      };
     }
     // Cache is idle/stale/unknown — fall through to direct FPP query
   } catch {

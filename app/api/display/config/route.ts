@@ -4,7 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { getSetting, updateSettings } from '@/lib/settings';
 import type {
   DisplayConfig, ColorTheme, BackgroundStyle, FontStyle,
-  LayoutVariant, QueuePosition, IdleAnimation, ZoneConfig, ZoneTemplate, ZoneWidgetType,
+  IdleAnimation,
 } from '@/types/display';
 import { isAdminSession } from '@/lib/auth-helpers';
 
@@ -23,9 +23,6 @@ function readConfig(): DisplayConfig {
     backgroundStyle:    s('display_background_style',    'gradient') as BackgroundStyle,
     fontStyle:          s('display_font_style',          'modern') as FontStyle,
     fontScale:          n('display_font_scale',          100),
-    layoutVariant:      s('display_layout_variant',      'sidebar') as LayoutVariant,
-    albumArtSize:       n('display_album_art_size',      34),
-    queuePosition:      s('display_queue_position',      'bottom') as QueuePosition,
     idleMessage:        s('display_idle_message',        'The show will begin shortly'),
     logoUrl:            s('display_logo_url',            ''),
     sponsorText:        s('display_sponsor_text',        ''),
@@ -40,7 +37,6 @@ function readConfig(): DisplayConfig {
     countdownEnabled:   b('display_countdown_enabled',   false),
     countdownTime:      s('display_countdown_time',      '20:00'),
     countdownLabel:     s('display_countdown_label',     'Next show starts in'),
-    zoneConfig:         (() => { try { return JSON.parse(s('display_zone_config', '{}')); } catch { return undefined; } })(),
   };
 }
 
@@ -89,9 +85,6 @@ export async function PUT(request: NextRequest) {
     oneOf('backgroundStyle', 'display_background_style', ['solid','gradient','particles']);
     oneOf('fontStyle', 'display_font_style', ['modern','display','serif']);
     clamp('fontScale', 'display_font_scale', 75, 150);
-    oneOf('layoutVariant', 'display_layout_variant', ['sidebar','centered','minimal']);
-    clamp('albumArtSize',  'display_album_art_size',  20, 50);
-    oneOf('queuePosition', 'display_queue_position',  ['bottom','right','hidden']);
     str('idleMessage',       'display_idle_message',       150);
     str('logoUrl',           'display_logo_url',           500);
     str('sponsorText',       'display_sponsor_text',       150);
@@ -105,30 +98,6 @@ export async function PUT(request: NextRequest) {
     bool('countdownEnabled', 'display_countdown_enabled');
     str('countdownTime',  'display_countdown_time',  5);
     str('countdownLabel', 'display_countdown_label', 100);
-
-    // Zone config — stored as JSON string
-    if (body.zoneConfig && typeof body.zoneConfig === 'object') {
-      const zc = body.zoneConfig as ZoneConfig;
-      const ALLOWED_TEMPLATES: ZoneTemplate[] = ['two-column', 'pip', 'banner-main', 'sidebar-main'];
-      const ALLOWED_WIDGETS: ZoneWidgetType[] = ['now-playing', 'queue', 'clock', 'message', 'image', 'slides', 'empty'];
-      if (typeof zc.enabled === 'boolean' && ALLOWED_TEMPLATES.includes(zc.template)) {
-        // Sanitise each slot
-        const cleanSlots: ZoneConfig['slots'] = {};
-        if (zc.slots && typeof zc.slots === 'object') {
-          for (const [slot, widget] of Object.entries(zc.slots)) {
-            if (ALLOWED_WIDGETS.includes(widget.type)) {
-              cleanSlots[slot] = {
-                type: widget.type,
-                text: typeof widget.text === 'string' ? widget.text.substring(0, 300) : undefined,
-                imageUrl: typeof widget.imageUrl === 'string' ? widget.imageUrl.substring(0, 500) : undefined,
-                slidesUrl: typeof widget.slidesUrl === 'string' ? widget.slidesUrl.substring(0, 500) : undefined,
-              };
-            }
-          }
-        }
-        updates['display_zone_config'] = JSON.stringify({ enabled: zc.enabled, template: zc.template, slots: cleanSlots });
-      }
-    }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'No valid fields provided' }, { status: 400 });
