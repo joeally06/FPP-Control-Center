@@ -37,7 +37,11 @@ function getEmailConfig(): EmailConfig {
 }
 
 function isRetryableError(err: any) {
-  const retryableCodes = ['ECONNREFUSED', 'ETIMEDOUT', 'EAI_AGAIN', 'ECONNRESET', 'ENOTFOUND'];
+  // nodemailer replaces the system error code with its own: a refused or reset connection arrives as
+  // ESOCKET (the original ECONNREFUSED is only in the message), a dropped one as ECONNECTION and a failed
+  // lookup as EDNS. ETIMEDOUT, ESOCKET and ECONNECTION are the codes nodemailer itself calls transient.
+  // Not retried: EAUTH (wrong login), EENVELOPE (bad address), ETLS and 5xx answers - waiting won't fix those.
+  const retryableCodes = ['ESOCKET', 'ECONNECTION', 'EDNS', 'ETIMEDOUT', 'ECONNREFUSED', 'EAI_AGAIN', 'ECONNRESET', 'ENOTFOUND'];
   if (!err) return false;
   // nodemailer adds `code` to underlying errors
   if (err.code && retryableCodes.includes(err.code)) return true;
