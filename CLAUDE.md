@@ -14,7 +14,7 @@ Test:
 - `npm run test:ci` — all test scripts chained with `&&` (~25 s); one failure hides the rest, so use it only as the quick check
 - `node -r esbuild-register scripts/check-security.js` — what CI runs; reads env, no side effects
 
-Preflight (final gate): None — run Build and Test commands as the gate (typecheck, eslint on touched files, each test script individually, build)
+Preflight (final gate): `npm run preflight` — typecheck, eslint on touched files (fails on errors or any new warning vs HEAD), each `test:ci` script individually, build; exit code 0 means pass. `-- --skip-build` skips the build; `PREFLIGHT_BASE=<commit>` compares lint against another commit.
 Fast verify (also run by the Stop hook): `npx tsc --noEmit && npm run test:ci`
 
 ## Repository
