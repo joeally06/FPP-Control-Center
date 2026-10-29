@@ -188,8 +188,8 @@ Spotify API fetches song metadata (artist, album art, etc.) for the jukebox.
 2. Copy your credentials:
 
 ```
-SPOTIFY_CLIENT_ID=e18f418eb4b94dce909022ffea242dcf
-SPOTIFY_CLIENT_SECRET=f84316021d314effb08f637972994ccd
+SPOTIFY_CLIENT_ID=your-spotify-client-id
+SPOTIFY_CLIENT_SECRET=your-spotify-client-secret
 ```
 
 ---
