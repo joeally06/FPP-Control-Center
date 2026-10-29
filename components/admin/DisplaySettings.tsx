@@ -4,127 +4,15 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import type {
   DisplayConfig, DisplayProfile, ColorTheme, BackgroundStyle, FontStyle, LayoutVariant,
   QueuePosition, IdleAnimation, ZoneConfig, ZoneTemplate, ZoneWidgetType,
-  ZoneWidgetConfig, ScheduleRule, ScheduleActionType,
+  ZoneWidgetConfig, ScheduleRule,
 } from '@/types/display';
 import { ZONE_TEMPLATE_SLOTS } from '@/types/display';
-import { Eye, ImagePlus, Plus, RefreshCw, Save, Trash2 } from 'lucide-react';
-import { card, insetBox, field, button, accentButton, smallButton, smallDangerButton, notice } from '@/components/admin/ui-classes';
-
-function ImageUpload({
-  label,
-  currentUrl,
-  slot,
-  onUploaded,
-  onClear,
-}: {
-  label: string;
-  currentUrl: string;
-  slot: 'logo' | 'background';
-  onUploaded: (url: string) => void;
-  onClear: () => void;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState('');
-
-  async function handleFile(file: File) {
-    setError('');
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      fd.append('slot', slot);
-      const res = await fetch('/api/display/upload', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (res.ok) {
-        onUploaded(data.url);
-      } else {
-        setError(data.error ?? 'Upload failed');
-      }
-    } catch {
-      setError('Network error during upload');
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  function onInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) handleFile(file);
-    e.target.value = '';
-  }
-
-  function onDrop(e: React.DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleFile(file);
-  }
-
-  return (
-    <div className="space-y-2">
-      <span className="admin-label mb-0">{label}</span>
-
-      {currentUrl ? (
-        <div className="flex items-start gap-3">
-          <img
-            src={currentUrl}
-            alt={label}
-            className="h-16 w-16 shrink-0 rounded-lg border border-adm-line bg-adm-field object-contain"
-          />
-          <div className="flex-1 min-w-0">
-            <p className="truncate text-xs text-adm-muted">{currentUrl}</p>
-            <div className="flex gap-2 mt-2">
-              <button
-                type="button"
-                onClick={() => inputRef.current?.click()}
-                disabled={uploading}
-                className={smallButton}
-              >
-                {uploading ? 'Uploading…' : 'Replace'}
-              </button>
-              <button
-                type="button"
-                onClick={onClear}
-                className={smallButton}
-              >
-                Remove
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div
-          onClick={() => !uploading && inputRef.current?.click()}
-          onDrop={onDrop}
-          onDragOver={(e) => e.preventDefault()}
-          className="flex h-24 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-adm-control-line bg-adm-surface transition-colors hover:border-adm-faint"
-        >
-          {uploading ? (
-            <span className="text-sm text-adm-muted">Uploading…</span>
-          ) : (
-            <>
-              <ImagePlus className="h-6 w-6 text-adm-faint" aria-hidden="true" />
-              <span className="px-2 text-center text-xs text-adm-muted">
-                Click or drag &amp; drop an image<br />
-                <span className="text-adm-faint">JPEG, PNG, GIF, WebP, SVG — max 5 MB</span>
-              </span>
-            </>
-          )}
-        </div>
-      )}
-
-      {error && <p className="text-xs text-adm-danger">{error}</p>}
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
-        className="hidden"
-        onChange={onInputChange}
-      />
-    </div>
-  );
-}
+import { Eye, Plus, Trash2 } from 'lucide-react';
+import { card, button, accentButton, notice } from '@/components/admin/ui-classes';
+import ImageUpload from '@/components/admin/display/ImageUpload';
+import DisplayProfiles from '@/components/admin/display/DisplayProfiles';
+import DisplaySchedule from '@/components/admin/display/DisplaySchedule';
+import { inputClass, selectClass, labelClass, sectionClass, sectionTitle, checkClass, subBox, hint } from '@/components/admin/display/styles';
 
 const DEFAULT_CONFIG: DisplayConfig = {
   showName: 'Christmas Light Show',
@@ -173,8 +61,6 @@ export default function DisplaySettings() {
 
   // Option 4: profiles
   const [profiles, setProfiles] = useState<Array<{ id: number; name: string; is_active: number; created_at: string }>>([]);
-  const [newProfileName, setNewProfileName] = useState('');
-  const [profileSaving, setProfileSaving] = useState(false);
 
   const fetchProfiles = useCallback(async () => {
     const res = await fetch('/api/display/profiles');
@@ -205,38 +91,8 @@ export default function DisplaySettings() {
     if (res.ok) set('idleSlideshowImages', data.images);
   }
 
-  async function saveProfile() {
-    if (!newProfileName.trim()) return;
-    setProfileSaving(true);
-    await fetch('/api/display/profiles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newProfileName.trim() }) });
-    setNewProfileName('');
-    setProfileSaving(false);
-    fetchProfiles();
-  }
-
-  async function activateProfile(id: number) {
-    const res = await fetch('/api/display/profiles', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-    if (res.ok) {
-      const d = await res.json();
-      if (d.config) setConfig({ ...DEFAULT_CONFIG, ...d.config });
-      fetchProfiles();
-      setMessage({ type: 'success', text: 'Profile activated.' });
-    }
-  }
-
-  async function deleteProfile(id: number) {
-    await fetch(`/api/display/profiles?id=${id}`, { method: 'DELETE' });
-    fetchProfiles();
-  }
-
   // Plan B: schedule rules
   const [rules, setRules] = useState<ScheduleRule[]>([]);
-  const [ruleForm, setRuleForm] = useState<{
-    id?: number; name: string; enabled: boolean; days: string;
-    startTime: string; endTime: string;
-    actionType: ScheduleActionType; actionPayload: string; priority: number;
-  } | null>(null);
-  const [ruleError, setRuleError] = useState('');
 
   const fetchRules = useCallback(async () => {
     const res = await fetch('/api/display/schedule');
@@ -290,16 +146,6 @@ export default function DisplaySettings() {
       </div>
     );
   }
-
-  const inputClass = field;
-  const selectClass = field;
-  const labelClass = 'admin-label';
-  const sectionClass = `${insetBox} space-y-4`;
-  const sectionTitle = 'text-[15px] font-semibold text-adm-text';
-  const checkClass = 'h-4.5 w-4.5 shrink-0 accent-adm-accent';
-  // A box nested inside a section
-  const subBox = 'rounded-xl border border-adm-line bg-adm-surface p-4 space-y-3';
-  const hint = 'rounded-lg border border-adm-line bg-adm-surface px-3 py-2 text-xs text-adm-muted';
 
   return (
     <div className={`${card} space-y-5`}>
@@ -751,251 +597,16 @@ export default function DisplaySettings() {
         )}
       </div>{/* end Idle Screen section */}
 
-      {/* ─── Display Profiles (Option 4) ──────────────────────────────────── */}
-      <div className={sectionClass}>
-        <div className="flex items-center justify-between">
-          <h3 className={sectionTitle}>Display Profiles</h3>
-          <button type="button" onClick={fetchProfiles}
-            className={smallButton}><RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />Refresh</button>
-        </div>
-        <p className="text-xs text-adm-muted">Save snapshots of your current settings and switch between them instantly.</p>
+      {/* Profiles (Option 4) */}
+      <DisplayProfiles
+        profiles={profiles}
+        onRefresh={fetchProfiles}
+        onMessage={setMessage}
+        onProfileActivated={(profileConfig) => { if (profileConfig) setConfig({ ...DEFAULT_CONFIG, ...profileConfig }); }}
+      />
 
-        {/* Save current as profile */}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newProfileName}
-            onChange={(e) => setNewProfileName(e.target.value)}
-            placeholder="Profile name (e.g. Show Night, Off Season)"
-            maxLength={100}
-            className={`${inputClass} flex-1`}
-            onKeyDown={(e) => { if (e.key === 'Enter') saveProfile(); }}
-          />
-          <button type="button" onClick={saveProfile} disabled={profileSaving || !newProfileName.trim()}
-            className={`${button} whitespace-nowrap`}>
-            {profileSaving ? 'Saving…' : 'Save Current'}
-          </button>
-        </div>
-
-        {/* Profile list */}
-        {profiles.length === 0 ? (
-          <p className="py-3 text-center text-sm text-adm-muted">No saved profiles yet. Type a name above and save.</p>
-        ) : (
-          <div className="space-y-2">
-            {profiles.map((p) => (
-              <div key={p.id} className={`flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 border transition-colors ${p.is_active ? 'border-adm-ok-line bg-adm-ok-bg' : 'border-adm-line bg-adm-surface'}`}>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    {p.is_active ? <span className="text-xs font-semibold text-adm-ok">● ACTIVE</span> : <span className="text-xs text-adm-faint">○</span>}
-                    <span className="truncate text-sm text-adm-text">{p.name}</span>
-                  </div>
-                  <p className="ml-5 text-xs text-adm-faint">{new Date(p.created_at).toLocaleDateString()}</p>
-                </div>
-                <div className="flex gap-1 flex-shrink-0">
-                  {!p.is_active && (
-                    <button type="button" onClick={() => activateProfile(p.id)}
-                      className={smallButton}>
-                      Activate
-                    </button>
-                  )}
-                  <button type="button"
-                    onClick={async () => {
-                      await fetch('/api/display/profiles', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: p.id, action: 'update' }) });
-                      fetchProfiles();
-                      setMessage({ type: 'success', text: `Profile "${p.name}" updated with current settings.` });
-                    }}
-                    className={smallButton} title="Update with current settings" aria-label={`Update ${p.name} with current settings`}>
-                    <Save className="h-3.5 w-3.5" aria-hidden="true" />
-                  </button>
-                  <button type="button" onClick={() => deleteProfile(p.id)}
-                    className={smallDangerButton} aria-label={`Delete ${p.name}`}>
-                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ─── Schedule (Plan B) ──────────────────────────────────────────────── */}
-      <div className={sectionClass}>
-        <div className="flex items-center justify-between">
-          <h3 className={sectionTitle}>Content Schedule</h3>
-          <button
-            type="button"
-            onClick={() => {
-              setRuleError('');
-              setRuleForm({ name: '', enabled: true, days: '0,1,2,3,4,5,6', startTime: '18:00', endTime: '22:00', actionType: 'slideshow', actionPayload: '{}', priority: 10 });
-            }}
-            className={smallButton}
-          >
-            + Add Rule
-          </button>
-        </div>
-        <p className="text-xs text-adm-muted">Automatically switch display modes or override themes at set times.</p>
-
-        {/* Rule list */}
-        {rules.length === 0 ? (
-          <p className="py-4 text-center text-sm text-adm-muted">No schedule rules yet.</p>
-        ) : (
-          <div className="space-y-2">
-            {rules.map((rule) => (
-              <div key={rule.id} className="flex items-center justify-between gap-3 rounded-lg border border-adm-line bg-adm-surface px-3 py-2">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${rule.enabled ? 'bg-adm-ok' : 'bg-adm-line'}`} />
-                    <span className="truncate text-sm font-medium text-adm-text">{rule.name}</span>
-                    <span className="rounded bg-adm-line px-1.5 py-0.5 text-xs capitalize text-adm-soft">{rule.actionType.replace('_', ' ')}</span>
-                  </div>
-                  <p className="ml-4 mt-0.5 text-xs text-adm-muted">
-                    {rule.startTime}–{rule.endTime} · Days {rule.days} · Priority {rule.priority}
-                  </p>
-                </div>
-                <div className="flex gap-1 flex-shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRuleError('');
-                      setRuleForm({
-                        id: rule.id, name: rule.name, enabled: rule.enabled,
-                        days: rule.days, startTime: rule.startTime, endTime: rule.endTime,
-                        actionType: rule.actionType, actionPayload: rule.actionPayload, priority: rule.priority,
-                      });
-                    }}
-                    className={smallButton}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await fetch(`/api/display/schedule?id=${rule.id}`, { method: 'DELETE' });
-                      fetchRules();
-                    }}
-                    className={smallDangerButton}
-                    aria-label={`Delete ${rule.name}`}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Add / Edit rule form */}
-        {ruleForm && (
-          <div className={subBox}>
-            <h4 className="text-sm font-semibold text-adm-text">{ruleForm.id ? 'Edit Rule' : 'New Rule'}</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass}>Rule name</label>
-                <input type="text" value={ruleForm.name} maxLength={100} className={inputClass}
-                  onChange={(e) => setRuleForm((f) => f ? { ...f, name: e.target.value } : f)} />
-              </div>
-              <div>
-                <label className={labelClass}>Action type</label>
-                <select value={ruleForm.actionType} className={selectClass}
-                  onChange={(e) => setRuleForm((f) => f ? { ...f, actionType: e.target.value as ScheduleActionType, actionPayload: '{}' } : f)}>
-                  <option value="slideshow">Show Google Slides</option>
-                  <option value="custom_display">Custom Display</option>
-                  <option value="theme">Override Theme</option>
-                  <option value="announcement">Announcement</option>
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>Start time (HH:MM)</label>
-                <input type="time" value={ruleForm.startTime} className={inputClass}
-                  onChange={(e) => setRuleForm((f) => f ? { ...f, startTime: e.target.value } : f)} />
-              </div>
-              <div>
-                <label className={labelClass}>End time (HH:MM)</label>
-                <input type="time" value={ruleForm.endTime} className={inputClass}
-                  onChange={(e) => setRuleForm((f) => f ? { ...f, endTime: e.target.value } : f)} />
-              </div>
-              <div>
-                <label className={labelClass}>Days (0=Sun … 6=Sat, comma-separated)</label>
-                <input type="text" value={ruleForm.days} maxLength={20} className={inputClass} placeholder="0,1,2,3,4,5,6"
-                  onChange={(e) => setRuleForm((f) => f ? { ...f, days: e.target.value } : f)} />
-              </div>
-              <div>
-                <label className={labelClass}>Priority (lower = higher priority)</label>
-                <input type="number" min={1} max={100} value={ruleForm.priority} className={inputClass}
-                  onChange={(e) => setRuleForm((f) => f ? { ...f, priority: Number(e.target.value) } : f)} />
-              </div>
-            </div>
-
-            {/* Action-specific payload fields */}
-            {ruleForm.actionType === 'slideshow' && (
-              <div>
-                <label className={labelClass}>Google Slides URL</label>
-                <input type="url" className={inputClass} placeholder="https://docs.google.com/presentation/…/pub?…"
-                  value={(() => { try { return JSON.parse(ruleForm.actionPayload).url ?? ''; } catch { return ''; } })()}
-                  onChange={(e) => setRuleForm((f) => f ? { ...f, actionPayload: JSON.stringify({ url: e.target.value }) } : f)} />
-              </div>
-            )}
-            {ruleForm.actionType === 'theme' && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelClass}>Color theme</label>
-                  <select className={selectClass}
-                    value={(() => { try { return JSON.parse(ruleForm.actionPayload).colorTheme ?? 'christmas'; } catch { return 'christmas'; } })()}
-                    onChange={(e) => setRuleForm((f) => { if (!f) return f; const p = (() => { try { return JSON.parse(f.actionPayload); } catch { return {}; } })(); return { ...f, actionPayload: JSON.stringify({ ...p, colorTheme: e.target.value }) }; })}>
-                    <option value="christmas">Christmas</option>
-                    <option value="winter">Winter</option>
-                    <option value="classic">Classic</option>
-                    <option value="custom">Custom</option>
-                  </select>
-                </div>
-              </div>
-            )}
-            {ruleForm.actionType === 'announcement' && (
-              <div>
-                <label className={labelClass}>Announcement text</label>
-                <input type="text" className={inputClass} maxLength={200}
-                  value={(() => { try { return JSON.parse(ruleForm.actionPayload).text ?? ''; } catch { return ''; } })()}
-                  onChange={(e) => setRuleForm((f) => f ? { ...f, actionPayload: JSON.stringify({ text: e.target.value }) } : f)} />
-              </div>
-            )}
-
-            <div className="flex items-center gap-3">
-              <input type="checkbox" id="rule-enabled" checked={ruleForm.enabled}
-                onChange={(e) => setRuleForm((f) => f ? { ...f, enabled: e.target.checked } : f)}
-                className={checkClass} />
-              <label htmlFor="rule-enabled" className="text-sm text-adm-text">Rule enabled</label>
-            </div>
-
-            {ruleError && <p className="text-xs text-adm-danger">{ruleError}</p>}
-
-            <div className="flex gap-2">
-              <button type="button"
-                className={accentButton}
-                onClick={async () => {
-                  setRuleError('');
-                  if (!ruleForm.name.trim()) { setRuleError('Rule name is required'); return; }
-                  const method = ruleForm.id ? 'PUT' : 'POST';
-                  const body = {
-                    ...(ruleForm.id ? { id: ruleForm.id } : {}),
-                    name: ruleForm.name, enabled: ruleForm.enabled, days: ruleForm.days,
-                    startTime: ruleForm.startTime, endTime: ruleForm.endTime,
-                    actionType: ruleForm.actionType, actionPayload: ruleForm.actionPayload,
-                    priority: ruleForm.priority,
-                  };
-                  const res = await fetch('/api/display/schedule', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-                  if (res.ok) { setRuleForm(null); fetchRules(); }
-                  else { const d = await res.json(); setRuleError(d.error ?? 'Save failed'); }
-                }}>
-                {ruleForm.id ? 'Save Changes' : 'Create Rule'}
-              </button>
-              <button type="button" onClick={() => setRuleForm(null)}
-                className={button}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Schedule rules (Plan B) */}
+      <DisplaySchedule rules={rules} onRefresh={fetchRules} />
 
       {/* ─── Zone Layout (Plan C) ──────────────────────────────────────────── */}
       <div className={sectionClass}>

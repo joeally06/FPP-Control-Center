@@ -4,8 +4,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { LayoutDashboard, LogIn, LogOut, Mail } from 'lucide-react';
 import { useVisitorTracking } from '@/hooks/useVisitorTracking';
+import { useFppProgress } from '@/hooks/useFppProgress';
+import { useAudienceCount } from '@/hooks/useAudienceCount';
 import { useTheme } from '@/lib/themes/theme-context';
 import ThemedJukeboxWrapper from '@/components/ThemedJukeboxWrapper';
 import LetterToSantaModal from '@/components/LetterToSantaModal';
@@ -17,11 +18,14 @@ import LocationPermissionModal, {
 } from '@/components/LocationPermissionModal';
 import LocationStatusBadge, { type LocationStatus } from '@/components/LocationStatusBadge';
 import Toast from '@/components/Toast';
-import { YouTubePlayer } from '@/components/YouTubePlayer';
 import JukeboxBanner from '@/components/JukeboxBanner';
 import AudioSyncPlayer from '@/components/AudioSyncPlayer';
 import Footer from '@/components/Footer';
 import RadioBar from '@/components/jukebox/RadioBar';
+import RadioBarAdminSlot from '@/components/jukebox/RadioBarAdminSlot';
+import { NowPlayingAdminActions, QueueItemAdminActions } from '@/components/jukebox/AdminQueueActions';
+import { SantaCard, TriviaCard } from '@/components/jukebox/ChristmasCards';
+import PastShowsSection from '@/components/jukebox/PastShowsSection';
 import ShowHero from '@/components/jukebox/ShowHero';
 import CourtesyCard from '@/components/jukebox/CourtesyCard';
 import NowPlayingCard, { type NowPlayingInfo } from '@/components/jukebox/NowPlayingCard';
@@ -33,76 +37,19 @@ import ShowSpecsCard from '@/components/jukebox/ShowSpecsCard';
 import { formatDateTime } from '@/lib/time-utils';
 import { getBrowserLocation, type UserLocation } from '@/lib/location-utils';
 import {
-  anchorElapsed,
-  estimateWaits,
-  msUntilSongChange,
-  nextPlaybackAnchor,
+  buildQueueView,
+  currentSongName,
+  playbackProgress,
   playlistDetailsLine,
-  sampleTimeFromAge,
   showStatus,
-  stripFseq,
   type CatalogSong,
-  type PlaybackAnchor,
   type PublicQueueItem,
   type ShowSpec,
   type VisitorPlaylist,
 } from '@/lib/jukebox-display';
 import { TIMING } from '@/lib/constants';
 
-interface CurrentlyPlaying {
-  id: number | null; // null when the song comes from the FPP schedule, not the request queue
-  sequence_name: string; // Original sequence name without .fseq extension
-  media_name?: string | null; // MP3/media filename for Spotify matching
-  requester_name?: string | null;
-  played_at?: string | null;
-  cached?: boolean; // Whether data is from cache or direct FPP query
-  cache_age_seconds?: number; // Age of cached data in seconds
-  playlist_name?: string; // Set while a visitor-requested playlist is playing
-}
-
-interface SequenceMetadata {
-  sequence_name: string; // Now contains sequence names without .fseq extension
-  song_title: string;
-  artist: string;
-  album: string;
-  release_year: number | null;
-  album_cover_url: string | null;
-  spotify_id: string | null;
-  spotify_url: string | null; // Spotify external URL for "Listen on Spotify" button
-  cached: boolean;
-}
-
-interface YouTubeVideo {
-  id: number;
-  title: string;
-  videoId: string;
-  description: string | null;
-  thumbnailUrl: string | null;
-  durationSeconds: number | null;
-  publishedAt: string;
-  theme?: string;
-  youtubeUrl?: string;
-  embedUrl?: string;
-}
-
-interface ScheduleStatus {
-  isActive: boolean;
-  currentPlaylist: string | null;
-  status: string;
-  message: string;
-  nextShowTime: string | null;
-  nextShowDate: string | null;
-  nextShowDay: string | null;
-  nextShowStartTime: string | null;
-  nextShowEndTime: string | null;
-  currentShowEndTime?: string | null;
-  countdown: string | null;
-  lastChecked: string;
-}
-
-const ADMIN_BUTTON = 'min-h-11 rounded-xl px-3 text-sm font-semibold text-white transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60';
-// Radio-bar buttons: a square icon on phones, the label from sm up, never wrapping
-const BAR_BUTTON = 'flex min-w-11 items-center justify-center whitespace-nowrap';
+import type { CurrentlyPlaying, ScheduleStatus, SequenceMetadata, YouTubeVideo } from '@/lib/jukebox-page-types';
 
 export default function JukeboxPage() {
   // Track visitor engagement
@@ -124,7 +71,6 @@ export default function JukeboxPage() {
   const [showTriviaModal, setShowTriviaModal] = useState(false);
   const isChristmasTheme = theme.id === 'christmas';
   const [youtubeVideos, setYoutubeVideos] = useState<YouTubeVideo[]>([]);
-  const [selectedYouTubeVideo, setSelectedYouTubeVideo] = useState<YouTubeVideo | null>(null);
   const [loadingYouTubeVideos, setLoadingYouTubeVideos] = useState(false);
   const [scheduleStatus, setScheduleStatus] = useState<ScheduleStatus | null>(null);
   const [loadingSchedule, setLoadingSchedule] = useState(true);
@@ -135,16 +81,15 @@ export default function JukeboxPage() {
   const [courtesyLines, setCourtesyLines] = useState<string[]>([]);
   const [showSpecs, setShowSpecs] = useState<ShowSpec[]>([]);
   const [audienceEnabled, setAudienceEnabled] = useState(false);
-  const [audienceCount, setAudienceCount] = useState<number | null>(null);
+  const audienceCount = useAudienceCount(audienceEnabled);
   const [listening, setListening] = useState(false);
   const playerRef = useRef<HTMLDivElement>(null);
   const [confirmSong, setConfirmSong] = useState<CatalogSong | null>(null);
   const [playlists, setPlaylists] = useState<VisitorPlaylist[]>([]);
   const [confirmPlaylist, setConfirmPlaylist] = useState<VisitorPlaylist | null>(null);
-  // Playback position reported by the FPP poller cache (/api/fpp/cached-status)
-  const [fppProgress, setFppProgress] = useState<PlaybackAnchor | null>(null);
+  // Playback position reported by the FPP poller cache; a new song refreshes the title and queue
   const fetchDataRef = useRef<(() => Promise<void>) | null>(null);
-  const [nowTick, setNowTick] = useState(() => Date.now());
+  const { fppProgress, nowTick } = useFppProgress(() => { fetchDataRef.current?.(); });
   const [locationError, setLocationError] = useState<string | null>(null);
   const [checkingLocation, setCheckingLocation] = useState(false);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -521,66 +466,10 @@ export default function JukeboxPage() {
     };
   }, [isAdmin]);
 
-  // Playback position for the progress bar - polled from the FPP poller cache while the page is visible
-  useEffect(() => {
-    let cancelled = false;
-    let songEndTimer: ReturnType<typeof setTimeout> | undefined;
-    let lastSequence: string | null | undefined; // undefined until the first answer
-    const poll = async () => {
-      if (document.visibilityState !== 'visible') return;
-      try {
-        const response = await fetch('/api/fpp/cached-status');
-        if (!response.ok || cancelled) return;
-        const data = await response.json();
-        const played = Number(data.seconds_played);
-        const remaining = Number(data.seconds_remaining);
-        const playing =
-          data.status === 'playing' &&
-          !data.cache?.is_stale &&
-          Number.isFinite(played) &&
-          Number.isFinite(remaining) &&
-          played + remaining > 0;
-        clearTimeout(songEndTimer);
-        if (playing) {
-          // Date the sample by when the poller took it (the cache refreshes less often than we poll),
-          // and keep counting smoothly unless FPP really moved
-          const now = Date.now();
-          const sample = { sequence: data.current_sequence || null, played, remaining, sampledAt: sampleTimeFromAge(now, data.cache?.age_ms) };
-          setFppProgress((current) => nextPlaybackAnchor(current, sample, now));
-          // Look again just after this song ends instead of waiting for the next regular poll
-          songEndTimer = setTimeout(poll, msUntilSongChange(sample, now));
-        } else {
-          setFppProgress(null);
-        }
-
-        // A different song: refresh the title and queue now rather than on their next 5 s poll
-        const sequence = playing ? data.current_sequence || null : null;
-        if (lastSequence !== undefined && sequence !== lastSequence) fetchDataRef.current?.();
-        lastSequence = sequence;
-      } catch {
-        // Keep the last known position; the next poll will correct it
-      }
-    };
-    poll();
-    const interval = setInterval(poll, 3000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-      clearTimeout(songEndTimer);
-    };
-  }, []);
-
   // Latest fetchData for the song-change refresh above, which lives in a mount-once effect
   useEffect(() => {
     fetchDataRef.current = fetchData;
   });
-
-  // Advance the progress bar smoothly between polls
-  useEffect(() => {
-    if (!fppProgress) return;
-    const interval = setInterval(() => setNowTick(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, [fppProgress]);
 
   // Bring the player into view when it opens (it sits under Now Playing, which may be below the fold)
   useEffect(() => {
@@ -588,29 +477,6 @@ export default function JukeboxPage() {
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     playerRef.current?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest' });
   }, [listening]);
-
-  // "Online now" counter - only when the admin has switched it on; each poll also counts this visitor
-  useEffect(() => {
-    if (!audienceEnabled) return;
-    let cancelled = false;
-    const poll = async () => {
-      if (document.visibilityState !== 'visible') return;
-      try {
-        const response = await fetch('/api/jukebox/audience');
-        if (!response.ok || cancelled) return;
-        const data = await response.json();
-        setAudienceCount(data.enabled && typeof data.count === 'number' ? data.count : null);
-      } catch {
-        // Keep the last count; the next poll will correct it
-      }
-    };
-    poll();
-    const interval = setInterval(poll, 20000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [audienceEnabled]);
 
   const fetchData = async () => {
     try {
@@ -941,86 +807,14 @@ export default function JukeboxPage() {
   // Determine if interactive features should be shown
   const showInteractiveFeatures = scheduleStatus?.isActive || isAdmin;
 
-  // Format time in both standard and military format
-  const formatTime = (timeStr: string) => {
-    // timeStr is in HH:MM:SS or HH:MM format
-    const parts = timeStr.split(':');
-    const hours = parseInt(parts[0]);
-    const minutes = parts[1];
-
-    // Convert to 12-hour format
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const hours12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-    const standardTime = `${hours12}:${minutes} ${period}`;
-
-    // Military time (already in 24-hour format)
-    const militaryTime = `${String(hours).padStart(2, '0')}:${minutes}`;
-
-    return `${standardTime} (${militaryTime})`;
-  };
-
-  // Format next show time
-  const formatNextShowTime = (isoString: string | null) => {
-    if (!isoString) return null;
-    const date = new Date(isoString);
-    const now = new Date();
-
-    // Calculate time until show
-    const msUntil = date.getTime() - now.getTime();
-    const hoursUntil = Math.floor(msUntil / (1000 * 60 * 60));
-    const minutesUntil = Math.floor((msUntil % (1000 * 60 * 60)) / (1000 * 60));
-
-    const formattedDate = date.toLocaleString('en-US', {
-      weekday: 'long',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-
-    // Add countdown if less than 24 hours away
-    if (hoursUntil < 24 && hoursUntil >= 0) {
-      if (hoursUntil > 0) {
-        return `${formattedDate} (in ${hoursUntil}h ${minutesUntil}m)`;
-      } else if (minutesUntil > 0) {
-        return `${formattedDate} (in ${minutesUntil} minutes!)`;
-      } else {
-        return `${formattedDate} (Starting soon!)`;
-      }
-    }
-
-    return formattedDate;
-  };
-
   // ── Derived display state ──────────────────────────────────────────────────
   // Progress applies only when FPP is playing the song the card shows
-  const progressMatchesCard =
-    fppProgress !== null &&
-    (!currentlyPlaying || stripFseq(fppProgress.sequence) === stripFseq(currentlyPlaying.sequence_name));
-  const progress = fppProgress && progressMatchesCard
-    ? (() => {
-        const total = fppProgress.played + fppProgress.remaining;
-        return { elapsed: anchorElapsed(fppProgress, nowTick), total };
-      })()
-    : null;
+  const progress = playbackProgress(fppProgress, currentlyPlaying ? currentlyPlaying.sequence_name : null, nowTick);
   const currentRemainingSec = progress ? Math.max(0, progress.total - progress.elapsed) : null;
-  const currentSequenceName = currentlyPlaying?.sequence_name ?? (fppProgress?.sequence ? stripFseq(fppProgress.sequence) : null);
+  const currentSequenceName = currentSongName(currentlyPlaying?.sequence_name, fppProgress);
 
-  // Queue titles and wait estimates from the catalog (lengths are known after the admin refreshes the song cache)
-  const songByName = new Map(availableSongs.map((song) => [song.name, song]));
-  const playlistByName = new Map(playlists.map((playlist) => [playlist.name, playlist]));
-  const queueSongs = queue.map((item) => (item.request_kind === 'playlist' ? undefined : songByName.get(stripFseq(item.sequence_name))));
-  const queueTitles = queue.map((item, i) =>
-    item.request_kind === 'playlist' ? `${item.sequence_name} (playlist)` : queueSongs[i]?.title || item.sequence_name
-  );
-  const queueDurations = queue.map((item, i) =>
-    item.request_kind === 'playlist' ? playlistByName.get(item.sequence_name)?.durationSeconds ?? null : queueSongs[i]?.durationSeconds ?? null
-  );
-  const queuedPlaylists = queue.filter((item) => item.request_kind === 'playlist').map((item) => item.sequence_name);
-  const queueWaits = estimateWaits(currentRemainingSec, queueDurations);
-  // A new request joins the end of the queue: its wait is one step past the last queued song
-  const newRequestWait = estimateWaits(currentRemainingSec, [...queueDurations, null])[queue.length];
+  // Queue titles and wait estimates from the catalog
+  const queueView = buildQueueView(queue, availableSongs, playlists, currentRemainingSec);
 
   const nowPlayingInfo: NowPlayingInfo | null = currentlyPlaying
     ? {
@@ -1056,7 +850,7 @@ export default function JukeboxPage() {
           song={confirmSong}
           position={queue.length + 1}
           currentRemainingSec={currentRemainingSec}
-          waitSec={newRequestWait}
+          waitSec={queueView.newRequestWait}
           requesterName={requesterName}
           onRequesterNameChange={setRequesterName}
           onConfirm={confirmRequest}
@@ -1076,7 +870,7 @@ export default function JukeboxPage() {
           heading="Request this playlist?"
           position={queue.length + 1}
           currentRemainingSec={currentRemainingSec}
-          waitSec={newRequestWait}
+          waitSec={queueView.newRequestWait}
           requesterName={requesterName}
           onRequesterNameChange={setRequesterName}
           onConfirm={confirmPlaylistRequest}
@@ -1098,32 +892,14 @@ export default function JukeboxPage() {
         fmFrequency={fmFrequency}
         isPlaying={Boolean(currentlyPlaying || fppProgress)}
         adminSlot={
-          // Icon-only on phones so the bar fits on one line; words from the sm breakpoint up
-          !session ? (
-            <button type="button" onClick={() => signIn()} aria-label="Admin sign in" className={`${ADMIN_BUTTON} ${BAR_BUTTON} bg-white/10 hover:bg-white/20`}>
-              <LogIn className="h-4 w-4 sm:hidden" aria-hidden="true" />
-              <span className="hidden sm:inline">Admin</span>
-            </button>
-          ) : (
-            <>
-              {isAdmin && (
-                <button type="button" onClick={() => router.push('/')} aria-label="Dashboard" className={`${ADMIN_BUTTON} ${BAR_BUTTON} bg-blue-600 hover:bg-blue-500`}>
-                  <LayoutDashboard className="h-4 w-4 sm:hidden" aria-hidden="true" />
-                  <span className="hidden sm:inline">Dashboard</span>
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => signOut({ callbackUrl: '/jukebox' })}
-                aria-label="Log out"
-                title={session.user?.name ? `Signed in as ${session.user.name}` : undefined}
-                className={`${ADMIN_BUTTON} ${BAR_BUTTON} bg-white/10 hover:bg-white/20`}
-              >
-                <LogOut className="h-4 w-4 sm:hidden" aria-hidden="true" />
-                <span className="hidden sm:inline">Log out</span>
-              </button>
-            </>
-          )
+          <RadioBarAdminSlot
+            signedIn={Boolean(session)}
+            isAdmin={isAdmin}
+            userName={session?.user?.name}
+            onSignIn={() => signIn()}
+            onOpenDashboard={() => router.push('/')}
+            onSignOut={() => signOut({ callbackUrl: '/jukebox' })}
+          />
         }
       />
 
@@ -1165,22 +941,10 @@ export default function JukeboxPage() {
                 progress={progress}
                 adminActions={
                   isAdmin && currentlyPlaying?.id ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => updateStatus(currentlyPlaying.id as number, 'completed')}
-                        className={`${ADMIN_BUTTON} bg-green-600/90 hover:bg-green-600`}
-                      >
-                        ✓ Mark complete
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => updateStatus(currentlyPlaying.id as number, 'skipped')}
-                        className={`${ADMIN_BUTTON} bg-red-600/90 hover:bg-red-600`}
-                      >
-                        ⏭️ Skip
-                      </button>
-                    </>
+                    <NowPlayingAdminActions
+                      onComplete={() => updateStatus(currentlyPlaying.id as number, 'completed')}
+                      onSkip={() => updateStatus(currentlyPlaying.id as number, 'skipped')}
+                    />
                   ) : undefined
                 }
               />
@@ -1196,27 +960,15 @@ export default function JukeboxPage() {
             {showInteractiveFeatures && (
               <UpNextList
                 items={queue}
-                titles={queueTitles}
-                waits={queueWaits}
+                titles={queueView.titles}
+                waits={queueView.waits}
                 renderAdminActions={
                   isAdmin
                     ? (item) => (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => updateStatus(item.id, 'playing')}
-                            className={`${ADMIN_BUTTON} bg-blue-600/90 hover:bg-blue-600`}
-                          >
-                            ▶️ Play now
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateStatus(item.id, 'skipped')}
-                            className={`${ADMIN_BUTTON} bg-red-600/90 hover:bg-red-600`}
-                          >
-                            ✕ Remove
-                          </button>
-                        </>
+                        <QueueItemAdminActions
+                          onPlayNow={() => updateStatus(item.id, 'playing')}
+                          onRemove={() => updateStatus(item.id, 'skipped')}
+                        />
                       )
                     : undefined
                 }
@@ -1231,7 +983,7 @@ export default function JukeboxPage() {
                 loading={loadingSequences}
                 message={checkingLocation ? '📍 Getting your location…' : message}
                 currentSequence={currentSequenceName}
-                queuedNames={queue.filter((item) => item.request_kind !== 'playlist').map((item) => item.sequence_name)}
+                queuedNames={queueView.queuedSongNames}
                 requestsRemaining={requestsRemaining}
                 rateLimit={jukeboxRateLimit}
                 busy={loading || checkingLocation}
@@ -1255,51 +1007,17 @@ export default function JukeboxPage() {
                 <PlaylistPicker
                   playlists={playlists}
                   playingPlaylist={currentlyPlaying?.playlist_name ?? null}
-                  queuedPlaylists={queuedPlaylists}
+                  queuedPlaylists={queueView.queuedPlaylists}
                   requestsRemaining={requestsRemaining}
                   busy={loading || checkingLocation}
                   onRequest={setConfirmPlaylist}
                 />
               )}
               {/* Write to Santa (Christmas theme only) */}
-              {isChristmasTheme && (
-                <section aria-labelledby="santa-heading" className="sp-panel sp-santa grid gap-3.5">
-                  <div className="flex items-start gap-3.5">
-                    <Mail className="sp-title mt-1 h-10 w-10 shrink-0" aria-hidden="true" />
-                    <div>
-                      <span className="sp-eyebrow">North Pole mail</span>
-                      <h2 id="santa-heading" className="sp-display sp-h2">Write a letter to Santa</h2>
-                      <p className="sp-muted mt-1 text-sm">
-                        Send your Christmas wishes to the North Pole and get a reply from Santa himself.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowSantaModal(true)}
-                    className="sp-btn-accent min-h-12 rounded-full px-6 font-extrabold transition"
-                  >
-                    Write to Santa
-                  </button>
-                </section>
-              )}
+              {isChristmasTheme && <SantaCard onOpen={() => setShowSantaModal(true)} />}
 
               {/* The trivia game is Christmas trivia */}
-              {isChristmasTheme && (
-                <section aria-labelledby="trivia-heading" className="sp-panel grid gap-3.5">
-                  <div>
-                    <span className="sp-eyebrow">Play along</span>
-                    <h2 id="trivia-heading" className="sp-display sp-h2">Christmas trivia</h2>
-                    <p className="sp-muted mt-1 text-sm">Test your holiday know-how while the lights play.</p>
-                  </div>
-                  <button
-                    onClick={() => setShowTriviaModal(true)}
-                    className="sp-btn-outline inline-flex min-h-12 items-center justify-center rounded-full px-6 font-extrabold transition"
-                  >
-                    Play Christmas trivia
-                  </button>
-                </section>
-              )}
+              {isChristmasTheme && <TriviaCard onOpen={() => setShowTriviaModal(true)} />}
 
               <CourtesyCard lines={courtesyLines} />
 
@@ -1308,58 +1026,8 @@ export default function JukeboxPage() {
             </div>
           </div>
 
-          {/* YouTube Videos */}
-          {youtubeVideos.length > 0 && (
-            <section aria-labelledby="videos-heading" className="sp-panel">
-              <span className="sp-eyebrow">From past seasons</span>
-              <h2 id="videos-heading" className="sp-display sp-h2">Watch past light shows</h2>
-
-              {/* YouTube Player */}
-              {selectedYouTubeVideo && (
-                <div className="mt-4 space-y-3">
-                  <div className="aspect-video overflow-hidden rounded-xl bg-black/60">
-                    <YouTubePlayer
-                      videoId={selectedYouTubeVideo.videoId}
-                      width="100%"
-                      height="100%"
-                    />
-                  </div>
-                  <div className="sp-row p-4">
-                    <h3 className="font-semibold">{selectedYouTubeVideo.title}</h3>
-                    {selectedYouTubeVideo.description && (
-                      <p className="sp-muted mt-1 text-sm">{selectedYouTubeVideo.description}</p>
-                    )}
-                    <p className="sp-muted mt-1 text-xs">
-                      Published {formatDateTime(selectedYouTubeVideo.publishedAt, 'medium')}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Video Thumbnails Grid */}
-              <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-                {youtubeVideos.map((video) => (
-                  <button
-                    type="button"
-                    key={video.id}
-                    onClick={() => setSelectedYouTubeVideo(video)}
-                    aria-pressed={selectedYouTubeVideo?.id === video.id}
-                    className={`overflow-hidden rounded-xl border-2 text-left transition ${
-                      selectedYouTubeVideo?.id === video.id ? 'border-white shadow-lg' : 'border-white/15 hover:border-white/40'
-                    }`}
-                  >
-                    {video.thumbnailUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- remote YouTube thumbnail
-                      <img src={video.thumbnailUrl} alt="" className="h-24 w-full object-cover" />
-                    ) : (
-                      <div className="flex h-24 w-full items-center justify-center bg-white/10 text-2xl" aria-hidden="true">🎬</div>
-                    )}
-                    <span className="block truncate bg-black/40 p-2 text-xs font-medium text-white">{video.title}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
-          )}
+          {/* Past light show videos (the section hides itself when there are none) */}
+          <PastShowsSection videos={youtubeVideos} />
         </div>
       </div>
 

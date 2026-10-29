@@ -344,3 +344,51 @@ export function estimateWaits(currentRemainingSec: number | null, durations: (nu
   }
   return waits;
 }
+
+/**
+ * What the "Up next" list and the request confirmation need to know about the queue: titles and lengths
+ * from the catalog (lengths are known after the admin refreshes the song cache) and the wait estimates.
+ */
+export function buildQueueView(
+  queue: PublicQueueItem[],
+  songs: CatalogSong[],
+  playlists: VisitorPlaylist[],
+  currentRemainingSec: number | null
+) {
+  const songByName = new Map(songs.map((song) => [song.name, song]));
+  const playlistByName = new Map(playlists.map((playlist) => [playlist.name, playlist]));
+  const queueSongs = queue.map((item) => (item.request_kind === 'playlist' ? undefined : songByName.get(stripFseq(item.sequence_name))));
+  const titles = queue.map((item, i) =>
+    item.request_kind === 'playlist' ? `${item.sequence_name} (playlist)` : queueSongs[i]?.title || item.sequence_name
+  );
+  const durations = queue.map((item, i) =>
+    item.request_kind === 'playlist' ? playlistByName.get(item.sequence_name)?.durationSeconds ?? null : queueSongs[i]?.durationSeconds ?? null
+  );
+  return {
+    titles,
+    waits: estimateWaits(currentRemainingSec, durations),
+    // A new request joins the end of the queue: its wait is one step past the last queued song
+    newRequestWait: estimateWaits(currentRemainingSec, [...durations, null])[queue.length],
+    queuedPlaylists: queue.filter((item) => item.request_kind === 'playlist').map((item) => item.sequence_name),
+    queuedSongNames: queue.filter((item) => item.request_kind !== 'playlist').map((item) => item.sequence_name),
+  };
+}
+
+/**
+ * The progress bar's position, or null when there is nothing to show. It applies only when FPP is playing
+ * the song the card shows (`cardSequence` is null while the card shows no song).
+ */
+export function playbackProgress(
+  anchor: PlaybackAnchor | null,
+  cardSequence: string | null,
+  now: number
+): { elapsed: number; total: number } | null {
+  if (!anchor) return null;
+  if (cardSequence !== null && stripFseq(anchor.sequence) !== stripFseq(cardSequence)) return null;
+  return { elapsed: anchorElapsed(anchor, now), total: anchor.played + anchor.remaining };
+}
+
+/** The song the page treats as playing: the queue's, else the one FPP is playing on its own schedule. */
+export function currentSongName(queueSequence: string | null | undefined, anchor: PlaybackAnchor | null): string | null {
+  return queueSequence ?? (anchor?.sequence ? stripFseq(anchor.sequence) : null);
+}

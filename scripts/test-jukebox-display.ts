@@ -22,7 +22,12 @@ import {
   anchorElapsed,
   nextPlaybackAnchor,
   msUntilSongChange,
+  buildQueueView,
+  playbackProgress,
+  currentSongName,
   type PlaybackAnchor,
+  type PublicQueueItem,
+  type VisitorPlaylist,
   type CatalogSong,
 } from '../lib/jukebox-display';
 
@@ -351,6 +356,50 @@ const SONGS: CatalogSong[] = [
   assert.strictEqual(msUntilSongChange(a, 147_000), 4_500, 'counts from the sample, not from now');
   assert.strictEqual(msUntilSongChange(a, 200_000), 500, 'already past the end → look again shortly');
   print('Test 19 OK');
+})();
+
+// Test 20: buildQueueView - titles, waits and the new request's wait
+(() => {
+  print('Test 20: buildQueueView');
+  const item = (id: number, name: string, kind: 'song' | 'playlist' = 'song'): PublicQueueItem => ({
+    id, sequence_name: name, media_name: null, requester_name: null, status: 'pending', priority: 0,
+    created_at: '2026-10-28 20:00:00', played_at: null, request_kind: kind,
+  });
+  const songs: CatalogSong[] = [
+    { name: 'Carol', title: 'Carol of the Bells', artist: null, durationSeconds: 120, category: null },
+    { name: 'Jingle', title: null, artist: null, durationSeconds: null, category: null },
+  ];
+  const playlists: VisitorPlaylist[] = [{ name: 'Kids Mix', itemCount: 5, durationSeconds: 600 }];
+  const queue = [item(1, 'Carol'), item(2, 'Kids Mix', 'playlist'), item(3, 'Jingle'), item(4, 'Unknown Song')];
+
+  const view = buildQueueView(queue, songs, playlists, 30);
+  assert.deepStrictEqual(view.titles, ['Carol of the Bells', 'Kids Mix (playlist)', 'Jingle', 'Unknown Song'], 'catalog title, playlist label, name when the catalog has no title or no song');
+  assert.deepStrictEqual(view.waits, [30, 150, 750, null], 'each wait adds the lengths ahead; unknown length → unknown from there');
+  assert.strictEqual(view.newRequestWait, null, 'an unknown length ahead makes the new request unknown too');
+  assert.deepStrictEqual(view.queuedPlaylists, ['Kids Mix']);
+  assert.deepStrictEqual(view.queuedSongNames, ['Carol', 'Jingle', 'Unknown Song']);
+
+  const known = buildQueueView([item(1, 'Carol'), item(2, 'Kids Mix', 'playlist')], songs, playlists, 30);
+  assert.strictEqual(known.newRequestWait, 750, 'wait for a new request = current + every length ahead');
+  assert.strictEqual(buildQueueView([], songs, playlists, 45).newRequestWait, 45, 'empty queue → wait for the current song');
+  assert.strictEqual(buildQueueView([], songs, playlists, null).newRequestWait, null, 'nothing known');
+  assert.strictEqual(buildQueueView([item(1, 'Carol.fseq')], songs, playlists, 0).titles[0], 'Carol of the Bells', 'a .fseq name still finds its song');
+  print('Test 20 OK');
+})();
+
+// Test 21: playbackProgress and currentSongName
+(() => {
+  print('Test 21: playbackProgress, currentSongName');
+  const a: PlaybackAnchor = { sequence: 'Carol.fseq', played: 60, remaining: 140, sampledAt: 10_000 };
+  assert.strictEqual(playbackProgress(null, 'Carol', 20_000), null, 'no FPP sample → no bar');
+  assert.deepStrictEqual(playbackProgress(a, 'Carol', 20_000), { elapsed: 70, total: 200 }, 'matching card (.fseq ignored)');
+  assert.deepStrictEqual(playbackProgress(a, null, 20_000), { elapsed: 70, total: 200 }, 'card shows no song → still shows FPP');
+  assert.strictEqual(playbackProgress(a, 'Jingle', 20_000), null, 'FPP is on another song than the card → no bar');
+  assert.strictEqual(currentSongName('Carol', a), 'Carol', 'the queue wins');
+  assert.strictEqual(currentSongName(undefined, a), 'Carol', 'else what FPP plays, without .fseq');
+  assert.strictEqual(currentSongName(null, { ...a, sequence: null }), null);
+  assert.strictEqual(currentSongName(undefined, null), null);
+  print('Test 21 OK');
 })();
 
 print('All tests passed.');
