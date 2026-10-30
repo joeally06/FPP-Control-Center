@@ -236,6 +236,25 @@ fi
 log "📦 Phase 5: Installing dependencies..."
 write_status "INSTALLING"
 
+# Refuse to install when package-lock.json and package.json disagree: npm install would rewrite the
+# lockfile and install versions nobody tested. Nothing is installed or built yet, so a git reset is enough.
+if node scripts/check-lockfile.js >> "$LOG_FILE" 2>&1; then
+    log "✅ Lockfile matches package.json"
+else
+    log "❌ Lockfile check failed - not installing (the reason is in the lines above)"
+
+    log "🔄 Attempting rollback..."
+    git reset --hard "$LOCAL_COMMIT" >> "$LOG_FILE" 2>&1
+
+    # Phase 3 stopped the poller; the app was never stopped and still runs the old code
+    if [ -n "$PM2_BIN" ]; then
+        timeout 30 "$PM2_BIN" start fpp-poller >> "$LOG_FILE" 2>&1 || log "⚠️  Could not restart fpp-poller - run: pm2 start fpp-poller"
+    fi
+
+    write_status "FAILED"
+    exit 1
+fi
+
 # Install all dependencies including devDependencies (needed for TypeScript build)
 if npm install --include=dev >> "$LOG_FILE" 2>&1; then
     log "✅ Dependencies installed"

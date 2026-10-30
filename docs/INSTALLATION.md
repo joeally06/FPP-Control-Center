@@ -1292,6 +1292,13 @@ Review the listed files with `git diff`, then commit them or discard them
 (`git checkout -- <file>`) and run the update again. Audio mappings (`data/audio-mapping.json`)
 and uploaded display images (`public/uploads/`) are not in git and are never touched by updates.
 
+**If the log says "Lockfile check failed":**
+
+The updater stopped before installing anything, went back to the previous version and started the background poller again, so the site keeps running as before. (If `logs/update.log` says it could not restart `fpp-poller`, run `pm2 start fpp-poller`.) The lines just above that message give the reason:
+
+- **"package-lock.json is out of sync with package.json"**: that release has a dependency list (`package.json`) that does not match its lockfile (`package-lock.json`). Do not run `npm install` on the show machine to get past it; wait for a corrected release.
+- **"npm could not verify package-lock.json"**: the problem is on this machine (for example `npm` is not on the PATH of the update process). Fix that and run the update again.
+
 **If update is stuck:**
 ```bash
 # Check if daemon is running

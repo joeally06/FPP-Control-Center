@@ -189,6 +189,21 @@ git pull origin master --quiet
 find scripts/ -name "*.sh" -type f -exec chmod +x {} \; 2>/dev/null
 chmod +x update.sh 2>/dev/null
 
+# Refuse to install when package-lock.json and package.json disagree: npm install would rewrite the
+# lockfile and install versions nobody tested. Undo the pull and start the server again.
+if ! node scripts/check-lockfile.js; then
+    log "❌ Lockfile check failed - update cancelled, nothing was installed (the reason is printed above)"
+    git reset --hard "$LOCAL" > /dev/null
+    if [ "$STASHED" = true ]; then
+        git stash pop --quiet || true
+    fi
+    if [ "$PM2_WAS_RUNNING" = true ]; then
+        pm2 start ecosystem.config.js
+    fi
+    update_status "FAILED"
+    exit 1
+fi
+
 # Install/update dependencies
 log "📦 Updating dependencies..."
 update_status "INSTALLING"

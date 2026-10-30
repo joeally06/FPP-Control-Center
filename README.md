@@ -66,6 +66,7 @@ FPP Control Center is a **complete web-based control panel** for your Falcon Pla
 - **Zero Downtime** - Survives service restarts
 - **Automatic Backups** - Database saved before every update
 - **Rollback Protection** - Automatically reverts failed updates
+- **Lockfile Check** - Refuses to install when `package-lock.json` does not match `package.json`
 - **Manual Fallback** - SSH command: `./scripts/run-update.sh`
 
 ---
