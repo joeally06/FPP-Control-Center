@@ -81,7 +81,7 @@
     "baseline-browser-mapping": "^2.9.3",
     "concurrently": "^9.2.1",
     "esbuild-register": "^3.6.0",
-    "eslint": "^9.39.5",
+    "eslint": "^10.13.0",
     "eslint-config-next": "16.4.3",
     "node-fetch": "^2.7.0",
     "tailwindcss": "^4.3.3",
