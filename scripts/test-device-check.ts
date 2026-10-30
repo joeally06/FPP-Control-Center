@@ -69,7 +69,8 @@ const HOUR = 60 * 60 * 1000;
     print('Test 1: alertDue');
     const now = clock;
     assert.strictEqual(alertDue({ consecutiveFailures: 1, lastNotified: null, alertsActive: false, now }), false);
-    assert.strictEqual(alertDue({ consecutiveFailures: 1, lastNotified: new Date(now).toISOString(), alertsActive: true, now }), true);
+    assert.strictEqual(alertDue({ consecutiveFailures: 1, lastNotified: null, alertsActive: true, now }), false, 'one missed check is not an alert');
+    assert.strictEqual(alertDue({ consecutiveFailures: 2, lastNotified: null, alertsActive: true, now }), true);
     assert.strictEqual(alertDue({ consecutiveFailures: 5, lastNotified: null, alertsActive: true, now }), true);
     assert.strictEqual(alertDue({ consecutiveFailures: 5, lastNotified: new Date(now - HOUR / 2).toISOString(), alertsActive: true, now }), false);
     assert.strictEqual(alertDue({ consecutiveFailures: 5, lastNotified: new Date(now - 2 * HOUR).toISOString(), alertsActive: true, now }), true);
@@ -84,7 +85,7 @@ const HOUR = 60 * 60 * 1000;
     assert.strictEqual(emails.length, 0);
     print('Test 2 OK');
 
-    // Test 3: still down when alert hours start - one email (the old rule never sent it)
+    // Test 3: still down (2nd failed check) when alert hours start - one email
     print('Test 3: alert when alert hours start');
     clock += 5 * 60 * 1000;
     await run(true);
@@ -121,8 +122,10 @@ const HOUR = 60 * 60 * 1000;
     emailFails = true;
     clock += 2 * HOUR;
     await run(true);
+    assert.strictEqual(emails.length, 2, 'first failed check sends nothing');
+    await run(true);
     assert.strictEqual(status().is_online, 0);
-    assert.strictEqual(status().consecutive_failures, 1);
+    assert.strictEqual(status().consecutive_failures, 2);
     assert.strictEqual(status().last_notified, lastNotified);
     print('Test 5 OK');
 

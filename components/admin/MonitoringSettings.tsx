@@ -112,7 +112,7 @@ export default function MonitoringSettings({ onSaved }: { onSaved?: () => void }
     <div className={`${card} max-w-3xl`}>
       <AdminH2 className="mb-1">Device Monitoring Settings</AdminH2>
       <AdminTextMuted>
-        Enabled devices are checked every 5 minutes, all day. Email alerts go out only during the alert schedule below.
+        Enabled devices are checked every 3 minutes, all day. Email alerts go out only during the alert schedule below.
       </AdminTextMuted>
 
       {message && (
@@ -130,7 +130,7 @@ export default function MonitoringSettings({ onSaved }: { onSaved?: () => void }
           <div>
             <p className="text-sm font-medium text-adm-text">Enable Device Monitoring</p>
             <p className="mt-0.5 text-[13px] text-adm-muted">
-              Check devices every 5 minutes and email an alert when one goes offline during the alert schedule
+              Check devices every 3 minutes and email an alert when one goes offline during the alert schedule
             </p>
           </div>
         </label>

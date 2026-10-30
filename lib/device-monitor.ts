@@ -1,6 +1,6 @@
 /**
  * Device Monitoring Scheduler
- * Automatically pings devices every 5 minutes while monitoring is enabled;
+ * Automatically pings devices every 3 minutes while monitoring is enabled;
  * alert emails only go out during the monitoring schedule (lib/device-check.ts)
  */
 
@@ -8,7 +8,7 @@ import db from './database';
 import { checkAllDevices } from './device-check';
 import { getSchedule, isMonitoringActive } from './monitoring-schedule';
 
-const CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
+const CHECK_INTERVAL = 3 * 60 * 1000; // 3 minutes in milliseconds
 
 let monitorInterval: NodeJS.Timeout | null = null;
 

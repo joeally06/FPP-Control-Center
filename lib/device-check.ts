@@ -1,5 +1,5 @@
 // Ping the admin's devices, record the result in device_status and email an alert when one is down.
-// Used by the 5-minute background monitor (lib/device-monitor.ts) and the Check button
+// Used by the 3-minute background monitor (lib/device-monitor.ts) and the Check button
 // (GET /api/devices/check). Devices are checked at any time; alerts only go out while
 // alertsActive (during the monitoring schedule).
 
@@ -44,30 +44,32 @@ export interface DeviceCheckOptions {
   now?: () => number;
 }
 
-// Ping a device using platform-specific ping command
+/** Pings per check; one reply means online (a single dropped packet is common on Wi-Fi). */
+const PING_ATTEMPTS = 3;
+
+/** Failed checks in a row before an email goes out. */
+const FAILURES_BEFORE_ALERT = 2;
+
+// Ping a device using platform-specific ping command, retrying before giving up
 export async function pingDevice(ip: string): Promise<boolean> {
-  try {
-    const isWindows = process.platform === 'win32';
+  const isWindows = process.platform === 'win32';
+  // Windows: -n 1 -w 2000 (1 packet, 2 second timeout); Linux/Mac: -c 1 -W 2
+  const args = isWindows ? ['-n', '1', '-w', '2000', ip] : ['-c', '1', '-W', '2', ip];
 
-    if (isWindows) {
-      // Windows: ping -n 1 -w 1000 (1 packet, 1 second timeout)
-      await execFileAsync('ping', ['-n', '1', '-w', '1000', ip]);
-    } else {
-      // Linux/Mac: ping -c 1 -W 1 (1 packet, 1 second timeout)
-      await execFileAsync('ping', ['-c', '1', '-W', '1', ip]);
+  for (let attempt = 1; attempt <= PING_ATTEMPTS; attempt++) {
+    try {
+      await execFileAsync('ping', args);
+      return true; // Success - device is online
+    } catch (error: unknown) {
+      console.log(`[Device Monitor] Ping ${attempt}/${PING_ATTEMPTS} failed for ${ip}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-
-    return true; // Success - device is online
-  } catch (error: unknown) {
-    // Log ping failure for debugging
-    console.log(`[Device Monitor] Ping failed for ${ip}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    return false; // Failed - device is offline
   }
+  return false; // Every attempt failed - device is offline
 }
 
 /**
- * Whether an offline device should trigger an email now: only during alert hours, on its first
- * failure, when it was never alerted (it went down outside alert hours), or an hour after the last alert.
+ * Whether an offline device should trigger an email now: only during alert hours, after
+ * FAILURES_BEFORE_ALERT failed checks in a row, and then once, or an hour after the last alert.
  */
 export function alertDue(input: {
   consecutiveFailures: number;
@@ -76,7 +78,8 @@ export function alertDue(input: {
   now: number;
 }): boolean {
   if (!input.alertsActive) return false;
-  if (input.consecutiveFailures === 1 || !input.lastNotified) return true;
+  if (input.consecutiveFailures < FAILURES_BEFORE_ALERT) return false;
+  if (!input.lastNotified) return true;
   return new Date(input.lastNotified).getTime() < input.now - REALERT_INTERVAL_MS;
 }
 
