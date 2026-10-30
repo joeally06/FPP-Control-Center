@@ -142,8 +142,8 @@ Google OAuth provides secure admin authentication.
    **For Local Network:**
    ```
    http://localhost:3000/api/auth/callback/google
-   http://YOUR_IP:3000/api/auth/callback/google
    ```
+   Google only accepts `http://` redirect URIs for `localhost`, not for an IP address, so sign in as admin from the server itself or use the public setup below.
    
    **For Public (Cloudflare Tunnel):**
    ```

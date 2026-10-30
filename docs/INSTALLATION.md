@@ -301,6 +301,10 @@ chmod +x setup.sh
 ./setup.sh
 ```
 
+> `./install.sh` does the same thing; it only runs `setup.sh`. The wizard installs the exact dependency versions in `package-lock.json` (`npm ci`) and saves your settings to `.env.local` readable only by its owner. Values with special characters such as `$`, `#`, `&` or quotes are quoted for you.
+>
+> **Admin sign-in with Google works from `localhost` or over https on a public domain** (the Cloudflare Tunnel option). Google does not accept `http://` redirect URIs for anything else, such as `http://192.168.1.50:3000`, so the wizard warns you if you enter another address for local network access.
+
 ---
 
 #### **Step 3: Follow Wizard Prompts**
@@ -566,6 +570,8 @@ openssl rand -base64 32
 npm run setup
 ```
 
+This creates `votes.db` and applies any pending migrations. It does not touch `.env.local`; use `./setup.sh` for the full guided install.
+
 #### **Step 5: Build Application**
 
 ```bash
@@ -669,10 +675,9 @@ Google OAuth provides secure admin authentication without managing passwords.
    **For Local Network Installation:**
    ``
    http://localhost:3000/api/auth/callback/google
-   http://YOUR_SERVER_IP:3000/api/auth/callback/google
    ``
-   
-   Replace `YOUR_SERVER_IP` with your actual IP (e.g., `192.168.1.100`)
+
+   Google only accepts `http://` redirect URIs for `localhost`, not for an IP address such as `192.168.1.100`. Sign in as admin from the server itself, or use the public (https) installation below.
 
    **For Public Installation (Cloudflare Tunnel):**
    ``

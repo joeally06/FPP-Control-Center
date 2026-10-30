@@ -177,17 +177,28 @@ get_fpp_info() {
     fi
 }
 
+# Read one value from an env file (handles quoted values and values containing '=' or '$')
+env_get() {
+    local key="$1" file="${2:-.env.local}"
+    if command -v node &> /dev/null && [ -d node_modules/dotenv ]; then
+        node scripts/env-local.js get "$key" "$file" 2>/dev/null || true
+    else
+        # Node or the npm packages aren't installed yet (first run); plain values only
+        grep "^${key}=" "$file" 2>/dev/null | head -1 | cut -d'=' -f2- | tr -d "'\"\`" || true
+    fi
+}
+
 # Load existing config values
 load_existing_config() {
     if [ -f ".env.local" ]; then
-        EXISTING_ADMIN_EMAIL=$(grep "^ADMIN_EMAILS=" .env.local 2>/dev/null | cut -d'=' -f2 | grep -v "your-" || echo "")
-        EXISTING_FPP_URL=$(grep "^FPP_URL=" .env.local 2>/dev/null | cut -d'=' -f2 || echo "")
-        EXISTING_NEXTAUTH_URL=$(grep "^NEXTAUTH_URL=" .env.local 2>/dev/null | cut -d'=' -f2 || echo "")
-        EXISTING_TIMEZONE=$(grep "^NEXT_PUBLIC_TIMEZONE=" .env.local 2>/dev/null | cut -d'=' -f2 || echo "")
-        EXISTING_GOOGLE_ID=$(grep "^GOOGLE_CLIENT_ID=" .env.local 2>/dev/null | cut -d'=' -f2 | grep -v "your-" || echo "")
-        EXISTING_SPOTIFY_ID=$(grep "^SPOTIFY_CLIENT_ID=" .env.local 2>/dev/null | cut -d'=' -f2 | grep -v "your-" || echo "")
-        EXISTING_OLLAMA_URL=$(grep "^OLLAMA_URL=" .env.local 2>/dev/null | cut -d'=' -f2 || echo "")
-        EXISTING_SMTP_HOST=$(grep "^SMTP_HOST=" .env.local 2>/dev/null | cut -d'=' -f2 | grep -v "your-" || echo "")
+        EXISTING_ADMIN_EMAIL=$(env_get ADMIN_EMAILS .env.local | grep -v "your-" || echo "")
+        EXISTING_FPP_URL=$(env_get FPP_URL .env.local)
+        EXISTING_NEXTAUTH_URL=$(env_get NEXTAUTH_URL .env.local)
+        EXISTING_TIMEZONE=$(env_get NEXT_PUBLIC_TIMEZONE .env.local)
+        EXISTING_GOOGLE_ID=$(env_get GOOGLE_CLIENT_ID .env.local | grep -v "your-" || echo "")
+        EXISTING_SPOTIFY_ID=$(env_get SPOTIFY_CLIENT_ID .env.local | grep -v "your-" || echo "")
+        EXISTING_OLLAMA_URL=$(env_get OLLAMA_URL .env.local)
+        EXISTING_SMTP_HOST=$(env_get SMTP_HOST .env.local | grep -v "your-" || echo "")
         return 0
     fi
     return 1
@@ -556,14 +567,11 @@ elif command -v yum &> /dev/null; then
     fi
 fi
 
+# npm ci installs exactly the versions in package-lock.json (the ones this release was tested with)
 print_step "Installing npm dependencies..."
-npm install
+npm ci
 
-print_step "Updating dependencies..."
-npm update
-npm audit fix 2>/dev/null || true
-
-print_success "Dependencies installed and updated"
+print_success "Dependencies installed"
 
 print_step "Checking for PM2..."
 if ! command -v pm2 &> /dev/null; then
@@ -580,7 +588,6 @@ fi
 show_progress 4 "Database Setup"
 
 print_step "Initializing database..."
-# Run only init-database.js directly (setup-wizard.js is for standalone use)
 node scripts/init-database.js
 print_success "Database initialized"
 
@@ -764,9 +771,12 @@ fi
 show_progress 6 "Core Configuration"
 
 # Backup existing .env.local
+ENV_BACKUP=""
 if [ -f ".env.local" ]; then
-    mv .env.local .env.local.backup-$(date +%Y%m%d_%H%M%S)
-    print_info "Backed up existing .env.local"
+    ENV_BACKUP=".env.local.backup-$(date +%Y%m%d_%H%M%S)"
+    mv .env.local "$ENV_BACKUP"
+    chmod 600 "$ENV_BACKUP" 2>/dev/null || true
+    print_info "Backed up existing .env.local to $ENV_BACKUP"
 fi
 
 # Generate secret
@@ -914,10 +924,27 @@ else
             SERVER_IP="YOUR_SERVER_IP"
         fi
         
-        echo ""
-        read -p "Server IP or domain [$SERVER_IP]: " ACCESS_DOMAIN
-        ACCESS_DOMAIN=${ACCESS_DOMAIN:-$SERVER_IP}
-        ACCESS_DOMAIN=$(echo "$ACCESS_DOMAIN" | sed -e 's|^https\?://||' -e 's|/$||')
+        while true; do
+            echo ""
+            read -p "Server IP or domain [$SERVER_IP]: " ACCESS_DOMAIN
+            ACCESS_DOMAIN=${ACCESS_DOMAIN:-$SERVER_IP}
+            ACCESS_DOMAIN=$(echo "$ACCESS_DOMAIN" | sed -e 's|^https\?://||' -e 's|/$||')
+
+            # Google only accepts http:// redirect URIs for localhost; every other host needs https and a public domain
+            if [[ "$ACCESS_DOMAIN" != "localhost" && "$ACCESS_DOMAIN" != "127.0.0.1" ]]; then
+                print_warning "Google sign-in will not work with http://$ACCESS_DOMAIN:3000"
+                echo "  Google accepts http:// redirect URIs only for localhost (an IP address or a"
+                echo "  local host name does not qualify), so admin login would fail with a"
+                echo "  'redirect_uri' error. Visitors can still use the public pages. To sign in as admin you can:"
+                echo "    • enter localhost here and sign in from this computer"
+                echo "    • run setup again and choose 'Public Internet Access' (https via Cloudflare Tunnel)"
+                echo ""
+                if ! confirm "Use $ACCESS_DOMAIN anyway?"; then
+                    continue
+                fi
+            fi
+            break
+        done
         NEXTAUTH_URL="http://$ACCESS_DOMAIN:3000"
     fi
 fi
@@ -1179,58 +1206,16 @@ done
 # ═══════════════════════════════════════════════════════════
 print_step "Creating configuration file..."
 
-# Handle KEEP_EXISTING values
+# Handle KEEP_EXISTING values (read from the backup made at the start of this step)
 if [ "$GOOGLE_CLIENT_ID" == "KEEP_EXISTING" ]; then
-    GOOGLE_CLIENT_ID=$(grep "^GOOGLE_CLIENT_ID=" .env.local.backup-* 2>/dev/null | tail -1 | cut -d'=' -f2)
-    GOOGLE_CLIENT_SECRET=$(grep "^GOOGLE_CLIENT_SECRET=" .env.local.backup-* 2>/dev/null | tail -1 | cut -d'=' -f2)
+    GOOGLE_CLIENT_ID=$(env_get GOOGLE_CLIENT_ID "$ENV_BACKUP")
+    GOOGLE_CLIENT_SECRET=$(env_get GOOGLE_CLIENT_SECRET "$ENV_BACKUP")
 fi
 
 if [ "$SPOTIFY_CLIENT_ID" == "KEEP_EXISTING" ]; then
-    SPOTIFY_CLIENT_ID=$(grep "^SPOTIFY_CLIENT_ID=" .env.local.backup-* 2>/dev/null | tail -1 | cut -d'=' -f2)
-    SPOTIFY_CLIENT_SECRET=$(grep "^SPOTIFY_CLIENT_SECRET=" .env.local.backup-* 2>/dev/null | tail -1 | cut -d'=' -f2)
+    SPOTIFY_CLIENT_ID=$(env_get SPOTIFY_CLIENT_ID "$ENV_BACKUP")
+    SPOTIFY_CLIENT_SECRET=$(env_get SPOTIFY_CLIENT_SECRET "$ENV_BACKUP")
 fi
-
-cat > .env.local << 'ENV_FILE'
-# NextAuth Configuration
-NEXTAUTH_URL=PLACEHOLDER_NEXTAUTH_URL
-NEXTAUTH_SECRET=PLACEHOLDER_NEXTAUTH_SECRET
-
-# Trusted Domains (comma-separated, for Cloudflare Tunnel or custom domains)
-# Hostnames the browser may send as its Origin on POST/PUT/DELETE requests (CSRF check)
-# Example: yourdomain.com,www.yourdomain.com
-TRUSTED_DOMAINS=PLACEHOLDER_TRUSTED_DOMAINS
-
-# Google OAuth
-GOOGLE_CLIENT_ID=PLACEHOLDER_GOOGLE_CLIENT_ID
-GOOGLE_CLIENT_SECRET=PLACEHOLDER_GOOGLE_CLIENT_SECRET
-
-# Admin Emails (comma-separated)
-ADMIN_EMAILS=PLACEHOLDER_ADMIN_EMAIL
-
-# FPP Server Configuration
-FPP_URL=PLACEHOLDER_FPP_URL
-
-# Spotify API
-SPOTIFY_CLIENT_ID=PLACEHOLDER_SPOTIFY_CLIENT_ID
-SPOTIFY_CLIENT_SECRET=PLACEHOLDER_SPOTIFY_CLIENT_SECRET
-
-# Ollama LLM Configuration
-OLLAMA_URL=PLACEHOLDER_OLLAMA_URL
-NEXT_PUBLIC_OLLAMA_URL=PLACEHOLDER_NEXT_PUBLIC_OLLAMA_URL
-
-# Email Configuration (SMTP)
-SMTP_HOST=PLACEHOLDER_SMTP_HOST
-SMTP_PORT=PLACEHOLDER_SMTP_PORT
-SMTP_SECURE=PLACEHOLDER_SMTP_SECURE
-SMTP_USER=PLACEHOLDER_SMTP_USER
-SMTP_PASS=PLACEHOLDER_SMTP_PASS
-
-# Timezone Configuration
-NEXT_PUBLIC_TIMEZONE=PLACEHOLDER_TIMEZONE
-
-# Internal API Key (for background jobs)
-INTERNAL_API_KEY=PLACEHOLDER_INTERNAL_API_KEY
-ENV_FILE
 
 # Generate secure internal API key
 INTERNAL_API_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
@@ -1242,26 +1227,15 @@ else
     TRUSTED_DOMAINS=""
 fi
 
-# Replace placeholders
-sed -i.bak "s|PLACEHOLDER_NEXTAUTH_URL|$NEXTAUTH_URL|g" .env.local
-sed -i.bak "s|PLACEHOLDER_NEXTAUTH_SECRET|$NEXTAUTH_SECRET|g" .env.local
-sed -i.bak "s|PLACEHOLDER_TRUSTED_DOMAINS|$TRUSTED_DOMAINS|g" .env.local
-sed -i.bak "s|PLACEHOLDER_GOOGLE_CLIENT_ID|$GOOGLE_CLIENT_ID|g" .env.local
-sed -i.bak "s|PLACEHOLDER_GOOGLE_CLIENT_SECRET|$GOOGLE_CLIENT_SECRET|g" .env.local
-sed -i.bak "s|PLACEHOLDER_ADMIN_EMAIL|$ADMIN_EMAIL|g" .env.local
-sed -i.bak "s|PLACEHOLDER_FPP_URL|$FPP_URL|g" .env.local
-sed -i.bak "s|PLACEHOLDER_SPOTIFY_CLIENT_ID|$SPOTIFY_CLIENT_ID|g" .env.local
-sed -i.bak "s|PLACEHOLDER_SPOTIFY_CLIENT_SECRET|$SPOTIFY_CLIENT_SECRET|g" .env.local
-sed -i.bak "s|PLACEHOLDER_OLLAMA_URL|$OLLAMA_URL|g" .env.local
-sed -i.bak "s|PLACEHOLDER_NEXT_PUBLIC_OLLAMA_URL|$NEXT_PUBLIC_OLLAMA_URL|g" .env.local
-sed -i.bak "s|PLACEHOLDER_SMTP_HOST|$SMTP_HOST|g" .env.local
-sed -i.bak "s|PLACEHOLDER_SMTP_PORT|$SMTP_PORT|g" .env.local
-sed -i.bak "s|PLACEHOLDER_SMTP_SECURE|$SMTP_SECURE|g" .env.local
-sed -i.bak "s|PLACEHOLDER_SMTP_USER|$SMTP_USER|g" .env.local
-sed -i.bak "s|PLACEHOLDER_SMTP_PASS|$SMTP_PASS|g" .env.local
-sed -i.bak "s|PLACEHOLDER_TIMEZONE|$TIMEZONE|g" .env.local
-sed -i.bak "s|PLACEHOLDER_INTERNAL_API_KEY|$INTERNAL_API_KEY|g" .env.local
-rm -f .env.local.bak
+# scripts/env-local.js quotes values that need it ($ # & | \ and quotes) and creates the file private (600)
+NEXTAUTH_URL="$NEXTAUTH_URL" NEXTAUTH_SECRET="$NEXTAUTH_SECRET" TRUSTED_DOMAINS="$TRUSTED_DOMAINS" \
+GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
+ADMIN_EMAILS="$ADMIN_EMAIL" FPP_URL="$FPP_URL" \
+SPOTIFY_CLIENT_ID="$SPOTIFY_CLIENT_ID" SPOTIFY_CLIENT_SECRET="$SPOTIFY_CLIENT_SECRET" \
+OLLAMA_URL="$OLLAMA_URL" NEXT_PUBLIC_OLLAMA_URL="$NEXT_PUBLIC_OLLAMA_URL" \
+SMTP_HOST="$SMTP_HOST" SMTP_PORT="$SMTP_PORT" SMTP_SECURE="$SMTP_SECURE" SMTP_USER="$SMTP_USER" SMTP_PASS="$SMTP_PASS" \
+NEXT_PUBLIC_TIMEZONE="$TIMEZONE" INTERNAL_API_KEY="$INTERNAL_API_KEY" \
+    node scripts/env-local.js write .env.local
 
 print_success "Configuration file created"
 
@@ -1330,12 +1304,24 @@ pm2 start ecosystem.config.js
 
 # Verify services
 sleep 3
-RUNNING=$(pm2 jlist 2>/dev/null | grep -c '"status":"online"' || echo "0")
+# pm2 jlist prints one line of JSON, so count the online processes by name instead of grepping lines
+NOT_ONLINE=$(pm2 jlist 2>/dev/null | node -e '
+let out = "";
+process.stdin.on("data", (d) => (out += d)).on("end", () => {
+  let list = [];
+  // PM2 can print a "[PM2] Spawning PM2 daemon" banner before the JSON
+  try { list = JSON.parse(out.slice(Math.max(out.search(/\[\s*[{\]]/), 0))); } catch {}
+  const missing = ["fpp-control", "fpp-poller"].filter(
+    (name) => !list.some((p) => p.name === name && p.pm2_env && p.pm2_env.status === "online")
+  );
+  console.log(missing.join(" "));
+});
+' 2>/dev/null || echo "fpp-control fpp-poller")
 
-if [ "$RUNNING" -ge 2 ]; then
+if [ -z "$NOT_ONLINE" ]; then
     print_success "All services started successfully!"
 else
-    print_warning "Some services may not have started"
+    print_warning "Not running: $NOT_ONLINE"
     print_info "Check logs: pm2 logs"
 fi
 
@@ -1358,7 +1344,6 @@ print_success "PM2 configured to auto-start fpp-control and fpp-poller on reboot
 # ═══════════════════════════════════════════════════════════
 # SETUP COMPLETE
 # ═══════════════════════════════════════════════════════════
-clear
 print_header "🎉 Setup Complete! 🎉"
 
 echo -e "${GREEN}FPP Control Center is now running!${NC}"
@@ -1389,6 +1374,12 @@ echo -e "${CYAN}🔧 Useful Commands:${NC}"
 echo "   • View logs:   pm2 logs fpp-control"
 echo "   • Restart:     pm2 restart fpp-control"
 echo "   • Status:      pm2 status"
+
+if [ "$SKIP_OAUTH" = false ]; then
+    echo ""
+    echo -e "${YELLOW}⚠️  Add this redirect URI to your Google OAuth app (if you haven't yet):${NC}"
+    echo -e "${GREEN}   $NEXTAUTH_URL/api/auth/callback/google${NC}"
+fi
 
 if [ "$SKIP_OAUTH" = true ] || [ "$SKIP_SPOTIFY" = true ]; then
     echo ""
