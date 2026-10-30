@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Stops an update before `npm install` when package-lock.json does not match package.json.
+// Stops an update before `npm install` when package-lock.json does not match package.json, or when the
+// project or a locked package needs a newer Node.js than the one running the update (--engine-strict).
 // `npm install` would rewrite the lockfile and install versions nobody tested on the show machine.
 // Read-only: never touches node_modules or either file.
 //
@@ -60,7 +61,7 @@ try {
   }
   npm = spawnSync(
     process.platform === 'win32' ? 'npm.cmd' : 'npm',
-    ['ci', '--dry-run', '--include=dev', '--ignore-scripts', '--offline', '--no-audit', '--no-fund'],
+    ['ci', '--dry-run', '--engine-strict', '--include=dev', '--ignore-scripts', '--offline', '--no-audit', '--no-fund'],
     { cwd: scratch, encoding: 'utf8', timeout: 120000, shell: process.platform === 'win32' }
   );
 } finally {
@@ -68,6 +69,14 @@ try {
 }
 if (npm.error || npm.status !== 0) {
   const output = `${npm.stdout || ''}${npm.stderr || ''}`.trim().split('\n').slice(-12);
+  if (!npm.error && output.some((line) => line.includes('EBADENGINE'))) {
+    // --engine-strict: the project or a locked package needs a newer Node.js than the one running now
+    fail(
+      `The locked packages need a newer Node.js or npm than this machine runs (Node.js ${process.version})`,
+      output.filter((line) => /engine|notsup|Required|Actual/i.test(line)).map((line) => line.replace(/^npm error /, '')),
+      'Upgrade Node.js (or npm) on this machine (see docs/INSTALLATION.md), then run the update again. Nothing was installed.'
+    );
+  }
   fail(
     'npm could not verify package-lock.json (npm ci --dry-run failed)',
     npm.error ? [npm.error.message] : output,

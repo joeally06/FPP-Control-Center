@@ -1297,6 +1297,7 @@ and uploaded display images (`public/uploads/`) are not in git and are never tou
 The updater stopped before installing anything, went back to the previous version and started the background poller again, so the site keeps running as before. (If `logs/update.log` says it could not restart `fpp-poller`, run `pm2 start fpp-poller`.) The lines just above that message give the reason:
 
 - **"package-lock.json is out of sync with package.json"**: that release has a dependency list (`package.json`) that does not match its lockfile (`package-lock.json`). Do not run `npm install` on the show machine to get past it; wait for a corrected release.
+- **"The locked packages need a newer Node.js or npm than this machine runs"**: the new release needs a newer Node.js (or npm) than the one installed here (the lines above show what is required and what you have). Nothing was changed. Upgrade Node.js on this machine, then run the update again. Check with `node -v`.
 - **"npm could not verify package-lock.json"**: the problem is on this machine (for example `npm` is not on the PATH of the update process). Fix that and run the update again.
 
 **If update is stuck:**
