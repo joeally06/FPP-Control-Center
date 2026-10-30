@@ -1,9 +1,14 @@
 ﻿'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
+import { Radio, QrCode, Smartphone, Sparkles, TreePine } from 'lucide-react';
+import QRCode from 'react-qr-code';
 import type { DisplayConfig } from '@/types/display';
 import { resolveTheme } from '@/lib/display-theme';
-import QRCodeWidget from './QRCodeWidget';
+import {
+  IDLE_PANEL_SECONDS, describeNextShow, formatClock, idlePanels, isValidTime, secondsUntilIso, secondsUntilTime,
+} from '@/lib/display-idle';
+import { useNextShow } from './useNextShow';
 import TickerBar from './TickerBar';
 import AnnouncementOverlay from './AnnouncementOverlay';
 
@@ -43,45 +48,62 @@ const STARS = Array.from({ length: 25 }, (_, i) => ({
   opacity:  Number((0.15 + ((i * 0.035) % 0.4)).toFixed(2)),
 }));
 
-// Return seconds until the next occurrence of HH:MM (24h) local time
-function secondsUntil(hhmm: string): number {
-  const now = new Date();
-  const [hh, mm] = hhmm.split(':').map(Number);
-  if (isNaN(hh) || isNaN(mm)) return 0;
-  const target = new Date(now);
-  target.setHours(hh, mm, 0, 0);
-  let diff = Math.floor((target.getTime() - now.getTime()) / 1000);
-  if (diff < 0) diff += 86400; // next day
-  return diff;
-}
+const HOW_IT_WORKS = [
+  { Icon: QrCode,     title: 'Scan the code',  text: 'Point your phone camera at the QR code' },
+  { Icon: Smartphone, title: 'Pick a song',    text: 'Choose a song from the list on your phone' },
+  { Icon: Sparkles,   title: 'Watch the show', text: 'Your song plays on the lights, in line with the others' },
+];
 
-function formatCountdown(secs: number): string {
-  if (secs <= 0) return '0:00:00';
-  const h = Math.floor(secs / 3600);
-  const m = Math.floor((secs % 3600) / 60);
-  const s = secs % 60;
-  return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+/** A QR code that sizes itself from the screen height, on the white card scanners need */
+function Qr({ url, heightVh }: { url: string; heightVh: number }) {
+  return (
+    <div className="bg-white rounded-[0.9vw] p-[0.7vw] flex-shrink-0" style={{ lineHeight: 0, height: `${heightVh}vh`, aspectRatio: '1' }}>
+      <QRCode value={url} style={{ width: '100%', height: '100%' }} />
+    </div>
+  );
 }
 
 export default function IdleScreen({ config, jukeboxUrl, activeAnnouncement }: Props) {
-  const [time, setTime] = useState('');
+  const [now, setNow] = useState<number | null>(null);
+  const [tick, setTick] = useState(0);
   const [slideIdx, setSlideIdx] = useState(0);
   const [slideFade, setSlideFade] = useState(true);
-  const [countdownSecs, setCountdownSecs] = useState(0);
   const theme = resolveTheme(config);
+  const scale = (config.fontScale ?? 100) / 100;
+  // Big text grows with the Font scale setting but is also capped by screen height, so 150% never pushes a panel off the screen
+  const sz = (vw: number, vh: number) => `min(${(vw * scale).toFixed(2)}vw, ${vh}vh)`;
 
   const images = config.idleSlideshowImages ?? [];
-  const hasLocalSlideshow = images.length > 0 && !config.slideshowUrl;
+  const hasLocalSlideshow = images.length > 0 && config.idleMode === 'photos';
+  const showSlides = config.idleMode === 'slides' && !!config.slideshowUrl;
 
-  // Clock tick
+  // The show's real schedule; the typed time only fills in when FPP has none
+  const nextShow = useNextShow(!!config.countdownEnabled);
+  const hasCountdown = !!config.countdownEnabled && nextShow.settled
+    && (nextShow.nextShowAt !== null || isValidTime(config.countdownTime));
+  const panels = idlePanels(config, { showActive: nextShow.isActive, hasCountdown });
+  const panel = panels[tick % panels.length];
+
+  const countdownSecs = now === null ? 0
+    : nextShow.nextShowAt ? (secondsUntilIso(nextShow.nextShowAt, now) ?? 0)
+    : secondsUntilTime(config.countdownTime, new Date(now));
+  const whenText = now !== null && nextShow.nextShowAt ? describeNextShow(nextShow.nextShowAt, new Date(now)) : '';
+  const timeText = now === null ? '' : new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const showCountdown = panels.includes('countdown');
+
+  // One clock for the time of day and the countdown
   useEffect(() => {
-    function tick() {
-      setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    }
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
+    const first = setTimeout(() => setNow(Date.now()), 0);
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => { clearTimeout(first); clearInterval(id); };
   }, []);
+
+  // Next panel every few seconds
+  useEffect(() => {
+    if (panels.length < 2) return;
+    const id = setInterval(() => setTick((t) => t + 1), IDLE_PANEL_SECONDS * 1000);
+    return () => clearInterval(id);
+  }, [panels.length]);
 
   // Local image slideshow cycling
   useEffect(() => {
@@ -97,16 +119,6 @@ export default function IdleScreen({ config, jukeboxUrl, activeAnnouncement }: P
     return () => clearInterval(id);
   }, [hasLocalSlideshow, images.length, config.idleSlideshowInterval]);
 
-  // Countdown timer
-  useEffect(() => {
-    if (!config.countdownEnabled || !config.countdownTime) return;
-    setCountdownSecs(secondsUntil(config.countdownTime));
-    const id = setInterval(() => {
-      setCountdownSecs(secondsUntil(config.countdownTime));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [config.countdownEnabled, config.countdownTime]);
-
   // Background
   let bgStyle: React.CSSProperties;
   if (config.idleBackgroundUrl) {
@@ -120,6 +132,16 @@ export default function IdleScreen({ config, jukeboxUrl, activeAnnouncement }: P
   } else {
     bgStyle = { background: `linear-gradient(180deg, ${theme.bgFrom} 0%, #050505 50%, ${theme.bgTo} 100%)` };
   }
+
+  const countdownBlock = (compact: boolean) => (
+    <>
+      <p className="text-white/80" style={{ fontSize: compact ? sz(1.8, 3.2) : sz(3, 5.5) }}>{config.countdownLabel || 'Next show starts in'}</p>
+      <p className="font-bold tabular-nums tracking-tight leading-none" style={{ color: theme.accent, fontSize: compact ? sz(6, 11) : sz(13, 24), filter: 'brightness(1.2)' }}>
+        {formatClock(countdownSecs)}
+      </p>
+      {whenText && <p className="text-white/80" style={{ fontSize: compact ? sz(1.6, 3) : sz(2.6, 4.6) }}>{whenText}</p>}
+    </>
+  );
 
   return (
     <>
@@ -143,6 +165,10 @@ export default function IdleScreen({ config, jukeboxUrl, activeAnnouncement }: P
           0%, 100% { opacity: 0.9; }
           50%      { opacity: 1; }
         }
+        @media (prefers-reduced-motion: no-preference) {
+          @keyframes idle-rise { from { opacity: 0; transform: translateY(3vh) scale(.98) } to { opacity: 1; transform: none } }
+          .idle-panel { animation: idle-rise .7s ease-out both }
+        }
         .idle-anim-snow { position:absolute; top:0; animation-name:idle-snow; animation-timing-function:linear; animation-iteration-count:infinite; pointer-events:none; user-select:none; color:#ffffff; }
         .idle-anim-note { position:absolute;       animation-name:idle-note; animation-timing-function:linear; animation-iteration-count:infinite; pointer-events:none; user-select:none; }
         .idle-anim-star { position:absolute;       animation-name:idle-star; animation-timing-function:ease-in-out; animation-iteration-count:infinite; pointer-events:none; user-select:none; color:#ffffff; }
@@ -150,13 +176,13 @@ export default function IdleScreen({ config, jukeboxUrl, activeAnnouncement }: P
       `}</style>
 
       <div
-        className="relative w-screen h-screen overflow-hidden flex flex-col select-none"
+        className="relative w-screen h-screen overflow-hidden flex flex-col select-none text-white"
         style={bgStyle}
       >
         {/* Announcement overlay always on top */}
         <AnnouncementOverlay text={activeAnnouncement ?? null} accent={theme.accent} />
 
-        {config.slideshowUrl ? (
+        {showSlides ? (
           /* ── Google Slides mode: fullscreen iframe ── */
           <iframe
             src={config.slideshowUrl
@@ -171,7 +197,7 @@ export default function IdleScreen({ config, jukeboxUrl, activeAnnouncement }: P
           <>
             <img
               key={slideIdx}
-              src={images[slideIdx]}
+              src={images[slideIdx % images.length]}
               alt=""
               className="slideshow-img z-0"
               style={{ opacity: slideFade ? 1 : 0 }}
@@ -180,24 +206,24 @@ export default function IdleScreen({ config, jukeboxUrl, activeAnnouncement }: P
             <div className="absolute inset-0 bg-black/40 z-10" />
 
             {/* Info strip + ticker */}
-            <div className="absolute inset-0 z-20 flex flex-col items-center justify-end pb-16 px-8 gap-4 text-center" style={{ fontFamily: theme.fontFamily }}>
-              {config.countdownEnabled && config.countdownTime && (
-                <div className="bg-black/60 rounded-2xl px-8 py-4 backdrop-blur-sm">
-                  <p className="text-white/70 text-lg mb-1">{config.countdownLabel || 'Next show starts in'}</p>
-                  <p className="text-white font-bold tabular-nums" style={{ fontSize: 'clamp(2rem, 6vw, 4.5rem)', color: theme.accent }}>
-                    {formatCountdown(countdownSecs)}
-                  </p>
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-end pb-[9vh] px-[4vw] gap-[2vh] text-center" style={{ fontFamily: theme.fontFamily }}>
+              {showCountdown && (
+                <div className="bg-black/60 rounded-[1.5vw] px-[3vw] py-[2vh] backdrop-blur-sm flex flex-col items-center">
+                  {countdownBlock(true)}
                 </div>
               )}
               {config.fmFrequency && (
-                <p className="font-semibold text-white" style={{ color: theme.accent, fontSize: 'clamp(1rem, 2vw, 1.5rem)' }}>
-                  📻 Tune to {config.fmFrequency} FM
+                <p className="flex items-center gap-[1vw] font-bold text-white" style={{ fontSize: sz(2.6, 4.5) }}>
+                  <Radio style={{ width: sz(2.6, 4.5), height: sz(2.6, 4.5), color: theme.accent }} aria-hidden="true" />
+                  Tune your radio to {config.fmFrequency} FM
                 </p>
               )}
               {config.showQr && (
-                <div className="flex flex-col items-center gap-2">
-                  <p className="text-white/70" style={{ fontSize: 'clamp(0.8rem, 1.4vw, 1.1rem)' }}>🎵 Request a song</p>
-                  <QRCodeWidget url={jukeboxUrl} label="" size={110} />
+                <div className="flex items-center gap-[1.5vw] bg-black/60 rounded-[1.5vw] px-[2vw] py-[1.5vh]">
+                  <p className="font-bold text-white text-right leading-tight" style={{ fontSize: sz(1.85, 3.3) }}>
+                    Scan to pick<br />the next song
+                  </p>
+                  <Qr url={jukeboxUrl} heightVh={16} />
                 </div>
               )}
               {/* Slide counter dots */}
@@ -207,7 +233,7 @@ export default function IdleScreen({ config, jukeboxUrl, activeAnnouncement }: P
                     <span
                       key={i}
                       className="inline-block rounded-full transition-all duration-300"
-                      style={{ width: i === slideIdx ? '20px' : '8px', height: '8px', background: i === slideIdx ? theme.accent : 'rgba(255,255,255,0.4)' }}
+                      style={{ width: i === slideIdx % images.length ? '20px' : '8px', height: '8px', background: i === slideIdx % images.length ? theme.accent : 'rgba(255,255,255,0.4)' }}
                     />
                   ))}
                 </div>
@@ -215,11 +241,11 @@ export default function IdleScreen({ config, jukeboxUrl, activeAnnouncement }: P
             </div>
 
             <div className="absolute bottom-0 left-0 right-0 z-30">
-              <TickerBar text={config.tickerText} accent={theme.accent} />
+              <TickerBar text={config.tickerText} accent={theme.accent} fontSize={`${1.65 * scale}vw`} />
             </div>
           </>
         ) : (
-          /* ── Custom display mode ── */
+          /* ── Custom display mode: panels that take turns ── */
           <>
             {config.idleBackgroundUrl && (
               <div className="absolute inset-0 bg-black/55 z-0" />
@@ -235,79 +261,112 @@ export default function IdleScreen({ config, jukeboxUrl, activeAnnouncement }: P
               <span key={f.id} className="idle-anim-star" style={{ left: f.left, top: f.top, animationDelay: f.delay, animationDuration: f.duration, fontSize: f.size, opacity: f.opacity }}>✦</span>
             ))}
 
+            {/* Top bar: who we are, and the time */}
             <div
-              className="relative z-10 flex-1 flex flex-col items-center justify-center gap-8 text-center px-8"
-              style={{ fontFamily: theme.fontFamily }}
+              className="relative z-10 flex-shrink-0 flex items-center justify-between px-[4.4vw]"
+              style={{ height: '9.6vh', fontFamily: theme.fontFamily }}
             >
-              {config.logoUrl
-                ? <img src={config.logoUrl} alt="Logo" className="w-auto rounded-xl shadow-2xl" style={{ maxHeight: 'clamp(12rem, 35vw, 28rem)' }} />
-                : <div style={{ fontSize: 'clamp(4rem, 10vw, 7rem)' }}>🎄</div>
-              }
-
-              <div>
-                {config.showName && !config.logoUrl && (
-                  <h1
-                    className="font-bold text-white drop-shadow-lg"
-                    style={{ fontSize: 'clamp(2rem, 5vw, 4rem)' }}
-                  >
-                    {config.showName}
-                  </h1>
-                )}
-                <p className="text-white/45 mt-2" style={{ fontSize: 'clamp(1rem, 2vw, 1.5rem)' }}>
-                  {config.idleMessage}
-                </p>
-                {config.fmFrequency && (
-                  <p className="mt-3 font-semibold" style={{ color: theme.accent, fontSize: 'clamp(0.9rem, 1.8vw, 1.4rem)' }}>
-                    📻 Tune to {config.fmFrequency} FM
-                  </p>
+              <div className="flex items-center gap-[1.2vw] min-w-0">
+                {config.logoUrl && panel !== 'welcome' && <img src={config.logoUrl} alt="Logo" className="h-[6vh] w-auto rounded" />}
+                {config.showName && panel !== 'welcome' && (
+                  <span className="font-bold truncate tracking-wide" style={{ fontSize: `${2.1 * scale}vw` }}>{config.showName}</span>
                 )}
               </div>
+              {config.showClock && timeText && (
+                <span className="font-light text-white/80 tabular-nums flex-shrink-0" style={{ fontSize: `${2.4 * scale}vw` }}>{timeText}</span>
+              )}
+            </div>
 
-              {/* Countdown timer */}
-              {config.countdownEnabled && config.countdownTime && (
-                <div className="flex flex-col items-center gap-1">
-                  <p className="text-white/60" style={{ fontSize: 'clamp(0.85rem, 1.5vw, 1.2rem)' }}>
-                    {config.countdownLabel || 'Next show starts in'}
-                  </p>
-                  <p
-                    className="font-bold tabular-nums tracking-tight"
-                    style={{ color: theme.accent, fontSize: 'clamp(2.5rem, 7vw, 5.5rem)' }}
-                  >
-                    {formatCountdown(countdownSecs)}
-                  </p>
+            {/* The current panel */}
+            <div
+              key={panel}
+              className="idle-panel relative z-10 flex-1 min-h-0 overflow-hidden flex items-center justify-center px-[4.4vw] text-center"
+              style={{ fontFamily: theme.fontFamily }}
+            >
+              {panel === 'welcome' && (
+                <div className="flex items-center justify-center gap-[6vw] w-full">
+                  <div className="flex flex-col items-center gap-[2.5vh] min-w-0 flex-1">
+                    {config.logoUrl
+                      ? <img src={config.logoUrl} alt="Logo" className="w-auto rounded-xl shadow-2xl" style={{ maxHeight: '34vh', maxWidth: '40vw' }} />
+                      : <TreePine style={{ width: '16vh', height: '16vh', color: theme.accent }} aria-hidden="true" />}
+                    {config.showName && !config.logoUrl && (
+                      <h1 className="font-extrabold text-white drop-shadow-lg leading-tight" style={{ fontSize: sz(5.6, 10) }}>{config.showName}</h1>
+                    )}
+                    <p className="text-white/80" style={{ fontSize: sz(2.8, 5) }}>{config.idleMessage}</p>
+                  </div>
+                  {config.showQr && (
+                    <div className="flex flex-col items-center gap-[2vh] flex-shrink-0">
+                      <Qr url={jukeboxUrl} heightVh={36} />
+                      <p className="font-bold" style={{ fontSize: sz(2.1, 3.8), maxWidth: '28vw' }}>Scan to pick the next song</p>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {config.showClock && time && !config.countdownEnabled && (
-                <div
-                  className="font-light text-white/75 tabular-nums tracking-tight"
-                  style={{ fontSize: 'clamp(3rem, 8vw, 6rem)' }}
-                >
-                  {time}
+              {panel === 'countdown' && (
+                <div className="flex flex-col items-center gap-[2vh]">{countdownBlock(false)}</div>
+              )}
+
+              {panel === 'fm' && (
+                <div className="flex flex-col items-center gap-[2.5vh]">
+                  <Radio style={{ width: sz(9, 16), height: sz(9, 16), color: theme.accent }} aria-hidden="true" />
+                  <p className="text-white/85" style={{ fontSize: sz(3.4, 6) }}>Tune your radio to</p>
+                  <p className="font-extrabold leading-none" style={{ fontSize: sz(12, 21), color: theme.accent, filter: 'brightness(1.2)' }}>{config.fmFrequency} FM</p>
+                  <p className="text-white/80" style={{ fontSize: sz(2.4, 4.2) }}>to hear the music with the lights</p>
                 </div>
               )}
 
-              {config.showQr && (
-                <div className="flex flex-col items-center gap-3 mt-2">
-                  <p className="text-white/55" style={{ fontSize: 'clamp(0.85rem, 1.5vw, 1.25rem)' }}>
-                    🎵 Request a song for the show!
+              {panel === 'how' && (
+                <div className="flex flex-col items-center gap-[3vh] w-full">
+                  <p className="font-extrabold" style={{ fontSize: sz(4.4, 6.5) }}>Pick the next song</p>
+                  <div className="grid grid-cols-3 gap-[3vw] w-full">
+                    {HOW_IT_WORKS.map(({ Icon, title, text }, i) => (
+                      <div key={title} className="flex flex-col items-center gap-[1.5vh] min-w-0 rounded-[1.5vw] bg-black/35 px-[2vw] py-[3vh]">
+                        <Icon style={{ width: sz(6, 9), height: sz(6, 9), color: theme.accent }} aria-hidden="true" />
+                        <p className="font-bold" style={{ fontSize: sz(2.8, 4.2) }}>{i + 1}. {title}</p>
+                        <p className="text-white/80" style={{ fontSize: sz(1.8, 3) }}>{text}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom band: the code stays in view on every panel but the welcome one, which has its own */}
+            <div
+              className="relative z-10 flex-shrink-0 flex items-center justify-between gap-[3vw] px-[4.4vw]"
+              style={{ height: panel !== 'welcome' && config.showQr ? '19vh' : '5vh', fontFamily: theme.fontFamily }}
+            >
+              <div className="flex gap-[0.8vw]" aria-hidden="true">
+                {panels.length > 1 && panels.map((p) => (
+                  <span
+                    key={p}
+                    className="inline-block rounded-full transition-all duration-300"
+                    style={{ width: p === panel ? '2.2vw' : '0.8vw', height: '0.8vw', background: p === panel ? theme.accent : 'rgba(255,255,255,0.4)' }}
+                  />
+                ))}
+              </div>
+              {panel !== 'welcome' && config.showQr && (
+                <div className="flex items-center gap-[1.5vw]">
+                  <p className="font-bold text-right leading-tight" style={{ fontSize: sz(1.85, 3.3) }}>
+                    Scan to pick<br />the next song
                   </p>
-                  <QRCodeWidget url={jukeboxUrl} label="Scan with your phone to request a song" size={140} />
+                  <Qr url={jukeboxUrl} heightVh={16} />
                 </div>
               )}
             </div>
 
             {config.sponsorText && (
               <div
-                className="relative z-10 flex-shrink-0 text-center py-2 text-white/40 text-xs border-t"
-                style={{ borderColor: `${theme.accent}20` }}
+                className="relative z-10 flex-shrink-0 text-center py-[0.6vh] text-white/60 border-t"
+                style={{ borderColor: `${theme.accent}20`, fontSize: `${1.2 * scale}vw` }}
               >
                 {config.sponsorText}
               </div>
             )}
 
             <div className="relative z-10">
-              <TickerBar text={config.tickerText} accent={theme.accent} />
+              <TickerBar text={config.tickerText} accent={theme.accent} fontSize={`${1.65 * scale}vw`} />
             </div>
           </>
         )}

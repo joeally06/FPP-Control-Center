@@ -636,6 +636,7 @@ export function applySchema(db: Database.Database): void {
       ('display_announcement_text', '',                        'Active announcement text',                    'display'),
       ('display_announcement_expires', '0',                   'Announcement expiry (unix timestamp)',        'display'),
       ('display_zone_config',       '{"enabled":false,"template":"two-column","slots":{}}', 'Zone layout JSON config', 'display'),
+      ('display_idle_mode',         '',     'Idle screen: info/photos/slides (empty = not chosen yet)', 'display'),
       ('display_slideshow_images',  '[]',   'Local image slideshow JSON array of URLs', 'display'),
       ('display_slideshow_interval','8',    'Seconds between slideshow images (3-30)',   'display'),
       ('display_countdown_enabled', 'false','Show countdown timer on idle screen',       'display'),

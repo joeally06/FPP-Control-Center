@@ -53,6 +53,11 @@ const nextConfig = {
         // Shown in a frame on Settings → Jukebox; a later rule overrides the DENY above for this path only
         source: '/settings/jukebox/preview',
         headers: [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }]
+      },
+      {
+        // The digital sign preview on Settings → Digital Sign (keep in step with FRAMEABLE_PATHS in lib/csp.ts)
+        source: '/settings/display/preview',
+        headers: [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }]
       }
     ];
   }

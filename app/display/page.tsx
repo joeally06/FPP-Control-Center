@@ -1,35 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { DisplayConfig, DisplayState } from '@/types/display';
+import type { DisplayState } from '@/types/display';
+import { DEFAULT_DISPLAY_CONFIG } from '@/lib/display-defaults';
 import NowPlayingView from '@/components/display/NowPlayingView';
 import IdleScreen from '@/components/display/IdleScreen';
-
-const DEFAULT_CONFIG: DisplayConfig = {
-  showName: 'Christmas Light Show',
-  showQr: true,
-  queueCount: 4,
-  enabled: true,
-  colorTheme: 'christmas',
-  accentColor: '#ef4444',
-  backgroundStyle: 'gradient',
-  fontStyle: 'modern',
-  fontScale: 100,
-  idleMessage: 'The show will begin shortly',
-  logoUrl: '',
-  sponsorText: '',
-  fmFrequency: '',
-  idleAnimation: 'snowflakes',
-  showClock: true,
-  idleBackgroundUrl: '',
-  tickerText: '',
-  slideshowUrl: '',
-  idleSlideshowImages: [],
-  idleSlideshowInterval: 8,
-  countdownEnabled: false,
-  countdownTime: '20:00',
-  countdownLabel: 'Next show starts in',
-};
 
 export default function DisplayPage() {
   const [state, setState] = useState<DisplayState | null>(null);
@@ -69,7 +44,7 @@ export default function DisplayPage() {
   }, []);
 
   const fallbackUrl = 'http://localhost:3000/jukebox';
-  const cfg = state?.config ?? DEFAULT_CONFIG;
+  const cfg = state?.config ?? DEFAULT_DISPLAY_CONFIG;
 
   return (
     <div

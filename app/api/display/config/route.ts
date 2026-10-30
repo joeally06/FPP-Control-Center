@@ -7,11 +7,15 @@ import type {
   IdleAnimation,
 } from '@/types/display';
 import { isAdminSession } from '@/lib/auth-helpers';
+import { resolveIdleMode } from '@/lib/display-idle';
 
 function readConfig(): DisplayConfig {
   const s = (key: string, fb: string) => getSetting(key) ?? fb;
   const b = (key: string, fb: boolean) => (getSetting(key) ?? String(fb)) === 'true';
   const n = (key: string, fb: number) => parseInt(getSetting(key) ?? String(fb), 10);
+
+  const slideshowUrl = s('display_slideshow_url', '');
+  const idleSlideshowImages: string[] = (() => { try { return JSON.parse(s('display_slideshow_images', '[]')); } catch { return []; } })();
 
   return {
     showName:           s('display_show_name',           'Christmas Light Show'),
@@ -31,8 +35,9 @@ function readConfig(): DisplayConfig {
     showClock:          b('display_show_clock',          true),
     idleBackgroundUrl:  s('display_idle_background_url', ''),
     tickerText:         s('display_ticker_text',         ''),
-    slideshowUrl:       s('display_slideshow_url',       ''),
-    idleSlideshowImages: (() => { try { return JSON.parse(s('display_slideshow_images','[]')); } catch { return []; } })(),
+    idleMode:           resolveIdleMode(getSetting('display_idle_mode'), slideshowUrl, idleSlideshowImages.length),
+    slideshowUrl,
+    idleSlideshowImages,
     idleSlideshowInterval: n('display_slideshow_interval', 8),
     countdownEnabled:   b('display_countdown_enabled',   false),
     countdownTime:      s('display_countdown_time',      '20:00'),
@@ -93,6 +98,7 @@ export async function PUT(request: NextRequest) {
     bool('showClock',       'display_show_clock');
     str('idleBackgroundUrl','display_idle_background_url', 500);
     str('tickerText', 'display_ticker_text', 300);
+    oneOf('idleMode', 'display_idle_mode', ['info', 'photos', 'slides']);
     str('slideshowUrl', 'display_slideshow_url', 500);
     clamp('idleSlideshowInterval', 'display_slideshow_interval', 3, 30);
     bool('countdownEnabled', 'display_countdown_enabled');

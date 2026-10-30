@@ -5,7 +5,7 @@ import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { isSameOriginRequest } from './lib/csrf';
 import { isAdminEmail } from './lib/admin-emails';
-import { CONTENT_SECURITY_POLICY } from './lib/csp';
+import { CONTENT_SECURITY_POLICY, isFrameablePath } from './lib/csp';
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -64,8 +64,8 @@ export async function proxy(request: NextRequest) {
   // Prevent MIME type sniffing
   response.headers.set('X-Content-Type-Options', 'nosniff');
   
-  // Prevent clickjacking. The visitor-page preview is shown in a frame on Settings → Jukebox (same origin only)
-  response.headers.set('X-Frame-Options', pathname === '/settings/jukebox/preview' ? 'SAMEORIGIN' : 'DENY');
+  // Prevent clickjacking. The two preview pages are shown in a frame on the settings pages (same origin only)
+  response.headers.set('X-Frame-Options', isFrameablePath(pathname) ? 'SAMEORIGIN' : 'DENY');
   
   // Enable XSS protection
   response.headers.set('X-XSS-Protection', '1; mode=block');

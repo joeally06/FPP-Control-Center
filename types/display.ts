@@ -2,6 +2,8 @@ export type ColorTheme     = 'christmas' | 'winter' | 'classic' | 'custom';
 export type BackgroundStyle = 'solid' | 'gradient' | 'particles';
 export type FontStyle       = 'modern' | 'display' | 'serif';
 export type IdleAnimation   = 'snowflakes' | 'notes' | 'stars' | 'none';
+// What the sign shows when no song is playing
+export type IdleMode        = 'info' | 'photos' | 'slides';
 
 // ─── Schedule (Plan B) ───────────────────────────────────────────────────────
 export type ScheduleActionType = 'slideshow' | 'theme' | 'announcement' | 'custom_display';
@@ -44,6 +46,8 @@ export interface DisplayConfig {
   idleBackgroundUrl: string;
   // Ticker
   tickerText: string;
+  // Which idle screen is on: the info panels, the photo slideshow, or Google Slides
+  idleMode: IdleMode;
   // Idle slideshow (Google Slides)
   slideshowUrl: string;
   // Local image slideshow (Option 1)

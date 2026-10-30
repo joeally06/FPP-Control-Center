@@ -1,7 +1,7 @@
 import assert from 'assert';
 import fs from 'fs';
 import path from 'path';
-import { CONTENT_SECURITY_POLICY } from '../lib/csp';
+import { CONTENT_SECURITY_POLICY, FRAMEABLE_PATHS, isFrameablePath } from '../lib/csp';
 
 function print(msg: string) {
   console.log('[test-csp] ' + msg);
@@ -36,5 +36,26 @@ assert.ok(/set\(\s*'Content-Security-Policy',\s*CONTENT_SECURITY_POLICY\s*\)/.te
 assert.ok(!/default-src/.test(proxySource), 'proxy.ts must not carry its own copy of the policy');
 const nextConfig = read('next.config.js');
 assert.ok(!/Content-Security-Policy|default-src|connect-src/i.test(nextConfig.replace(/\/\/.*$/gm, '')), 'next.config.js must not set a second policy');
+
+print('Test 4: only the two preview pages may be framed, and next.config.js agrees with proxy.ts');
+assert.deepStrictEqual([...FRAMEABLE_PATHS].sort(), ['/settings/display/preview', '/settings/jukebox/preview']);
+assert.ok(isFrameablePath('/settings/display/preview') && isFrameablePath('/settings/jukebox/preview'));
+for (const other of ['/', '/dashboard', '/settings', '/settings/display', '/display', '/display/x', '/jukebox', '/api/display/stream']) {
+  assert.ok(!isFrameablePath(other), `${other} must not be frameable`);
+}
+assert.ok(/isFrameablePath\(pathname\)\s*\?\s*'SAMEORIGIN'\s*:\s*'DENY'/.test(proxySource), 'proxy.ts must use isFrameablePath');
+const nextConfigCode = nextConfig.replace(/\/\/.*$/gm, '');
+assert.strictEqual(nextConfigCode.split("'SAMEORIGIN'").length - 1, FRAMEABLE_PATHS.length, 'next.config.js may allow SAMEORIGIN only for the frameable paths');
+const denyAt = nextConfigCode.indexOf("source: '/:path*'");
+assert.ok(denyAt >= 0, 'next.config.js sets the default headers for every path');
+for (const framed of FRAMEABLE_PATHS) {
+  assert.ok(nextConfigCode.indexOf(`source: '${framed}'`) > denyAt, `the ${framed} rule must come after the default DENY (a later rule wins)`);
+}
+for (const framed of FRAMEABLE_PATHS) {
+  const at = nextConfig.indexOf(`source: '${framed}'`);
+  assert.ok(at >= 0, `next.config.js needs a rule for ${framed}`);
+  const rule = nextConfig.slice(at, nextConfig.indexOf('}', nextConfig.indexOf('headers', at)));
+  assert.ok(rule.includes("'X-Frame-Options'") && rule.includes("'SAMEORIGIN'"), `next.config.js must send SAMEORIGIN for ${framed}`);
+}
 
 print('All tests passed');

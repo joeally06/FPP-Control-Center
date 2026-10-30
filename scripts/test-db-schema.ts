@@ -50,6 +50,7 @@ assert.strictEqual(count('SELECT COUNT(*) AS n FROM location_restrictions WHERE 
 assert.strictEqual(count('SELECT COUNT(*) AS n FROM monitoring_schedule WHERE id = 1'), 1);
 assert.strictEqual(count("SELECT COUNT(*) AS n FROM settings WHERE key = 'ollama_model'"), 1);
 assert.ok(count("SELECT COUNT(*) AS n FROM settings WHERE key LIKE 'display_%'") >= 28);
+assert.strictEqual(count("SELECT COUNT(*) AS n FROM settings WHERE key = 'display_idle_mode' AND category = 'display'"), 1, 'the idle mode setting exists so saving it can update it');
 
 print('Test 3: running it again changes nothing and does not fail');
 const before = JSON.stringify(db.prepare('SELECT type, name, sql FROM sqlite_master ORDER BY type, name').all());

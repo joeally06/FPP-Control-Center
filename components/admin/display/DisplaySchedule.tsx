@@ -26,7 +26,7 @@ export default function DisplaySchedule({ rules, onRefresh }: DisplaySchedulePro
   return (
       <div className={sectionClass}>
         <div className="flex items-center justify-between">
-          <h3 className={sectionTitle}>Content Schedule</h3>
+          <h3 className={sectionTitle}>Timed changes</h3>
           <button
             type="button"
             onClick={() => {
@@ -35,14 +35,14 @@ export default function DisplaySchedule({ rules, onRefresh }: DisplaySchedulePro
             }}
             className={smallButton}
           >
-            + Add Rule
+            + Add a timed change
           </button>
         </div>
-        <p className="text-xs text-adm-muted">Automatically switch display modes or override themes at set times.</p>
+        <p className="text-xs text-adm-muted">Change the look or show a message on the sign at set times, for example a special screen on game night.</p>
 
         {/* Rule list */}
         {rules.length === 0 ? (
-          <p className="py-4 text-center text-sm text-adm-muted">No schedule rules yet.</p>
+          <p className="py-4 text-center text-sm text-adm-muted">No timed changes yet.</p>
         ) : (
           <div className="space-y-2">
             {rules.map((rule) => (
@@ -92,7 +92,7 @@ export default function DisplaySchedule({ rules, onRefresh }: DisplaySchedulePro
         {/* Add / Edit rule form */}
         {ruleForm && (
           <div className={subBox}>
-            <h4 className="text-sm font-semibold text-adm-text">{ruleForm.id ? 'Edit Rule' : 'New Rule'}</h4>
+            <h4 className="text-sm font-semibold text-adm-text">{ruleForm.id ? 'Edit timed change' : 'New timed change'}</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className={labelClass}>Rule name</label>
@@ -104,7 +104,7 @@ export default function DisplaySchedule({ rules, onRefresh }: DisplaySchedulePro
                 <select value={ruleForm.actionType} className={selectClass}
                   onChange={(e) => setRuleForm((f) => f ? { ...f, actionType: e.target.value as ScheduleActionType, actionPayload: '{}' } : f)}>
                   <option value="slideshow">Show Google Slides</option>
-                  <option value="custom_display">Custom Display</option>
+                  <option value="custom_display">Info screen or photos (not Google Slides)</option>
                   <option value="theme">Override Theme</option>
                   <option value="announcement">Announcement</option>
                 </select>

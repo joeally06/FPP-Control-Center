@@ -1,10 +1,15 @@
 import AdminLayout from '@/components/AdminLayout';
 import DisplaySettings from '@/components/admin/DisplaySettings';
 
-export default function DisplaySettingsPage() {
+export default async function DisplaySettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const { tab } = await searchParams;
   return (
     <AdminLayout>
-      <DisplaySettings />
+      <DisplaySettings initialTab={typeof tab === 'string' ? tab : undefined} />
     </AdminLayout>
   );
 }

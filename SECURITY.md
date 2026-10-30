@@ -100,7 +100,7 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 - Restricts script, frame and connection sources to this site plus YouTube and Google Slides/Docs
 - `unsafe-inline` and `unsafe-eval` are still allowed for scripts (Next.js needs them without a nonce setup)
 - Names no LAN address: the server makes every FPP and Ollama call, never the browser
-- Prevents clickjacking with `frame-ancestors 'self'` (the visitor-page preview on Settings → Jukebox is framed from the same site)
+- Prevents clickjacking with `frame-ancestors 'self'` (the visitor-page preview on Settings → Jukebox and the digital sign preview on Settings → Digital Sign are framed from the same site; those two paths send `X-Frame-Options: SAMEORIGIN`, every other page `DENY`)
 
 **Visitor analytics (`POST /api/analytics/track`):**
 - Rate limited per IP (60 requests a minute, 10 new visits a minute)

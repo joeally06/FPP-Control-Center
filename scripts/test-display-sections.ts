@@ -29,8 +29,8 @@ assert.ok(!filled.includes('Click or drag'));
 
 print('Test 3: schedule — empty list, then a rule; the add/edit form starts closed');
 const noRules = html(createElement(DisplaySchedule, { rules: [], onRefresh: noop }));
-assert.ok(noRules.includes('Content Schedule') && noRules.includes('No schedule rules yet.') && noRules.includes('+ Add Rule'));
-assert.ok(!noRules.includes('New Rule'));
+assert.ok(noRules.includes('Timed changes') && noRules.includes('No timed changes yet.') && noRules.includes('+ Add a timed change'));
+assert.ok(!noRules.includes('New timed change'));
 const rule: ScheduleRule = {
   id: 7, name: 'Evening show', enabled: true, days: '5,6', startTime: '18:00', endTime: '22:00',
   actionType: 'custom_display', actionPayload: '{}', priority: 10, createdAt: '2026-10-01T00:00:00Z',

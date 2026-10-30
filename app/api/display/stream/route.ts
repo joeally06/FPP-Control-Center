@@ -11,6 +11,7 @@ import { getFppUrl } from '@/lib/fpp-config';
 import { getSetting } from '@/lib/settings';
 import { createLazyPoller } from '@/lib/lazy-poller';
 import { isFreshPlaying } from '@/lib/fpp-state';
+import { idleOverrideForRule, resolveIdleMode } from '@/lib/display-idle';
 import type { DisplayConfig, DisplayState, UpcomingQueueItem, ColorTheme, BackgroundStyle, FontStyle, IdleAnimation } from '@/types/display';
 
 // ─── Singleton state & clients ──────────────────────────────────────────────
@@ -23,6 +24,9 @@ function readConfig(): DisplayConfig {
   const s = (key: string, fb: string) => getSetting(key) ?? fb;
   const b = (key: string, fb: boolean) => (getSetting(key) ?? String(fb)) === 'true';
   const n = (key: string, fb: number) => parseInt(getSetting(key) ?? String(fb), 10);
+
+  const slideshowUrl = s('display_slideshow_url', '');
+  const idleSlideshowImages: string[] = (() => { try { return JSON.parse(s('display_slideshow_images', '[]')); } catch { return []; } })();
 
   return {
     showName:           s('display_show_name',           'Christmas Light Show'),
@@ -42,8 +46,9 @@ function readConfig(): DisplayConfig {
     showClock:          b('display_show_clock',          true),
     idleBackgroundUrl:  s('display_idle_background_url', ''),
     tickerText:         s('display_ticker_text',         ''),
-    slideshowUrl:       s('display_slideshow_url',       ''),
-    idleSlideshowImages: (() => { try { return JSON.parse(s('display_slideshow_images','[]')); } catch { return []; } })(),
+    idleMode:           resolveIdleMode(getSetting('display_idle_mode'), slideshowUrl, idleSlideshowImages.length),
+    slideshowUrl,
+    idleSlideshowImages,
     idleSlideshowInterval: n('display_slideshow_interval', 8),
     countdownEnabled:   b('display_countdown_enabled',   false),
     countdownTime:      s('display_countdown_time',      '20:00'),
@@ -302,10 +307,8 @@ async function pollDisplayState(): Promise<void> {
         const payload = JSON.parse(rule.actionPayload || '{}');
         switch (rule.actionType) {
           case 'slideshow':
-            config.slideshowUrl = typeof payload.url === 'string' ? payload.url : '';
-            break;
           case 'custom_display':
-            config.slideshowUrl = '';
+            Object.assign(config, idleOverrideForRule(rule.actionType, payload, config.idleMode, config.idleSlideshowImages.length));
             break;
           case 'theme':
             if (payload.colorTheme) config.colorTheme = payload.colorTheme as ColorTheme;

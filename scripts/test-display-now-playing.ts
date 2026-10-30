@@ -14,7 +14,7 @@ const config: DisplayConfig = {
   fontStyle: 'modern', fontScale: 100,
   idleMessage: '', logoUrl: '', sponsorText: '', fmFrequency: '',
   idleAnimation: 'none', showClock: false, idleBackgroundUrl: '', tickerText: '',
-  slideshowUrl: '', idleSlideshowImages: [], idleSlideshowInterval: 8,
+  idleMode: 'info', slideshowUrl: '', idleSlideshowImages: [], idleSlideshowInterval: 8,
   countdownEnabled: false, countdownTime: '20:00', countdownLabel: '',
 };
 

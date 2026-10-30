@@ -16,3 +16,12 @@ export const CONTENT_SECURITY_POLICY = [
   "form-action 'self'",
   "object-src 'none'",
 ].join('; ');
+
+// Pages shown in a frame on another page of this site: the visitor-page preview (Settings -> Jukebox) and
+// the digital sign preview (Settings -> Digital Sign). Everything else sends X-Frame-Options: DENY.
+// next.config.js repeats this list for the build-time headers (it cannot import TypeScript).
+export const FRAMEABLE_PATHS: readonly string[] = ['/settings/jukebox/preview', '/settings/display/preview'];
+
+export function isFrameablePath(pathname: string): boolean {
+  return FRAMEABLE_PATHS.includes(pathname);
+}
