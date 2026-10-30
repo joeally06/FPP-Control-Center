@@ -12,6 +12,7 @@ const eslintConfig = defineConfig([
       "react/no-unescaped-entities": "warn",
       "react-hooks/set-state-in-effect": "warn",
       "react-hooks/immutability": "warn",
+      "react-hooks/refs": "warn",
     },
   },
   // Plain .js files are CommonJS (no "type": "module" in package.json).

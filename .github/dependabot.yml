@@ -1,5 +1,14 @@
-# Dependabot configuration for automated security updates
-# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+# Dependabot configuration
+# https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference
+#
+# How this works:
+# - Security updates (a known advisory) are separate from version updates. They are switched on in the
+#   repository settings (Settings > Advanced Security > "Dependabot security updates"). `cooldown` and
+#   `groups` below apply to version updates only; labels and the commit message prefix apply to both.
+# - Version updates (routine "a newer release exists"): weekly, grouped, and only for releases at least
+#   14 days old.
+# - This app can be deployed straight onto the live show machine, so merge Dependabot PRs only when the
+#   CI check is green and the show is not running.
 
 version: 2
 updates:
@@ -7,40 +16,72 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "monday"
       time: "06:00"
       timezone: "America/Chicago"
-    # Limit open PRs to avoid overwhelming
-    open-pull-requests-limit: 10
-    # Group minor and patch updates together to reduce PR noise
+    open-pull-requests-limit: 5
+    # Only propose releases that have been out for two weeks (supply-chain precaution).
+    # Not applied to security updates.
+    cooldown:
+      default-days: 14
     groups:
-      # Security updates are always separate and high priority
-      production-dependencies:
+      # eslint-config-next is released in step with next (same version number), so they move together
+      next-framework:
+        patterns:
+          - "next"
+          - "eslint-config-next"
+        update-types:
+          - "minor"
+          - "patch"
+      # react and react-dom must have the same version (react-dom requires that exact react)
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+        update-types:
+          - "minor"
+          - "patch"
+      # One PR for the everyday minor/patch bumps. The packages listed under exclude-patterns
+      # are the ones that can break the show, so each of them gets its own PR instead.
+      routine-updates:
         patterns:
           - "*"
         exclude-patterns:
+          - "next"
+          - "react"
+          - "react-dom"
+          - "better-sqlite3"
+          - "next-auth"
+          - "sharp"
+          - "nodemailer"
           - "@types/*"
           - "eslint*"
           - "typescript"
         update-types:
-          - "patch"
           - "minor"
+          - "patch"
+      # Types, linting and the compiler never run in production; one PR for all of them
       dev-dependencies:
         patterns:
           - "@types/*"
           - "eslint*"
           - "typescript"
+        exclude-patterns:
+          - "eslint-config-next"
         update-types:
-          - "patch"
           - "minor"
-    # Reviewers for PRs (optional - add GitHub usernames)
-    # reviewers:
-    #   - "joeally06"
-    # Labels to add to PRs
+          - "patch"
+    ignore:
+      # better-sqlite3 13.x needs Node 22 or newer; CI and the install script use Node 20.
+      # Also read its release notes before merging any update: 12.10.0 stopped shipping Node 20 prebuilt
+      # binaries (it compiles from source there) and some releases (12.7.x, 12.9.1, 12.11.0) were marked
+      # "not viable" upstream. Remove this rule when the show machine runs Node 22.
+      - dependency-name: "better-sqlite3"
+        update-types: ["version-update:semver-major"]
     labels:
       - "dependencies"
       - "automated"
-    # Commit message format
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
