@@ -1,4 +1,6 @@
 import assert from 'assert';
+import fs from 'fs';
+import path from 'path';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import IdleScreen from '../components/display/IdleScreen';
@@ -102,7 +104,12 @@ assert.ok(!/font-size:\s*8\.4vw/.test(html), 'no uncapped copy of the show-name 
 assert.ok(html.includes('overflow-hidden'), 'the panel area clips instead of spilling over the bars');
 
 print('Test 5c: the screen defaults to white text, so the top-bar name and QR caption are readable on the dark background');
-assert.ok(/class="[^"]*\bselect-none\b[^"]*\btext-white\b/.test(render()), 'the idle screen root must set text-white');
+assert.ok(/class="[^"]*\bdisplay-sign\b[^"]*\btext-white\b/.test(render()), 'the idle screen root must set text-white and display-sign');
+// globals.css colors every p, span and div black; display-sign is what lets them take the sign's white instead
+const globals = fs.readFileSync(path.join(process.cwd(), 'app', 'globals.css'), 'utf-8');
+const signRule = /\.display-sign p,[\s\S]*?\.display-sign span,[\s\S]*?\.display-sign div,[\s\S]*?\{\s*color:\s*inherit;\s*\}/.exec(globals);
+assert.ok(signRule, 'globals.css must undo the black default inside .display-sign');
+assert.ok(globals.indexOf('@apply text-black') < signRule.index, 'the display-sign rule must come after the black default (same specificity order rules)');
 
 print('Test 6: ticker, sponsor line and logo appear only when set');
 assert.ok(!html.includes('ticker-inner') && !html.includes('Brought to you by') && !html.includes('alt="Logo"'));

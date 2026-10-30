@@ -84,6 +84,16 @@ body {
   .bg-gray-900 * {
     @apply text-white;
   }
+
+  /* The digital sign (components/display) sets its own colors. Undo the black default above so text without
+     a color class takes the white of the sign's root; a color class or inline color still wins. */
+  .display-sign p,
+  .display-sign span,
+  .display-sign div,
+  .display-sign label,
+  .display-sign li {
+    color: inherit;
+  }
 }
 
 /* ===== Admin frame (components/AdminLayout.tsx, components/AdminNavigation.tsx) ===== */

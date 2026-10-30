@@ -78,4 +78,7 @@ assert.ok(html.includes('ticker-inner') && html.includes('Brought to you by Ally
 print('Test 8: the entrance animation respects reduced motion');
 assert.ok(render().includes('prefers-reduced-motion: no-preference'));
 
+print('Test 9: the screen defaults to white text, so text without its own color is readable on the dark background');
+assert.ok(/class="[^"]*\bdisplay-sign\b[^"]*\btext-white\b/.test(render()), 'the now-playing root must set text-white and display-sign');
+
 print('All tests passed');

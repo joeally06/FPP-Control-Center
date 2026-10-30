@@ -85,7 +85,7 @@ export default function NowPlayingView({ state }: Props) {
 
   return (
     <div
-      className="w-screen h-screen flex flex-col text-white select-none overflow-hidden relative"
+      className="display-sign w-screen h-screen flex flex-col text-white select-none overflow-hidden relative"
       style={{ ...plainBg, fontFamily: theme.fontFamily }}
     >
       <FontLoader fontStyle={config.fontStyle ?? 'modern'} />

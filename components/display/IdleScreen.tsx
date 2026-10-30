@@ -176,7 +176,7 @@ export default function IdleScreen({ config, jukeboxUrl, activeAnnouncement }: P
       `}</style>
 
       <div
-        className="relative w-screen h-screen overflow-hidden flex flex-col select-none text-white"
+        className="display-sign relative w-screen h-screen overflow-hidden flex flex-col select-none text-white"
         style={bgStyle}
       >
         {/* Announcement overlay always on top */}
