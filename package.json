@@ -72,7 +72,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@types/sharp": "^0.31.1",
+    "@types/sharp": "^0.32.0",
     "@types/spotify-web-api-node": "^5.0.11",
     "@types/validator": "^13.15.4",
     "baseline-browser-mapping": "^2.9.3",
