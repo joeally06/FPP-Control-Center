@@ -3,6 +3,9 @@
   "version": "2.0.0",
   "description": "Control center for Falcon Player (FPP) light shows",
   "private": true,
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/joeally06/FPP-Control-Center.git"
@@ -44,13 +47,13 @@
     "test:ci": "node -r esbuild-register scripts/test-email-retries.ts && node -r esbuild-register scripts/test-email-retries-auth-fail.ts && node -r esbuild-register scripts/test-jukebox-queue-transaction.ts && node -r esbuild-register scripts/test-request-status.ts && node -r esbuild-register scripts/test-time-utils.ts && node -r esbuild-register scripts/test-migrations.ts && node -r esbuild-register scripts/test-trivia-logic.ts && node -r esbuild-register scripts/test-trivia-game.ts && node -r esbuild-register scripts/test-csrf.ts && node -r esbuild-register scripts/test-jukebox-display.ts && node -r esbuild-register scripts/test-jukebox-audience.ts && node -r esbuild-register scripts/test-theme-assets.ts && node -r esbuild-register scripts/test-poll-timing.ts && node -r esbuild-register scripts/test-santa-confirmation.ts && node -r esbuild-register scripts/test-client-ip.ts && node -r esbuild-register scripts/test-show-schedule.ts && node -r esbuild-register scripts/test-show-summary.ts && node -r esbuild-register scripts/test-jukebox-playlists.ts && node -r esbuild-register scripts/test-circuit-breaker.ts && node -r esbuild-register scripts/test-device-check.ts && node -r esbuild-register scripts/test-jukebox-songs.ts && node -r esbuild-register scripts/test-service-restart.ts && node -r esbuild-register scripts/test-jukebox-catalog.ts && node -r esbuild-register scripts/test-jukebox-queue-processor.ts && node -r esbuild-register scripts/test-db-backup.ts && node -r esbuild-register scripts/test-ecosystem-config.ts && node -r esbuild-register scripts/test-admin-auth.ts && node -r esbuild-register scripts/test-lazy-poller.ts && node -r esbuild-register scripts/test-database-init.ts && node -r esbuild-register scripts/test-db-connections.ts && node -r esbuild-register scripts/test-privacy.ts && node -r esbuild-register scripts/test-csp.ts && node -r esbuild-register scripts/test-analytics-tracking.ts && node -r esbuild-register scripts/test-build-hash.ts && node -r esbuild-register scripts/test-db-schema.ts && node -r esbuild-register scripts/test-api-auth.ts && node -r esbuild-register scripts/test-jukebox-components.ts && node -r esbuild-register scripts/test-display-sections.ts && node -r esbuild-register scripts/test-display-now-playing.ts && node -r esbuild-register scripts/test-fpp-state.ts && node -r esbuild-register scripts/test-display-idle.ts && node -r esbuild-register scripts/test-display-settings.ts && node -r esbuild-register scripts/test-env-local.ts && node -r esbuild-register scripts/test-update-lockfile.ts"
   },
   "dependencies": {
-    "better-sqlite3": "^12.4.1",
+    "better-sqlite3": "^13.0.3",
     "dotenv": "^18.0.8",
     "exceljs": "^4.4.0",
-    "framer-motion": "^12.23.24",
-    "isomorphic-dompurify": "^2.30.1",
+    "framer-motion": "^12.43.0",
+    "isomorphic-dompurify": "^4.5.0",
     "jspdf": "^4.2.1",
-    "jspdf-autotable": "^5.0.2",
+    "jspdf-autotable": "^5.0.9",
     "lucide-react": "^0.552.0",
     "luxon": "^3.7.2",
     "next": "^16.4.3",
@@ -59,29 +62,29 @@
     "nodemailer": "^10.3.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "react-qr-code": "^2.0.21",
-    "recharts": "^3.3.0",
+    "react-qr-code": "^2.2.0",
+    "recharts": "^3.10.1",
     "sharp": "^0.35.5",
     "spotify-web-api-node": "^5.0.2",
-    "validator": "^13.15.20"
+    "validator": "^13.15.35"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/better-sqlite3": "^7.6.13",
     "@types/luxon": "^3.7.6",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@types/sharp": "^0.32.0",
     "@types/spotify-web-api-node": "^5.0.11",
-    "@types/validator": "^13.15.4",
+    "@types/validator": "^13.15.10",
     "baseline-browser-mapping": "^2.9.3",
     "concurrently": "^9.2.1",
     "esbuild-register": "^3.6.0",
-    "eslint": "^9",
+    "eslint": "^9.39.5",
     "eslint-config-next": "16.4.3",
     "node-fetch": "^2.7.0",
-    "tailwindcss": "^4",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5"
   },
   "overrides": {

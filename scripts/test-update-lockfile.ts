@@ -177,22 +177,32 @@ print('Test 11: this repository\'s own package.json and lockfile agree');
   assert.deepStrictEqual(snapshot(repo), before);
 }
 
-print('Test 12: every package in this repository\'s lockfile allows the show machine\'s Node.js (20.20.2)');
+print('Test 12: this repository\'s lockfile and package.json support exactly the Node.js versions we run');
 {
   // npm cannot simulate another Node.js version (npm 11 ignores npm_config_node_version), so the
-  // engines of the locked packages are compared here directly. If this fails, the updater's engine check
-  // would refuse to update a machine that runs this Node.js. The Node upgrade changes SHOW_MACHINE_NODE.
-  const SHOW_MACHINE_NODE = '20.20.2';
+  // engines of the locked packages are compared here directly. SUPPORTED are the versions the app runs on
+  // (CI and the show machine); REFUSED is a version the updater must turn away instead of installing.
+  const SUPPORTED = ['22.22.2', '24.22.2'];
+  const REFUSED = '20.20.2';
   // `semver` is not a direct dependency; it is hoisted from other packages. If this line fails with
   // MODULE_NOT_FOUND after a dependency change, add semver as a devDependency.
   const semver = require('semver') as { satisfies(version: string, range: string): boolean };
   const lock = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package-lock.json'), 'utf-8')) as {
-    packages: Record<string, { version?: string; engines?: { node?: string } }>;
+    packages: Record<string, { version?: string; engines?: { node?: string }; optional?: boolean }>;
   };
-  const unmet = Object.entries(lock.packages)
-    .filter(([, p]) => p.engines?.node && !semver.satisfies(SHOW_MACHINE_NODE, p.engines.node))
+  // npm skips optional packages for other platforms (e.g. sharp-win32-ia32), so they never block an install
+  const unmetFor = (node: string) => Object.entries(lock.packages)
+    .filter(([, p]) => !p.optional && p.engines?.node && !semver.satisfies(node, p.engines.node))
     .map(([name, p]) => `${name || '(root)'} ${p.version} needs ${p.engines?.node}`);
-  assert.deepStrictEqual(unmet, [], `these locked packages do not support Node.js ${SHOW_MACHINE_NODE}`);
+  for (const node of SUPPORTED) {
+    assert.deepStrictEqual(unmetFor(node), [], `these locked packages do not support Node.js ${node}`);
+  }
+  assert.ok(unmetFor(REFUSED).length > 0, `the lockfile should need a newer Node.js than ${REFUSED}, so the updater refuses it`);
+
+  const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf-8')) as { engines?: { node?: string } };
+  assert.ok(pkg.engines?.node, 'package.json must declare engines.node');
+  for (const node of SUPPORTED) assert.ok(semver.satisfies(node, pkg.engines.node), `package.json engines.node must allow ${node}`);
+  assert.ok(!semver.satisfies(REFUSED, pkg.engines.node), `package.json engines.node must not allow ${REFUSED}`);
 }
 
 fs.rmSync(root, { recursive: true, force: true });

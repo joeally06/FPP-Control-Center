@@ -2,7 +2,7 @@
 
 **A modern web interface for controlling Falcon Player (FPP) Christmas light shows with interactive visitor features.**
 
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen)](https://nodejs.org/)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D22.22.2-brightgreen)](https://nodejs.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16.0-black)](https://nextjs.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/joeally06/FPP-Control-Center/actions/workflows/ci.yml/badge.svg)](https://github.com/joeally06/FPP-Control-Center/actions/workflows/ci.yml)
@@ -74,8 +74,8 @@ FPP Control Center is a **complete web-based control panel** for your Falcon Pla
 ## 📋 System Requirements
 
 ### **Required:**
-- **Linux or macOS** - Raspberry Pi, Ubuntu, Debian, or Mac
-- **Node.js 20+** - Download from [nodejs.org](https://nodejs.org/)
+- **Linux or macOS** - Ubuntu 22.04+, Debian 12+, 64-bit Raspberry Pi OS (Bookworm or newer), or Mac (64-bit, glibc 2.34 or newer on Linux)
+- **Node.js 24 (22.22.2 or newer also works)** - Download from [nodejs.org](https://nodejs.org/)
 - **npm 10+** - Included with Node.js
 - **Git** - Version control system
 

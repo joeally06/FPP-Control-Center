@@ -59,11 +59,13 @@ try {
   for (const file of ['package.json', 'package-lock.json', '.npmrc']) {
     if (fs.existsSync(path.join(dir, file))) fs.copyFileSync(path.join(dir, file), path.join(scratch, file));
   }
-  npm = spawnSync(
-    process.platform === 'win32' ? 'npm.cmd' : 'npm',
-    ['ci', '--dry-run', '--engine-strict', '--include=dev', '--ignore-scripts', '--offline', '--no-audit', '--no-fund'],
-    { cwd: scratch, encoding: 'utf8', timeout: 120000, shell: process.platform === 'win32' }
-  );
+  const npmArgs = ['ci', '--dry-run', '--engine-strict', '--include=dev', '--ignore-scripts', '--offline', '--no-audit', '--no-fund'];
+  const options = { cwd: scratch, encoding: 'utf8', timeout: 120000 };
+  // Windows needs a shell to start npm.cmd; Node 24 deprecates passing an args array together with a shell,
+  // so the (fixed, constant) command goes in as one string there
+  npm = process.platform === 'win32'
+    ? spawnSync(`npm.cmd ${npmArgs.join(' ')}`, { ...options, shell: true })
+    : spawnSync('npm', npmArgs, options);
 } finally {
   fs.rmSync(scratch, { recursive: true, force: true });
 }

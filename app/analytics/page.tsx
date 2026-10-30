@@ -395,7 +395,7 @@ function SiteAnalytics() {
                 <YAxis tick={axisTick} stroke={chartColors.grid} />
                 <Tooltip
                   contentStyle={tooltipStyle}
-                  labelFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                  labelFormatter={(value) => new Date(value as string | number).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                 />
                 <Legend wrapperStyle={legendStyle} />
                 <Line

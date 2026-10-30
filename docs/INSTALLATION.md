@@ -2,7 +2,7 @@
 
 This guide walks you through **every step** of installing and configuring FPP Control Center on **Linux or macOS** systems.
 
-> **Note:** FPP Control Center is designed for Linux (Raspberry Pi, Ubuntu, Debian, CentOS, Fedora) and macOS environments where FPP runs.
+> **Note:** FPP Control Center is designed for 64-bit Linux with glibc 2.34 or newer (Ubuntu 22.04+, Debian 12+, Raspberry Pi OS 64-bit Bookworm+, RHEL/CentOS Stream 9+, Fedora) and macOS environments where FPP runs.
 
 **Estimated Time:**
 - **Local Network Setup:** 15-20 minutes
@@ -29,17 +29,17 @@ This guide walks you through **every step** of installing and configuring FPP Co
 
 Before installing FPP Control Center, ensure you have the required software installed.
 
-> **Supported Platforms:** Linux (Raspberry Pi, Ubuntu, Debian, CentOS, Fedora) and macOS
+> **Supported Platforms:** 64-bit Linux with glibc 2.34 or newer (Ubuntu 22.04+, Debian 12+, Raspberry Pi OS 64-bit Bookworm+, RHEL/CentOS Stream 9+, Fedora) and macOS
 
 ### Required Software
 
-#### 1 **Node.js 20+ and npm**
+#### 1 **Node.js 24 (22.22.2 or newer also works) and npm**
 
 Node.js is the runtime environment. npm (Node Package Manager) is included automatically.
 
 **Check if already installed:**
 ```bash
-node --version   # Should show v20.0.0 or higher
+node --version   # Should show v24.x (v22.22.2 or higher also works)
 npm --version    # Should show 10.0.0 or higher
 ```
 
@@ -53,9 +53,9 @@ npm --version    # Should show 10.0.0 or higher
 # Install Homebrew if not installed
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-# Install Node.js 20
-brew install node@20
-brew link --overwrite node@20
+# Install Node.js 24
+brew install node@24
+brew link --overwrite node@24
 ```
 
 **Option 2: Official Installer**
@@ -80,8 +80,8 @@ npm --version
 # Remove old versions
 sudo apt-get remove -y nodejs npm
 
-# Add NodeSource repository for Node.js 20.x
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+# Add NodeSource repository for Node.js 24.x
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
 
 # Install Node.js
 sudo apt-get install -y nodejs
@@ -103,7 +103,7 @@ npm --version
 sudo yum remove -y nodejs npm
 
 # Add NodeSource repository
-curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+curl -fsSL https://rpm.nodesource.com/setup_24.x | sudo bash -
 
 # Install Node.js
 sudo yum install -y nodejs
@@ -231,7 +231,7 @@ Before continuing, verify everything is ready:
 
 ```bash
 # Required
-node --version   # Must be v20.0.0+
+node --version   # Must be v22.22.2+ (v24 recommended)
 npm --version    # Must be 10.0.0+
 git --version    # Any version
 
@@ -319,7 +319,7 @@ Step 1/8: System Requirements
 
 
  Operating system: linux 
- Node.js v20.11.0 
+ Node.js v24.22.2 
  npm 10.2.4 
  git 2.39.2 
 ```
@@ -1223,11 +1223,55 @@ bash setup.sh
 ``bash
 node --version
 
-# If less than v20.0.0:
+# If less than v22.22.2:
 # Uninstall old Node.js
-# Install Node.js 20+ from nodejs.org
+# Install Node.js 24 from nodejs.org
 # Restart terminal
 ``
+</details>
+
+<details>
+<summary><strong>Upgrading Node.js on an existing show machine (Ubuntu/Debian, from Node 20)</strong></summary>
+
+Releases from the Node.js 24 upgrade onward need Node.js 22.22.2 or newer (24 recommended). Node 20 stopped receiving security fixes in April 2026. The updater refuses to install a release that needs a newer Node.js than the machine runs, so do this first, while nobody is using the site.
+
+**Check the machine first.** `better-sqlite3` 13 ships prebuilt binaries only for 64-bit systems with glibc 2.34 or newer (Ubuntu 22.04+, Debian 12+, Raspberry Pi OS 64-bit Bookworm+). It does not compile itself as a fallback, so on an older system the update would install and then fail to open the database.
+
+```bash
+ldd --version | head -1           # glibc must be 2.34 or higher
+uname -m                          # must be x86_64 or aarch64 (not armv7l)
+```
+
+**Then upgrade, in this order:**
+
+```bash
+cd ~/FPP-Control-Center          # your install folder
+npm run backup                   # snapshot of the database
+
+# 1. Install Node.js 24 (NodeSource)
+curl -fsSL https://deb.nodesource.com/setup_24.x -o nodesource_setup.sh
+sudo -E bash nodesource_setup.sh
+sudo apt install -y nodejs
+node --version                   # should print v24.x
+```
+
+   On Ubuntu 22.04 and newer, `apt` may show a "Daemons using outdated libraries" screen (`needrestart`). Do **not** let it restart the PM2 service (`pm2-<user>`): leave it unticked, or choose "none". Restarting it now would start the site on Node 24 before the update has installed the matching database library.
+
+2. **Run the update right away** (admin dashboard, or `./scripts/run-update.sh`). The running site keeps working on its old Node.js in memory until the update restarts it. The update installs the new dependencies for Node 24, builds, migrates and restarts. If something restarts the site before the update has finished (for example a reboot), it can show database errors until the update completes.
+
+3. **After the update succeeds,** point PM2 itself at the new Node.js:
+
+```bash
+sudo npm install -g pm2
+pm2 update
+pm2 unstartup                    # run the command it prints, then:
+pm2 startup                      # run the command it prints, then:
+pm2 save
+```
+
+4. Read `logs/update.log`, open the site, look at a page with pop-up messages (toasts), and send one test email from Settings.
+
+If the update says "The locked packages need a newer Node.js or npm than this machine runs", the Node.js upgrade did not take effect for the update process: run `node --version` and `which node` as the user that runs PM2 and check they match.
 </details>
 
 <details>

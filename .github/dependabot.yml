@@ -72,13 +72,6 @@ updates:
         update-types:
           - "minor"
           - "patch"
-    ignore:
-      # better-sqlite3 13.x needs Node 22 or newer; CI and the install script use Node 20.
-      # Also read its release notes before merging any update: 12.10.0 stopped shipping Node 20 prebuilt
-      # binaries (it compiles from source there) and some releases (12.7.x, 12.9.1, 12.11.0) were marked
-      # "not viable" upstream. Remove this rule when the show machine runs Node 22.
-      - dependency-name: "better-sqlite3"
-        update-types: ["version-update:semver-major"]
     labels:
       - "dependencies"
       - "automated"

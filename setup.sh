@@ -188,6 +188,17 @@ env_get() {
     fi
 }
 
+# Is the installed Node.js one this release supports? Keep in sync with "engines" in package.json:
+# ^22.22.2 || ^24.15.0 || >=26.0.0 (setup installs Node.js 24)
+node_version_ok() {
+    local major minor patch
+    IFS=. read -r major minor patch <<< "$(node -v | sed 's/^v//')"
+    if [ "$major" -ge 26 ]; then return 0; fi
+    if [ "$major" -eq 24 ] && [ "$minor" -ge 15 ]; then return 0; fi
+    if [ "$major" -eq 22 ] && { [ "$minor" -gt 22 ] || { [ "$minor" -eq 22 ] && [ "$patch" -ge 2 ]; }; }; then return 0; fi
+    return 1
+}
+
 # Load existing config values
 load_existing_config() {
     if [ -f ".env.local" ]; then
@@ -227,16 +238,15 @@ install_dependencies_mac() {
     brew update
     
     if ! command -v node &> /dev/null; then
-        print_step "Installing Node.js 20..."
-        brew install node@20
-        brew link node@20
+        print_step "Installing Node.js 24..."
+        brew install node@24
+        brew link node@24
         print_success "Node.js installed successfully"
     else
-        NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-        if [ "$NODE_VERSION" -lt 20 ]; then
-            print_step "Upgrading Node.js to version 20..."
-            brew upgrade node@20
-            brew link --overwrite node@20
+        if ! node_version_ok; then
+            print_step "Upgrading Node.js to version 24..."
+            brew upgrade node@24
+            brew link --overwrite node@24
             print_success "Node.js upgraded successfully"
         fi
     fi
@@ -256,19 +266,18 @@ install_dependencies_debian() {
     
     if ! command -v node &> /dev/null; then
         print_step "Adding NodeSource repository..."
-        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+        curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
         
-        print_step "Installing Node.js 20..."
+        print_step "Installing Node.js 24..."
         sudo apt-get install -y nodejs
         print_success "Node.js installed successfully"
     else
-        NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-        if [ "$NODE_VERSION" -lt 20 ]; then
-            print_warning "Node.js $(node -v) is too old. Upgrading to version 20..."
+        if ! node_version_ok; then
+            print_warning "Node.js $(node -v) is too old. Upgrading to version 24..."
             sudo apt-get remove -y nodejs
             print_step "Adding NodeSource repository..."
-            curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-            print_step "Installing Node.js 20..."
+            curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
+            print_step "Installing Node.js 24..."
             sudo apt-get install -y nodejs
             print_success "Node.js upgraded successfully"
         fi
@@ -290,19 +299,18 @@ install_dependencies_redhat() {
     
     if ! command -v node &> /dev/null; then
         print_step "Adding NodeSource repository..."
-        curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+        curl -fsSL https://rpm.nodesource.com/setup_24.x | sudo bash -
         
-        print_step "Installing Node.js 20..."
+        print_step "Installing Node.js 24..."
         sudo yum install -y nodejs
         print_success "Node.js installed successfully"
     else
-        NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-        if [ "$NODE_VERSION" -lt 20 ]; then
-            print_warning "Node.js $(node -v) is too old. Upgrading to version 20..."
+        if ! node_version_ok; then
+            print_warning "Node.js $(node -v) is too old. Upgrading to version 24..."
             sudo yum remove -y nodejs
             print_step "Adding NodeSource repository..."
-            curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-            print_step "Installing Node.js 20..."
+            curl -fsSL https://rpm.nodesource.com/setup_24.x | sudo bash -
+            print_step "Installing Node.js 24..."
             sudo yum install -y nodejs
             print_success "Node.js upgraded successfully"
         fi
@@ -323,7 +331,7 @@ install_dependencies() {
     echo ""
     echo "╔═══════════════════════════════════════════════════════════╗"
     echo "║  This script will automatically install:                 ║"
-    echo "║  • Node.js 20+ (includes npm)                            ║"
+    echo "║  • Node.js 24 (includes npm)                             ║"
     echo "║  • Git                                                    ║"
     echo "║                                                           ║"
     echo "║  You may be prompted for your sudo password.             ║"
@@ -450,9 +458,8 @@ if ! command -v node &> /dev/null; then
     print_warning "Node.js is not installed"
     MISSING_DEPS=true
 else
-    NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-    if [ "$NODE_VERSION" -lt 20 ]; then
-        print_warning "Node.js 20+ is required (found: $(node -v))"
+    if ! node_version_ok; then
+        print_warning "Node.js 22.22.2 or newer (24 recommended) is required (found: $(node -v))"
         MISSING_DEPS=true
     else
         print_success "Node.js $(node -v) detected"
@@ -489,9 +496,8 @@ if [ "$MISSING_DEPS" = true ]; then
             print_error "Node.js installation failed"
             exit 1
         fi
-        NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-        if [ "$NODE_VERSION" -lt 20 ]; then
-            print_error "Node.js 20+ is required"
+        if ! node_version_ok; then
+            print_error "Node.js 22.22.2 or newer is required"
             exit 1
         fi
         print_success "Node.js $(node -v) installed"

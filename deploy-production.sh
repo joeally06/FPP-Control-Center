@@ -8,8 +8,8 @@ echo ""
 
 # Check if running with proper Node.js version
 NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-if [ "$NODE_VERSION" -lt 20 ]; then
-    echo "❌ Node.js 20+ is required (found: $(node -v))"
+if [ "$NODE_VERSION" -lt 22 ]; then
+    echo "❌ Node.js 22 or newer is required (24 recommended) (found: $(node -v))"
     exit 1
 fi
 
@@ -18,6 +18,9 @@ echo ""
 
 # Step 1: Install dependencies
 echo "📦 Step 1: Installing dependencies..."
+# Refuses when package-lock.json does not match package.json, or a locked package needs a newer Node.js
+# than this machine runs (the exact minimum is in package.json "engines")
+node scripts/check-lockfile.js || exit 1
 npm install
 
 if [ $? -ne 0 ]; then
