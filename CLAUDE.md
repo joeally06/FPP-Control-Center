@@ -25,11 +25,11 @@ Fast verify (also run by the Stop hook): `npx tsc --noEmit && npm run test:ci`
   - `migrations/` — numbered `NNN_name.sql` (highest is `024`, next is `025`); `scripts/` — ops scripts and `test-*.ts`
   - `proxy.ts` (Next 16 middleware), `instrumentation.ts` (background services), `server.js`, `ecosystem.config.js` (PM2)
 - Architecture: route handler → `lib/` function → better-sqlite3. Handlers stay thin; do not add a controller/service/ORM layer. Production runs two PM2 processes: `fpp-control` (`server.js`) and `fpp-poller` (`lib/fpp-poller.ts`, polls FPP every 10 s into SQLite).
-- CI environment: GitHub Actions `ubuntu-latest`, Node 20, on push/PR to `main`/`master`: `check-security.js`, lint, `init-database.js` (throwaway DB), build, `npm run test:ci`
+- CI environment: GitHub Actions `ubuntu-latest`, Node 24, on push/PR to `main`/`master`: `check-security.js`, lint, `init-database.js` (throwaway DB), build, `npm run test:ci`
 - OS requirements: dev host is Windows (PowerShell, Node 22); production is an Ubuntu Server VM, x64, PM2. `*.sh` must stay LF, `*.ps1`/`*.bat` CRLF (`.gitattributes`).
 - Build layout constraints: single Next app, not a monorepo. `votes.db` (+ `-wal`/`-shm`) in the repo root is live data.
 - Large disk side-effects: `npm run build` writes `.next/`; `backups/` holds the only DB recovery copies
-- Other constraints: native modules `better-sqlite3` and `sharp` need a recent glibc on the show machine (`sharp` also needs SSE4.2); check Node 20 and Node 22 before adding a dependency
+- Other constraints: native modules `better-sqlite3` and `sharp` need a recent glibc on the show machine (`sharp` also needs SSE4.2); check Node 22 and Node 24 before adding a dependency
 - Special constraints:
   - Every commit to `master` can be deployed straight onto the live show machine (admin self-update: `git pull` → `npm install` → `npm run build` → `node scripts/migrate-database.js` → PM2 restart, `git reset --hard` rollback on failure). A broken build or migration has real cost.
   - Background services (Santa queue processor, device monitor, DB scheduler) start from `instrumentation.ts` at server boot and contact the real FPP player and SMTP. That is why running the server is forbidden.
@@ -41,7 +41,7 @@ Fast verify (also run by the Stop hook): `npx tsc --noEmit && npm run test:ci`
 - **Two schema mechanisms.** `lib/database.ts` runs `CREATE TABLE IF NOT EXISTS` plus an add-column-if-missing loop on every import. New tables/columns normally go in a new `migrations/NNN_name.sql` (pattern: `migrations/018_trivia.sql`), applied by `scripts/migrate-database.js` in filename order. Number `013` is used twice; check the highest number before adding one. Never edit an applied migration. Write them idempotently (`IF NOT EXISTS`, `INSERT OR IGNORE`). `lib/migrations-runner.ts` is a legacy `game_scores` helper, not the real runner.
 - **`votes.db` path:** `lib/database.ts` honours `VOTES_DB_PATH`, but `lib/rate-limit.ts` and others hard-code `process.cwd()/votes.db`.
 - **FPP access** goes through `lib/fpp-config.ts` (`getFppUrl()` with a host allowlist). Never build FPP URLs from request input; `/api/fppd/*` and `/api/web/*` stay admin-only.
-- **Next 16 / React 19 / next-auth v4:** `proxy.ts` replaces `middleware.ts` (export named `proxy`); `params` in route handlers is a `Promise` and must be awaited; next-auth is v4 (`getServerSession(authOptions)`), not Auth.js; Tailwind 4 has no `tailwind.config.js`; ESLint 9 flat config. Look up docs for the pinned version, not latest.
+- **Next 16 / React 19 / next-auth v4:** `proxy.ts` replaces `middleware.ts` (export named `proxy`); `params` in route handlers is a `Promise` and must be awaited; next-auth is v4 (`getServerSession(authOptions)`), not Auth.js; Tailwind 4 has no `tailwind.config.js`; ESLint 10 flat config. Look up docs for the pinned version, not latest.
 - **CSP lives in `proxy.ts`** with hard-coded LAN hosts. New external scripts, images, frames, or `connect-src` targets need a CSP update there.
 - **Env vars:** `NEXT_PUBLIC_*` values ship to browsers — never put a secret there. There is no `.env.example`; document any new variable in `README.md` / `docs/INSTALLATION.md`.
 - **Tests:** there is no Jest/Vitest. New logic gets a `scripts/test-<name>.ts` (pattern: `scripts/test-trivia-logic.ts`, uses `assert`, exits non-zero on failure) appended to `test:ci` in `package.json`. Report results per script.
