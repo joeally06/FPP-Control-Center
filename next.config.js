@@ -8,7 +8,7 @@ const nextConfig = {
   experimental: {
     // Every `next build` starts clean. The persistent build cache (on by default since Next 16.3) has shipped
     // stale Tailwind CSS with newly added @theme colours missing, and the self-update builds on top of it.
-    turbopackFileSystemCacheForBuild: false,
+    turbopackFileSystemCacheForBuild: false,turbopackFileSystemCacheForDev: false,
   },
 
   async headers() {
