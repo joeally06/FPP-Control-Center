@@ -1,5 +1,4 @@
-// Test FPP Cached Status API
-const fetch = require('node-fetch');
+// Test FPP Cached Status API (uses Node's built-in fetch)
 
 (async () => {
   try {
@@ -16,6 +15,6 @@ const fetch = require('node-fetch');
     console.log(`\nResponse Body:`);
     console.log(JSON.stringify(data, null, 2));
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('Error:', error.message, error.cause?.code ?? error.cause ?? '');
   }
 })();
