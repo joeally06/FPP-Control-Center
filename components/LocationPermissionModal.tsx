@@ -277,7 +277,7 @@ export default function LocationPermissionModal({
                     <div>
                       <p className="text-white font-semibold">Request Songs & Vote</p>
                       <p className="text-white/70 text-sm">
-                        We verify you're at the light show so only on-site visitors can participate
+                        We verify you&apos;re at the light show so only on-site visitors can participate
                       </p>
                     </div>
                   </div>
@@ -296,11 +296,11 @@ export default function LocationPermissionModal({
 
               {/* What happens next */}
               <div className="bg-blue-500/20 border border-blue-400/40 rounded-xl p-4">
-                <p className="text-blue-100 text-sm font-medium mb-2">📱 What happens when you tap "Allow":</p>
+                <p className="text-blue-100 text-sm font-medium mb-2">📱 What happens when you tap &quot;Allow&quot;:</p>
                 <ol className="text-blue-100/90 text-sm space-y-1 list-decimal list-inside pl-2">
                   <li>Your browser will show a permission popup</li>
-                  <li>Tap <strong>"Allow"</strong> in that popup</li>
-                  <li>That's it! You're ready to request songs</li>
+                  <li>Tap <strong>&quot;Allow&quot;</strong> in that popup</li>
+                  <li>That&apos;s it! You&apos;re ready to request songs</li>
                 </ol>
               </div>
 
@@ -314,7 +314,7 @@ export default function LocationPermissionModal({
                 />
                 <div>
                   <p className="text-white font-medium text-sm">Remember this device</p>
-                  <p className="text-white/60 text-xs">Don't ask again on future visits</p>
+                  <p className="text-white/60 text-xs">Don&apos;t ask again on future visits</p>
                 </div>
               </label>
             </>
@@ -340,7 +340,7 @@ export default function LocationPermissionModal({
                     {deviceType === 'desktop' ? '🌐 Browser Prompt:' : '📱 Device Prompt:'}
                   </p>
                   <p className="text-white/90 text-sm mb-3">
-                    "This site wants to know your location"
+                    &quot;This site wants to know your location&quot;
                   </p>
                   <div className="flex gap-2">
                     <span className="bg-gray-600 text-white/60 px-3 py-1 rounded text-xs">Block</span>
@@ -377,7 +377,7 @@ export default function LocationPermissionModal({
               {deviceType === 'ios' && (
                 <div className="bg-yellow-500/20 border border-yellow-400/40 rounded-xl p-4">
                   <p className="text-yellow-100 text-sm">
-                    <strong>🍎 iOS Tip:</strong> If you see "Location access is blocked," you'll need to enable it in your iPhone's Settings app under Privacy & Security → Location Services → Safari.
+                    <strong>🍎 iOS Tip:</strong> If you see &quot;Location access is blocked,&quot; you&apos;ll need to enable it in your iPhone&apos;s Settings app under Privacy & Security → Location Services → Safari.
                   </p>
                 </div>
               )}
@@ -459,7 +459,7 @@ export default function LocationPermissionModal({
         {stage === 'explain' && (
           <div className="bg-yellow-500/15 border-t border-yellow-500/30 px-5 py-3">
             <p className="text-yellow-100/80 text-xs text-center">
-              Without location access, you can still browse the queue and watch videos, but won't be able to request songs or vote.
+              Without location access, you can still browse the queue and watch videos, but won&apos;t be able to request songs or vote.
             </p>
           </div>
         )}

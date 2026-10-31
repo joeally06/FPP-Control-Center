@@ -318,7 +318,7 @@ export default function SantaLetterSettings() {
                 <option value="llama3.1:latest">Llama 3.1 - Balanced</option>
                 <option value="mistral:latest">Mistral - General Purpose</option>
                 <option value="phi3:latest">Phi-3 - Lightweight</option>
-                <option value="gemma2:latest">Gemma 2 - Google's Model</option>
+                <option value="gemma2:latest">Gemma 2 - Google&apos;s Model</option>
                 <option value="qwen2.5:latest">Qwen 2.5 - Multilingual</option>
                 <option value="deepseek-r1:latest">DeepSeek R1 - Advanced Reasoning (Large)</option>
               </>
@@ -371,7 +371,7 @@ export default function SantaLetterSettings() {
             <p className="mb-1 font-medium text-adm-info">Browse Available Models</p>
             <p className="text-adm-soft">
               Visit <a href="https://ollama.com/library" target="_blank" rel="noopener noreferrer" className="font-semibold text-adm-info underline hover:no-underline">ollama.com/library</a> to explore hundreds of AI models.
-              Copy the model name (e.g., "llama3.2:latest") and paste it below to install.
+              Copy the model name (e.g., &quot;llama3.2:latest&quot;) and paste it below to install.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -424,7 +424,7 @@ export default function SantaLetterSettings() {
                   <div>
                     <h3 id="model-warning-title" className="mb-2 text-lg font-semibold text-adm-text">{warning.title}</h3>
                     <AdminText className="mb-3">
-                      You're about to select <strong>{pendingModel}</strong> ({modelData.sizeFormatted})
+                      You&apos;re about to select <strong>{pendingModel}</strong> ({modelData.sizeFormatted})
                     </AdminText>
                     <AdminText className="mb-3">
                       {warning.message}

@@ -94,7 +94,7 @@ export default function CookieConsent() {
                   </h2>
                   <p className="text-white/90 text-sm md:text-base leading-relaxed">
                     We use cookies and similar technologies to enhance your experience, analyze site traffic, 
-                    and remember your preferences. By clicking "Accept All", you consent to our use of cookies.
+                    and remember your preferences. By clicking &quot;Accept All&quot;, you consent to our use of cookies.
                   </p>
                   <p className="text-white/70 text-sm mt-2">
                     Read our{' '}

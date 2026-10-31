@@ -158,11 +158,11 @@ export default function PrivacyPage() {
                 <ul className="space-y-2 text-white/80">
                   <li className="flex items-start gap-2">
                     <span className="text-blue-400 mt-1">•</span>
-                    <AdminText><strong>Google OAuth:</strong> For secure admin login only. Google's Privacy Policy applies.</AdminText>
+                    <AdminText><strong>Google OAuth:</strong> For secure admin login only. Google&apos;s Privacy Policy applies.</AdminText>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-blue-400 mt-1">•</span>
-                    <AdminText><strong>Email Service:</strong> For sending Santa letter responses (if enabled). Email provider's policy applies.</AdminText>
+                    <AdminText><strong>Email Service:</strong> For sending Santa letter responses (if enabled). Email provider&apos;s policy applies.</AdminText>
                   </li>
                 </ul>
               </div>
@@ -311,14 +311,14 @@ export default function PrivacyPage() {
 
           {/* Children's Privacy */}
           <div className="bg-white/10 backdrop-blur-md rounded-lg p-6 border border-white/20">
-            <AdminH2 className="mb-4">👶 Children's Privacy</AdminH2>
+            <AdminH2 className="mb-4">👶 Children&apos;s Privacy</AdminH2>
             <AdminText className="mb-4">
               The FPP Control Center is a family-friendly Christmas light show control system. While we have a 
-              "Letters to Santa" feature, we do not knowingly collect personal information from children under 13 
+              &quot;Letters to Santa&quot; feature, we do not knowingly collect personal information from children under 13 
               without parental consent.
             </AdminText>
             <AdminText>
-              Parents/guardians should supervise children's use of the Santa letter feature. If you believe we have 
+              Parents/guardians should supervise children&apos;s use of the Santa letter feature. If you believe we have 
               collected information from a child under 13 without consent, please contact us immediately.
             </AdminText>
           </div>
@@ -328,7 +328,7 @@ export default function PrivacyPage() {
             <AdminH2 className="mb-4">📝 Changes to This Policy</AdminH2>
             <AdminText>
               We may update this Privacy Policy from time to time. We will notify you of any changes by updating 
-              the "Last Updated" date at the top of this policy. Continued use of the system after changes 
+              the &quot;Last Updated&quot; date at the top of this policy. Continued use of the system after changes 
               constitutes acceptance of the updated policy.
             </AdminText>
           </div>
@@ -354,7 +354,7 @@ export default function PrivacyPage() {
             <AdminH2 className="mb-4">💻 Open Source</AdminH2>
             <AdminText>
               This is a personal/hobby project. The code is available on GitHub. By reviewing the code, 
-              you can see exactly what data we collect and how it's used. Transparency is important to us.
+              you can see exactly what data we collect and how it&apos;s used. Transparency is important to us.
             </AdminText>
           </div>
         </div>

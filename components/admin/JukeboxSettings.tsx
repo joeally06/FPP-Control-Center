@@ -311,7 +311,7 @@ export function RequestRulesSettings() {
         )}
 
         <p className={`${notice.warn} mt-4`}>
-          <strong>Tip:</strong> Clearing a user's rate limit removes their request history for the last hour and gives them their full allowance back immediately. A song of theirs that is playing right now keeps playing but no longer counts.
+          <strong>Tip:</strong> Clearing a user&apos;s rate limit removes their request history for the last hour and gives them their full allowance back immediately. A song of theirs that is playing right now keeps playing but no longer counts.
         </p>
       </div>
     </div>
