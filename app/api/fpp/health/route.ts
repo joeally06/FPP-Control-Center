@@ -42,8 +42,8 @@ export async function GET() {
             timestamp: Date.now()
           }, { status: 503 });
         }
-      } catch (dbError: any) {
-        console.error('[FPP Health Check] Database error:', dbError.message);
+      } catch (dbError) {
+        console.error('[FPP Health Check] Database error:', dbError instanceof Error ? dbError.message : String(dbError));
       }
       
       // Fallback if no cached state

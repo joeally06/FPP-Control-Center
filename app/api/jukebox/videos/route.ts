@@ -127,14 +127,14 @@ export async function GET(request: NextRequest) {
       }
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('[API] /api/jukebox/videos error:', error);
     
     return NextResponse.json({
       success: false,
       error: 'Internal server error',
       message: 'Failed to fetch videos from database',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      details: error instanceof Error && process.env.NODE_ENV === 'development' ? error.message : undefined
     }, { status: 500 });
   }
 }

@@ -125,13 +125,13 @@ export async function GET() {
       changes,
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('[Update Check] Error:', error);
     
     return NextResponse.json({
       success: false,
       error: 'Failed to check for updates',
-      details: error.message
+      details: error instanceof Error ? error.message : undefined
     }, { status: 500 });
   }
 }

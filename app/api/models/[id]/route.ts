@@ -79,11 +79,11 @@ export async function PUT(
       message: 'Model updated successfully'
     });
 
-  } catch (error: any) {
-    if (error.message?.includes('Authentication required')) {
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Authentication required')) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
-    if (error.message?.includes('Admin access required')) {
+    if (error instanceof Error && error.message.includes('Admin access required')) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
     console.error('Error updating model:', error);
@@ -122,11 +122,11 @@ export async function DELETE(
       message: 'Model deleted successfully'
     });
 
-  } catch (error: any) {
-    if (error.message?.includes('Authentication required')) {
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Authentication required')) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
-    if (error.message?.includes('Admin access required')) {
+    if (error instanceof Error && error.message.includes('Admin access required')) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
     console.error('Error deleting model:', error);

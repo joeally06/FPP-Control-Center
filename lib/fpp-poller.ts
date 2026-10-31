@@ -95,8 +95,8 @@ try {
   db.pragma('foreign_keys = ON');
   db.pragma('journal_mode = WAL');
   console.log('[FPP Poller] Database connected');
-} catch (error: any) {
-  console.error('[FPP Poller] FATAL: Could not connect to database:', error.message);
+} catch (error) {
+  console.error('[FPP Poller] FATAL: Could not connect to database:', error instanceof Error ? error.message : String(error));
   process.exit(1);
 }
 
@@ -440,12 +440,12 @@ function updateDatabase(status: any, responseTime: number): void {
     if (Math.random() < 0.1) {
       try {
         cleanupOldCachedPlaylists.run();
-      } catch (err: any) {
-        console.error('[FPP Poller] Playlist cache cleanup error:', err.message);
+      } catch (err) {
+        console.error('[FPP Poller] Playlist cache cleanup error:', err instanceof Error ? err.message : String(err));
       }
     }
-  } catch (error: any) {
-    console.error('[FPP Poller] Database update error:', error.message);
+  } catch (error) {
+    console.error('[FPP Poller] Database update error:', error instanceof Error ? error.message : String(error));
     // Don't crash - log and continue
   }
 }
@@ -473,8 +473,8 @@ function syncPlaylistSequences(playlistName: string, sequences: any[]): void {
 
     transaction();
     console.log(`[FPP Poller] ✓ Synced ${sequences.length} sequences for playlist: ${playlistName}`);
-  } catch (error: any) {
-    console.error('[FPP Poller] Sequence sync error:', error.message);
+  } catch (error) {
+    console.error('[FPP Poller] Sequence sync error:', error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -489,8 +489,8 @@ function cachePlaylistData(playlistName: string, data: any): void {
       JSON.stringify(data)
     );
     console.log(`[FPP Poller] ✓ Cached playlist data: ${playlistName}`);
-  } catch (error: any) {
-    console.error('[FPP Poller] Playlist cache error:', error.message);
+  } catch (error) {
+    console.error('[FPP Poller] Playlist cache error:', error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -541,8 +541,8 @@ function handleError(error: string, responseTime: number): void {
     } else {
       console.error(`[FPP Poller] ✗ Poll failed: ${error} (${responseTime}ms) [${consecutiveFailures} consecutive failures]`);
     }
-  } catch (err: any) {
-    console.error('[FPP Poller] Failed to log error:', err.message);
+  } catch (err) {
+    console.error('[FPP Poller] Failed to log error:', err instanceof Error ? err.message : String(err));
   }
 }
 
@@ -584,9 +584,9 @@ async function pollLoop(): Promise<void> {
       } else {
         handleError(result.error || 'Unknown error', result.responseTime);
       }
-    } catch (error: any) {
-      console.error('[FPP Poller] Unexpected error:', error.message);
-      handleError(error.message, 0);
+    } catch (error) {
+      console.error('[FPP Poller] Unexpected error:', error instanceof Error ? error.message : String(error));
+      handleError(error instanceof Error ? error.message : String(error), 0);
     } finally {
       isPolling = false;
     }
@@ -614,8 +614,8 @@ function shutdown(signal: string): void {
       db.close();
       console.log('[FPP Poller] Database closed');
     }
-  } catch (error: any) {
-    console.error('[FPP Poller] Error during shutdown:', error.message);
+  } catch (error) {
+    console.error('[FPP Poller] Error during shutdown:', error instanceof Error ? error.message : String(error));
   }
   
   process.exit(0);

@@ -41,11 +41,11 @@ export async function GET(
       success: true,
       video
     });
-  } catch (error: any) {
-    if (error.message?.includes('Authentication required')) {
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Authentication required')) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
-    if (error.message?.includes('Admin access required')) {
+    if (error instanceof Error && error.message.includes('Admin access required')) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
     console.error('[Admin YouTube Video] Error fetching video:', error);
@@ -122,11 +122,11 @@ export async function PUT(
       success: true,
       message: 'Video updated successfully'
     });
-  } catch (error: any) {
-    if (error.message?.includes('Authentication required')) {
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Authentication required')) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
-    if (error.message?.includes('Admin access required')) {
+    if (error instanceof Error && error.message.includes('Admin access required')) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
     console.error('[Admin YouTube Video] Error updating video:', error);
@@ -187,11 +187,11 @@ export async function DELETE(
       success: true,
       message: 'Video deleted successfully'
     });
-  } catch (error: any) {
-    if (error.message?.includes('Authentication required')) {
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Authentication required')) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
-    if (error.message?.includes('Admin access required')) {
+    if (error instanceof Error && error.message.includes('Admin access required')) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
     console.error('[Admin YouTube Video] Error deleting video:', error);

@@ -147,10 +147,10 @@ export async function POST(request: NextRequest) {
       audioRes = await fetch(audioUrl, {
         signal: AbortSignal.timeout(60000) // 1 minute timeout for large files
       });
-    } catch (fetchError: any) {
-      console.error(`[Audio Download] Fetch error:`, fetchError.message);
+    } catch (fetchError) {
+      console.error(`[Audio Download] Fetch error:`, fetchError instanceof Error ? fetchError.message : String(fetchError));
       return NextResponse.json(
-        { error: `Failed to connect to FPP: ${fetchError.message}`, url: audioUrl },
+        { error: `Failed to connect to FPP: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`, url: audioUrl },
         { status: 502 }
       );
     }
@@ -199,9 +199,9 @@ export async function POST(request: NextRequest) {
       // Save mappings
       await writeFile(MAPPING_FILE, JSON.stringify(mappings, null, 2), { mode: 0o644 });
       console.log(`[Audio Download] Auto-mapped: "${sequenceName}" → "${audioFileName}"`);
-    } catch (mappingError: any) {
+    } catch (mappingError) {
       // Don't fail the download if mapping fails
-      console.warn(`[Audio Download] Failed to auto-create mapping:`, mappingError.message);
+      console.warn(`[Audio Download] Failed to auto-create mapping:`, mappingError instanceof Error ? mappingError.message : String(mappingError));
     }
 
     return NextResponse.json({

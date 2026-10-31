@@ -99,8 +99,8 @@ export default function CircuitBreakerWidget() {
       } else {
         setMessage(`❌ ${result.error || 'Reset failed'}`);
       }
-    } catch (error: any) {
-      setMessage(`❌ Error: ${error.message}`);
+    } catch (error) {
+      setMessage(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setResetting(false);
       setTimeout(() => setMessage(''), TIMING.MESSAGE_DISPLAY_DURATION);

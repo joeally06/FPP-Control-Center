@@ -59,8 +59,8 @@ export async function GET() {
       count: mappings.length
     });
 
-  } catch (error: any) {
-    console.error('[Audio Mappings] Error reading mappings:', error.message);
+  } catch (error) {
+    console.error('[Audio Mappings] Error reading mappings:', error instanceof Error ? error.message : String(error));
     
     return NextResponse.json({
       mappings: [],
@@ -178,8 +178,8 @@ export async function POST(request: NextRequest) {
       totalMappings: Object.keys(mappings).length
     });
 
-  } catch (error: any) {
-    console.error('[Audio Mappings] Error creating mapping:', error.message);
+  } catch (error) {
+    console.error('[Audio Mappings] Error creating mapping:', error instanceof Error ? error.message : String(error));
     
     return NextResponse.json(
       { error: 'Failed to create mapping' },

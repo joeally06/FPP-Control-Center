@@ -113,15 +113,15 @@ export async function POST(request: NextRequest) {
       message: `Model ${sanitizedModel} pulled successfully`,
       data: data,
     });
-  } catch (error: any) {
+  } catch (error) {
     // ✅ SECURITY: Handle authentication errors explicitly
-    if (error.message?.includes('Authentication required')) {
+    if (error instanceof Error && error.message.includes('Authentication required')) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       );
     }
-    if (error.message?.includes('Admin access required')) {
+    if (error instanceof Error && error.message.includes('Admin access required')) {
       return NextResponse.json(
         { error: 'Admin access required' },
         { status: 403 }

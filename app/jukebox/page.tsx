@@ -354,9 +354,9 @@ export default function JukeboxPage() {
       }
 
       return true;
-    } catch (error: any) {
+    } catch (error) {
       setCheckingLocation(false);
-      console.log('[Location] Silent location fetch failed:', error.message);
+      console.log('[Location] Silent location fetch failed:', error instanceof Error ? error.message : String(error));
 
       // Browser needs user gesture - show modal to explain and let user try
       pendingActionRef.current = onSuccess || null;

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { toErrorMessage } from '@/lib/api-errors';
 import { useTheme } from '@/lib/themes/theme-context';
 import { getBrowserLocation, UserLocation } from '@/lib/location-utils';
 
@@ -151,10 +152,10 @@ export default function LocationPermissionModal({
       
       closeModal();
       onLocationGranted(location);
-    } catch (error: any) {
+    } catch (error) {
       console.error('[Modal] Location request failed:', error);
       setStage('error');
-      setErrorMessage(error.message || 'Location permission was denied');
+      setErrorMessage(toErrorMessage(error, 'Location permission was denied'));
     }
   };
 

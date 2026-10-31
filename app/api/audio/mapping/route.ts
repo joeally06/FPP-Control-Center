@@ -36,8 +36,8 @@ export async function GET() {
       count: Object.keys(mappings).length
     });
 
-  } catch (error: any) {
-    console.error('[Audio Mapping] Error reading mappings:', error.message);
+  } catch (error) {
+    console.error('[Audio Mapping] Error reading mappings:', error instanceof Error ? error.message : String(error));
     
     // Return empty mappings on error rather than failing
     return NextResponse.json({
@@ -164,8 +164,8 @@ export async function POST(request: NextRequest) {
       totalMappings: Object.keys(mappings).length
     });
 
-  } catch (error: any) {
-    console.error('[Audio Mapping] Error creating mapping:', error.message);
+  } catch (error) {
+    console.error('[Audio Mapping] Error creating mapping:', error instanceof Error ? error.message : String(error));
     
     return NextResponse.json(
       { error: 'Failed to create mapping' },
@@ -262,8 +262,8 @@ export async function DELETE(request: NextRequest) {
       remainingMappings: Object.keys(mappings).length
     });
 
-  } catch (error: any) {
-    console.error('[Audio Mapping] Error deleting mapping:', error.message);
+  } catch (error) {
+    console.error('[Audio Mapping] Error deleting mapping:', error instanceof Error ? error.message : String(error));
     
     return NextResponse.json(
       { error: 'Failed to delete mapping' },
@@ -379,8 +379,8 @@ export async function PUT(request: NextRequest) {
       mappings: sanitizedMappings
     });
 
-  } catch (error: any) {
-    console.error('[Audio Mapping] Error bulk updating mappings:', error.message);
+  } catch (error) {
+    console.error('[Audio Mapping] Error bulk updating mappings:', error instanceof Error ? error.message : String(error));
     
     return NextResponse.json(
       { error: 'Failed to update mappings' },

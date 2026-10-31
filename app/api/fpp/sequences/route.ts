@@ -51,18 +51,18 @@ export async function GET() {
       sequences: []
     }, { status: 404 });
 
-  } catch (error: any) {
-    if (error.message?.includes('Authentication required')) {
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Authentication required')) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
-    if (error.message?.includes('Admin access required')) {
+    if (error instanceof Error && error.message.includes('Admin access required')) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
     console.error('[FPP Sequences] Error:', error);
     
     return NextResponse.json({
       error: 'Failed to load sequences',
-      details: error.message,
+      details: error instanceof Error ? error.message : undefined,
       sequences: []
     }, { status: 500 });
   }

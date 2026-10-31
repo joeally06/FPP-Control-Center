@@ -79,8 +79,8 @@ export async function GET() {
       count: files.length
     });
 
-  } catch (error: any) {
-    console.error('[Local Files] Error reading files:', error.message);
+  } catch (error) {
+    console.error('[Local Files] Error reading files:', error instanceof Error ? error.message : String(error));
     
     return NextResponse.json(
       { error: 'Failed to read local files' },

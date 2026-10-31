@@ -123,14 +123,14 @@ export async function GET(request: NextRequest) {
       headers
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('[API] /api/jukebox/playlist error:', error);
     
     return NextResponse.json({
       success: false,
       error: 'Internal server error',
       message: 'Failed to fetch playlist from cache',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      details: error instanceof Error && process.env.NODE_ENV === 'development' ? error.message : undefined
     }, { status: 500 });
   }
 }

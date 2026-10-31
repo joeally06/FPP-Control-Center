@@ -210,8 +210,8 @@ export async function GET(request: NextRequest) {
       }
     });
 
-  } catch (error: any) {
-    console.error('[Playlist Status] Error:', error.message);
+  } catch (error) {
+    console.error('[Playlist Status] Error:', error instanceof Error ? error.message : String(error));
     
     return NextResponse.json(
       { error: 'Failed to get playlist status' },

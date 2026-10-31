@@ -104,13 +104,13 @@ export async function GET() {
         'X-Cache-Stale': String(isStale)
       }
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('[API] /api/fpp/cached-status error:', error);
 
     return NextResponse.json(
       {
         error: 'Failed to fetch cached status',
-        message: error.message
+        message: error instanceof Error ? error.message : undefined
       },
       { status: 500 }
     );

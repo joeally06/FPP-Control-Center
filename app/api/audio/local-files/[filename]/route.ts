@@ -86,8 +86,8 @@ export async function DELETE(
       filename: decodedFilename
     });
 
-  } catch (error: any) {
-    console.error('[Local Files] Error deleting file:', error.message);
+  } catch (error) {
+    console.error('[Local Files] Error deleting file:', error instanceof Error ? error.message : String(error));
     
     return NextResponse.json(
       { error: 'Failed to delete file' },

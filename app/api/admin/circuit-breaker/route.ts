@@ -112,10 +112,10 @@ export async function GET() {
         'Cache-Control': 'no-store, must-revalidate',
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('[API] /api/admin/circuit-breaker error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch circuit breaker status', message: error.message },
+      { error: 'Failed to fetch circuit breaker status', message: error instanceof Error ? error.message : undefined },
       { status: 500 }
     );
   }
@@ -163,10 +163,10 @@ export async function POST(request: NextRequest) {
       resetBy: session.user.email,
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('[API] /api/admin/circuit-breaker POST error:', error);
     return NextResponse.json(
-      { error: 'Failed to reset circuit breaker', message: error.message },
+      { error: 'Failed to reset circuit breaker', message: error instanceof Error ? error.message : undefined },
       { status: 500 }
     );
   }

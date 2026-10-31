@@ -115,8 +115,8 @@ export class FPPCircuitBreaker extends EventEmitter {
           1, 'CLOSED', strftime('%s', 'now') * 1000
         );
       `);
-    } catch (error: any) {
-      console.error('[Circuit Breaker] Failed to initialize database:', error.message);
+    } catch (error) {
+      console.error('[Circuit Breaker] Failed to initialize database:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -153,9 +153,9 @@ export class FPPCircuitBreaker extends EventEmitter {
         this.lastStateChange = Math.max(0, row.last_state_change || Date.now());
         this.totalTransitions = Math.max(0, row.total_transitions || 0);
       }
-    } catch (error: any) {
+    } catch (error) {
       // Keep the current state (CLOSED when this happens at startup)
-      console.error('[Circuit Breaker] Failed to load state:', error.message);
+      console.error('[Circuit Breaker] Failed to load state:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -183,8 +183,8 @@ export class FPPCircuitBreaker extends EventEmitter {
         this.lastStateChange,
         this.totalTransitions
       );
-    } catch (error: any) {
-      console.error('[Circuit Breaker] Failed to save state:', error.message);
+    } catch (error) {
+      console.error('[Circuit Breaker] Failed to save state:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -402,8 +402,8 @@ export class FPPCircuitBreaker extends EventEmitter {
       this.saveState(); // Persist final state
       this.db.close();
       console.log('[Circuit Breaker] Database connection closed');
-    } catch (error: any) {
-      console.error('[Circuit Breaker] Error closing database:', error.message);
+    } catch (error) {
+      console.error('[Circuit Breaker] Error closing database:', error instanceof Error ? error.message : String(error));
     }
   }
 }

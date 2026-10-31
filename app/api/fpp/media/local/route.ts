@@ -86,8 +86,8 @@ export async function GET() {
       count: validFiles.length
     });
 
-  } catch (error: any) {
-    console.error('[Local Media] Error listing files:', error.message);
+  } catch (error) {
+    console.error('[Local Media] Error listing files:', error instanceof Error ? error.message : String(error));
     
     return NextResponse.json(
       { error: 'Failed to list local files' },
@@ -193,8 +193,8 @@ export async function DELETE(request: NextRequest) {
       size: fileSize
     });
 
-  } catch (error: any) {
-    console.error('[Local Media] Error deleting file:', error.message);
+  } catch (error) {
+    console.error('[Local Media] Error deleting file:', error instanceof Error ? error.message : String(error));
     
     // SECURITY: Don't expose internal error details
     return NextResponse.json(

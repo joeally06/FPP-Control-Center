@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { toErrorMessage } from '@/lib/api-errors';
 import { requireAdmin } from '@/lib/auth-helpers';
 import db from '@/lib/database';
 import ExcelJS from 'exceljs';
@@ -122,8 +123,8 @@ export async function POST(request: NextRequest) {
           row['Default Buffer W x H']
         );
         imported++;
-      } catch (error: any) {
-        errors.push(`Row ${imported + 1}: ${error.message}`);
+      } catch (error) {
+        errors.push(`Row ${imported + 1}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 
@@ -135,10 +136,10 @@ export async function POST(request: NextRequest) {
       message: `Successfully imported ${imported} of ${data.length} models`
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Import error:', error);
     return NextResponse.json({ 
-      error: error.message || 'Failed to import file'
+      error: toErrorMessage(error, 'Failed to import file')
     }, { status: 500 });
   }
 }

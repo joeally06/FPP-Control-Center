@@ -69,7 +69,7 @@ export function FPPConnectionProvider({ children }: { children: React.ReactNode 
       } else {
         throw new Error(data.error || 'FPP is offline');
       }
-    } catch (error: any) {
+    } catch (error) {
       const newRetryCount = state.retryCount + 1;
       const delay = RETRY_DELAYS[Math.min(newRetryCount - 1, RETRY_DELAYS.length - 1)];
 
@@ -78,7 +78,7 @@ export function FPPConnectionProvider({ children }: { children: React.ReactNode 
         isOnline: false,
         isChecking: false,
         lastCheck: Date.now(),
-        error: error.message,
+        error: error instanceof Error ? error.message : null,
         retryCount: newRetryCount,
         nextRetryIn: Math.floor(delay / 1000) // Convert to seconds
       }));

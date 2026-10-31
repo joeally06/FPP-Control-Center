@@ -44,10 +44,10 @@ export async function POST(request: NextRequest) {
           success: true,
           hasUpdates: false,
         });
-      } catch (error: any) {
+      } catch (error) {
         return NextResponse.json({
           success: false,
-          error: error.message,
+          error: error instanceof Error ? error.message : undefined,
         });
       }
     }
@@ -72,10 +72,10 @@ export async function POST(request: NextRequest) {
       { error: 'Invalid action' },
       { status: 400 }
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error('Update error:', error);
     return NextResponse.json(
-      { error: error.message },
+      { error: error instanceof Error ? error.message : undefined },
       { status: 500 }
     );
   }

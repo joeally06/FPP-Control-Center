@@ -146,7 +146,7 @@ export async function GET(
         message: 'Fetched from Spotify and cached'
       });
 
-    } catch (spotifyError: any) {
+    } catch (spotifyError) {
       console.error('[Spotify Metadata] Spotify API error:', spotifyError);
       
       // Return graceful error - don't fail the whole request
@@ -159,17 +159,17 @@ export async function GET(
         previewUrl: null,
         matchConfidence: 'none',
         cached: false,
-        error: spotifyError.message,
+        error: spotifyError instanceof Error ? spotifyError.message : undefined,
         message: 'Spotify API unavailable'
       });
     }
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('[Spotify Metadata] Unexpected error:', error);
     return NextResponse.json(
       { 
         error: 'Failed to fetch metadata',
-        details: error.message 
+        details: error instanceof Error ? error.message : undefined 
       },
       { status: 500 }
     );
