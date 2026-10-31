@@ -1,5 +1,5 @@
 # CLAUDE.md
-**FPP Control Center** — Next.js web app that controls a Falcon Player (FPP) Christmas-light show: public jukebox/voting/Santa-letters/trivia pages for visitors, an admin dashboard for the operator, and one standalone Node poller process. Languages: TypeScript (a few legacy `.js` scripts in `scripts/` and the repo root). Frameworks: Next.js 16 (App Router, Turbopack), React 19.2, Tailwind CSS 4, next-auth v4, better-sqlite3 12 (no ORM). Package manager(s): npm.
+**FPP Control Center** — Next.js web app that controls a Falcon Player (FPP) Christmas-light show: public jukebox/voting/Santa-letters/trivia pages for visitors, an admin dashboard for the operator, and one standalone Node poller process. Languages: TypeScript (a few legacy `.js` scripts in `scripts/` and the repo root). Frameworks: Next.js 16 (App Router, Turbopack), React 19.3, Tailwind CSS 4, next-auth v4, better-sqlite3 13 (no ORM). Package manager(s): npm.
 
 ## Commands
 
@@ -26,7 +26,7 @@ Fast verify (also run by the Stop hook): `npx tsc --noEmit && npm run test:ci`
   - `proxy.ts` (Next 16 middleware), `instrumentation.ts` (background services), `server.js`, `ecosystem.config.js` (PM2)
 - Architecture: route handler → `lib/` function → better-sqlite3. Handlers stay thin; do not add a controller/service/ORM layer. Production runs two PM2 processes: `fpp-control` (`server.js`) and `fpp-poller` (`lib/fpp-poller.ts`, polls FPP every 10 s into SQLite).
 - CI environment: GitHub Actions `ubuntu-latest`, Node 24, on push/PR to `main`/`master`: `check-security.js`, lint, `init-database.js` (throwaway DB), build, `npm run test:ci`
-- OS requirements: dev host is Windows (PowerShell, Node 22); production is an Ubuntu Server VM, x64, PM2. `*.sh` must stay LF, `*.ps1`/`*.bat` CRLF (`.gitattributes`).
+- OS requirements: dev host is Windows (PowerShell, Node 24); production is an Ubuntu Server VM, x64, PM2. `*.sh` must stay LF, `*.ps1`/`*.bat` CRLF (`.gitattributes`).
 - Build layout constraints: single Next app, not a monorepo. `votes.db` (+ `-wal`/`-shm`) in the repo root is live data.
 - Large disk side-effects: `npm run build` writes `.next/`; `backups/` holds the only DB recovery copies
 - Other constraints: native modules `better-sqlite3` and `sharp` need a recent glibc on the show machine (`sharp` also needs SSE4.2); check Node 22 and Node 24 before adding a dependency
