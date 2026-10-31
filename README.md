@@ -67,6 +67,7 @@ FPP Control Center is a **complete web-based control panel** for your Falcon Pla
 - **Automatic Backups** - Database saved before every update
 - **Rollback Protection** - Automatically reverts failed updates
 - **Lockfile and Node.js Check** - Refuses to install when `package-lock.json` does not match `package.json`, or when the new release needs a newer Node.js than the machine runs
+- **Dependency Report** - `npm run deps:report` on the dev machine, and a read-only card under Settings, Updates on the show machine, list outdated packages, security advisories and the Node.js support date; a summary is emailed about once a month (see [docs/INSTALLATION.md](docs/INSTALLATION.md))
 - **Manual Fallback** - SSH command: `./scripts/run-update.sh`
 
 ---

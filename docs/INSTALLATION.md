@@ -1269,9 +1269,25 @@ pm2 startup                      # run the command it prints, then:
 pm2 save
 ```
 
-4. Read `logs/update.log`, open the site, look at a page with pop-up messages (toasts), and send one test email from Settings.
+4. Read `logs/update.log`, open the site, look at a page with pop-up messages (toasts), and open Settings, then Updates, and press **Check now** on the Dependencies card (it should list the Node.js version you installed). If this is the first release with the dependency report, the first monthly report email also arrives about 10 minutes after the restart; otherwise you only see it about 30 days after the previous one.
 
 If the update says "The locked packages need a newer Node.js or npm than this machine runs", the Node.js upgrade did not take effect for the update process: run `node --version` and `which node` as the user that runs PM2 and check they match.
+</details>
+
+<details>
+<summary><strong>Keeping dependencies up to date (dependency report)</strong></summary>
+
+The app does not update itself behind your back. Instead it can tell you what needs attention, and you decide when to work on it.
+
+- **On the development machine:** run `npm run deps:report`. It prints the Node.js support status, every outdated package (major, minor or patch behind), and the security advisories that apply, grouped so one advisory is listed once with the packages that pull it in. It only reads; it changes no files and does not touch `votes.db`. It needs internet access and takes a few seconds.
+- **On the show machine:** open **Settings, then Updates** and look at the Dependencies card. **Check now** runs the same check there (up to about 45 seconds) and saves the result. It includes the development tools (ESLint, TypeScript, Tailwind), because the show machine builds with them on every update. The card never installs anything.
+- **By email:** once a month the show machine emails the same summary to the address in `SMTP_USER`. It is sent even when everything is current, so a month without the email means the mail settings or the app need a look. The first email arrives about 10 minutes after the first restart on a release that has this feature, then about every 30 days (it is checked once a day, so it can drift by a day). It is only sent when the app runs in production mode (PM2 or `npm start`) and `SMTP_USER` and `SMTP_PASS` are set; `npm run dev` on the development machine never sends it.
+
+To act on a report: work on the updates on the development machine (ask for help with "check dependencies"), test, commit and push, then press **Update** on the show machine. Both machines then run the same packages, because the update installs exactly what the pushed `package-lock.json` says.
+
+Do not run `npm audit fix` or `npm update` to clear a warning. The suggested fixes in `npm audit` can be wrong (for example a "fix" that downgrades ESLint to version 4).
+
+`npm run check-deps` is a different, older tool: it checks that Node.js, npm and Git are installed. It does not look at packages.
 </details>
 
 <details>

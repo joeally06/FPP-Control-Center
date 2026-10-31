@@ -567,3 +567,36 @@ export async function sendAlertEmail(deviceName: string, deviceIp: string): Prom
     return false;
   }
 }
+
+/**
+ * Send the monthly dependency report (plain text) to the admin (same address as SMTP_USER)
+ */
+export async function sendDependencyReportEmail(subject: string, text: string): Promise<boolean> {
+  try {
+    const nodemailer = await import('nodemailer');
+    const config = getEmailConfig();
+
+    if (!config.auth.user || !config.auth.pass) {
+      console.error('❌ Email configuration missing: SMTP_USER and SMTP_PASS required');
+      return false;
+    }
+
+    const info = await sendMailWithRetries(
+      config,
+      { from: `"Control Center" <${config.auth.user}>`, to: config.auth.user, subject, text },
+      {
+        attempts: parseInt(process.env.SMTP_RETRY_ATTEMPTS || '3', 10),
+        initialDelayMs: parseInt(process.env.SMTP_RETRY_INITIAL_MS || '1000', 10),
+        factor: 2,
+        verify: true,
+        createTransport: () => nodemailer.default.createTransport(config),
+      }
+    );
+
+    debugLog('✅ Dependency report email sent:', info.messageId);
+    return true;
+  } catch (error) {
+    console.error('❌ Error sending dependency report email:', error);
+    return false;
+  }
+}

@@ -17,6 +17,7 @@ export async function register() {
       const { startDeviceMonitoring } = await import('./lib/device-monitor');
       const { startMaintenanceScheduler } = await import('./lib/db-scheduler');
       const { startJukeboxQueueProcessor } = await import('./lib/jukebox-queue-processor');
+      const { startDependencyScheduler } = await import('./lib/dependency-scheduler');
 
       // Start services
       startQueueProcessor();
@@ -28,6 +29,7 @@ export async function register() {
       }, 5000);
 
       startMaintenanceScheduler();
+      startDependencyScheduler(); // monthly dependency report email (production only)
 
       // Optionally run migrations at startup if explicitly allowed
       const autoMigrate = process.env.AUTO_RUN_MIGRATIONS === 'true' || process.env.AUTO_RUN_MIGRATIONS === '1';
