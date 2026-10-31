@@ -304,6 +304,7 @@ export default function YouTubeVideoSettings() {
               <div key={video.id} className={insetBox}>
                 <div className="flex items-start gap-3">
                   {video.thumbnail_url && (
+                    // eslint-disable-next-line @next/next/no-img-element -- remote YouTube thumbnail
                     <img
                       src={video.thumbnail_url}
                       alt={video.title}

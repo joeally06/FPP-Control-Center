@@ -60,6 +60,7 @@ export default function ImageUpload({
 
       {currentUrl ? (
         <div className="flex items-start gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element -- preview of the image the admin just uploaded */}
           <img
             src={currentUrl}
             alt={label}

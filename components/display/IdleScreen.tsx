@@ -195,6 +195,7 @@ export default function IdleScreen({ config, jukeboxUrl, activeAnnouncement }: P
         ) : hasLocalSlideshow ? (
           /* ── Local Image Slideshow mode ── */
           <>
+            {/* eslint-disable-next-line @next/next/no-img-element -- slideshow of images the admin uploaded, size unknown, no image optimizer configured */}
             <img
               key={slideIdx}
               src={images[slideIdx % images.length]}
@@ -267,6 +268,7 @@ export default function IdleScreen({ config, jukeboxUrl, activeAnnouncement }: P
               style={{ height: '9.6vh', fontFamily: theme.fontFamily }}
             >
               <div className="flex items-center gap-[1.2vw] min-w-0">
+                {/* eslint-disable-next-line @next/next/no-img-element -- logo uploaded by the admin, size unknown, no image optimizer configured */}
                 {config.logoUrl && panel !== 'welcome' && <img src={config.logoUrl} alt="Logo" className="h-[6vh] w-auto rounded" />}
                 {config.showName && panel !== 'welcome' && (
                   <span className="font-bold truncate tracking-wide" style={{ fontSize: `${2.1 * scale}vw` }}>{config.showName}</span>
@@ -287,6 +289,7 @@ export default function IdleScreen({ config, jukeboxUrl, activeAnnouncement }: P
                 <div className="flex items-center justify-center gap-[6vw] w-full">
                   <div className="flex flex-col items-center gap-[2.5vh] min-w-0 flex-1">
                     {config.logoUrl
+                      // eslint-disable-next-line @next/next/no-img-element -- logo uploaded by the admin, size unknown, no image optimizer configured
                       ? <img src={config.logoUrl} alt="Logo" className="w-auto rounded-xl shadow-2xl" style={{ maxHeight: '34vh', maxWidth: '40vw' }} />
                       : <TreePine style={{ width: '16vh', height: '16vh', color: theme.accent }} aria-hidden="true" />}
                     {config.showName && !config.logoUrl && (

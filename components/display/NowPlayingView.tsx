@@ -133,6 +133,7 @@ export default function NowPlayingView({ state }: Props) {
       ) : (
         <div className="relative flex-shrink-0 flex items-center justify-between px-[4.4vw]" style={{ height: '9.6vh' }}>
           <div className="flex items-center gap-[1.2vw] min-w-0">
+            {/* eslint-disable-next-line @next/next/no-img-element -- logo uploaded by the admin, size unknown, no image optimizer configured */}
             {config.logoUrl && <img src={config.logoUrl} alt="Logo" className="h-[6vh] w-auto rounded" />}
             {config.showName && (
               <span className="font-bold truncate tracking-wide" style={{ fontSize: `${2.1 * scale}vw` }}>
@@ -160,6 +161,7 @@ export default function NowPlayingView({ state }: Props) {
           }}
         >
           {albumArtUrl
+            // eslint-disable-next-line @next/next/no-img-element -- remote album art, no image optimizer configured
             ? <img src={albumArtUrl} alt="Album art" className="w-full h-full object-cover" />
             : <Music className="w-1/3 h-1/3 text-white/30" aria-hidden="true" />}
         </div>
