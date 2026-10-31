@@ -7,6 +7,28 @@ import db from '@/lib/database';
  * Export analytics data in CSV or JSON format
  * ADMIN ONLY - Contains sensitive visitor data, votes, and Santa letters
  */
+interface PageViewRow {
+  session_id: number;
+  page_path: string;
+  view_time: string;
+}
+
+interface VoteRow {
+  user_ip: string;
+  sequence_name: string;
+  vote_type: string;
+  created_at: string;
+}
+
+interface SantaLetterRow {
+  child_name: string;
+  child_age: number | null;
+  parent_email: string;
+  letter_content: string;
+  status: string;
+  created_at: string;
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Require admin authentication
@@ -24,15 +46,15 @@ export async function GET(request: NextRequest) {
     // Get all data
     const pageViews = db.prepare(`
       SELECT * FROM page_views WHERE view_time >= ? ORDER BY view_time DESC
-    `).all(startDateStr);
+    `).all(startDateStr) as PageViewRow[];
 
     const votes = db.prepare(`
       SELECT * FROM votes WHERE created_at >= ? ORDER BY created_at DESC
-    `).all(startDateStr);
+    `).all(startDateStr) as VoteRow[];
 
     const santaLetters = db.prepare(`
       SELECT * FROM santa_letters ORDER BY created_at DESC
-    `).all();
+    `).all() as SantaLetterRow[];
 
     if (format === 'json') {
       return NextResponse.json({
@@ -53,19 +75,19 @@ export async function GET(request: NextRequest) {
     if (format === 'csv') {
       let csv = 'PAGE VIEWS\n';
       csv += 'Session ID,Page,View Time\n';
-      pageViews.forEach((view: any) => {
+      pageViews.forEach((view) => {
         csv += `"${view.session_id}","${view.page_path}","${view.view_time}"\n`;
       });
 
       csv += '\n\nVOTES\n';
       csv += 'User IP,Sequence,Vote Type,Created At\n';
-      votes.forEach((vote: any) => {
+      votes.forEach((vote) => {
         csv += `"${vote.user_ip}","${vote.sequence_name}","${vote.vote_type}","${vote.created_at}"\n`;
       });
 
       csv += '\n\nSANTA LETTERS\n';
       csv += 'Name,Age,Email,Letter Content,Status,Created At\n';
-      santaLetters.forEach((letter: any) => {
+      santaLetters.forEach((letter) => {
         csv += `"${letter.child_name}","${letter.child_age || 'N/A'}","${letter.parent_email}","${letter.letter_content.replace(/"/g, '""')}","${letter.status}","${letter.created_at}"\n`;
       });
 

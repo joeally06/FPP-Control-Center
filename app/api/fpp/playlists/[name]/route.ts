@@ -81,8 +81,8 @@ export async function GET(
 
     return NextResponse.json(data);
     
-  } catch (error: any) {
-    if (error.name === 'AbortError') {
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
       return NextResponse.json(
         { error: 'FPP request timeout' },
         { status: 504 }
@@ -91,7 +91,7 @@ export async function GET(
 
     console.error('[Playlist Details] Error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch playlist details', details: error.message },
+      { error: 'Failed to fetch playlist details', details: error instanceof Error ? error.message : undefined },
       { status: 500 }
     );
   }

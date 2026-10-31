@@ -30,10 +30,10 @@ export async function GET(request: NextRequest) {
       WHERE requester_ip = ? 
       ORDER BY created_at DESC
       LIMIT 10
-    `).all(requester_ip);
+    `).all(requester_ip) as { id: number; sequence_name: string; created_at: string; status: string }[];
     
     debugLog(`[Request Status DEBUG] Last 10 entries for IP ${requester_ip}:`);
-    allEntries.forEach((entry: any) => {
+    allEntries.forEach((entry) => {
       debugLog(`  ID ${entry.id}: ${entry.sequence_name} | ${entry.created_at} | ${entry.status}`);
     });
     

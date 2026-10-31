@@ -27,7 +27,7 @@ export async function GET() {
           FROM fpp_state
           ORDER BY last_updated DESC
           LIMIT 1
-        `).get() as any;
+        `).get() as { status: string | null; mode: string | null; last_updated: string | null; last_error: string | null } | undefined;
         
         
         if (cachedState) {
@@ -84,12 +84,12 @@ export async function GET() {
       timestamp: Date.now()
     }, { status: 503 });
 
-  } catch (error: any) {
-    console.error('[FPP Health Check] Error:', error.message);
+  } catch (error) {
+    console.error('[FPP Health Check] Error:', error instanceof Error ? error.message : String(error));
     
     return NextResponse.json({
       online: false,
-      error: error.name === 'AbortError' ? 'Timeout' : error.message,
+      error: error instanceof Error ? (error.name === 'AbortError' ? 'Timeout' : error.message) : undefined,
       timestamp: Date.now()
     }, { status: 503 });
   }

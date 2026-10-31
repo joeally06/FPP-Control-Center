@@ -18,6 +18,7 @@
 
 import { NextResponse } from 'next/server';
 import { getFPPState, getCachedPlaylist, getCachedPlaylistSequences } from '@/lib/database';
+import type { FppStateRow } from '@/lib/fpp-state';
 import { parseDbTimestamp } from '@/lib/time-utils';
 
 export const dynamic = 'force-dynamic';
@@ -26,7 +27,7 @@ export async function GET() {
   try {
 
     // Get cached FPP state
-    const state = getFPPState.get() as any;
+    const state = getFPPState.get() as FppStateRow | undefined;
 
     if (!state) {
       return NextResponse.json(
@@ -49,9 +50,9 @@ export async function GET() {
     const isStale = !Number.isFinite(ageMs) || ageSeconds > 30;
 
     // Get active playlist if playing
-    let activePlaylist = null;
+    let activePlaylist: Record<string, unknown> | null | undefined = null;
     if (state.current_playlist) {
-      activePlaylist = getCachedPlaylist.get(state.current_playlist) as any;
+      activePlaylist = getCachedPlaylist.get(state.current_playlist) as Record<string, unknown> | undefined;
       
       if (activePlaylist) {
         // Get sequences for this playlist

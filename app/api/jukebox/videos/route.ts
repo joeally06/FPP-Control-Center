@@ -25,6 +25,18 @@ import { getReadOnlyDb } from '@/lib/database';
 // Read-only connection, shared with the other public read-only routes
 type Db = ReturnType<typeof getReadOnlyDb>;
 
+// The columns getAllVideosStmt and getVideosByThemeStmt select from youtube_videos
+interface VideoRow {
+  id: number;
+  title: string;
+  description: string | null;
+  thumbnail_url: string | null;
+  youtube_id: string;
+  created_at: string;
+  duration_seconds: number | null;
+  theme: string | null;
+}
+
 function getDatabase(): Db {
   return getReadOnlyDb();
 }
@@ -89,14 +101,14 @@ export async function GET(request: NextRequest) {
 
     // Fetch videos from database
     const database = getDatabase();
-    let videos: any[];
+    let videos: VideoRow[];
 
     if (theme) {
       const stmt = getVideosByThemeStmt(database);
-      videos = stmt.all(theme, limit) as any[];
+      videos = stmt.all(theme, limit) as VideoRow[];
     } else {
       const stmt = getAllVideosStmt(database);
-      videos = stmt.all(limit) as any[];
+      videos = stmt.all(limit) as VideoRow[];
     }
 
     // Format response
@@ -150,7 +162,7 @@ export async function HEAD() {
       SELECT COUNT(*) as count 
       FROM youtube_videos
     `);
-    const result = countStmt.get() as any;
+    const result = countStmt.get() as { count: number };
 
     return new NextResponse(null, {
       status: 200,

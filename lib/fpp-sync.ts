@@ -203,7 +203,13 @@ export function getSyncStatus(): SyncStatus {
       SELECT last_sync, last_success, last_error, playlists_count, sequences_count
       FROM fpp_sync_status
       WHERE id = 1
-    `).get() as any;
+    `).get() as {
+      last_sync: string | null;
+      last_success: string | null;
+      last_error: string | null;
+      playlists_count: number | null;
+      sequences_count: number | null;
+    } | undefined;
 
     if (!status) {
       return {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getQueue, incrementSequenceRequests, getActiveTheme, getFPPState } from '@/lib/database';
-import { addToQueueTransactional, countRecentRequests } from '@/lib/jukebox-queue';
+import { addToQueueTransactional, countRecentRequests, RateLimitExceededError } from '@/lib/jukebox-queue';
 import { getClientIP, getSongRequestRateLimit } from '@/lib/rate-limit';
 import { getUtcNow, getUtcOffset } from '@/lib/time-utils';
 import { debugLog } from '@/lib/logging';
@@ -21,6 +21,22 @@ export async function GET() {
     console.error('Error fetching queue:', error);
     return NextResponse.json({ error: 'Failed to fetch queue' }, { status: 500 });
   }
+}
+
+// The columns the request check reads from location_restrictions
+interface LocationRestrictionRow {
+  is_active: number;
+  max_distance_miles: number;
+  show_latitude: number | null;
+  show_longitude: number | null;
+}
+
+// The columns the debug query selects from jukebox_queue
+interface RecentEntryRow {
+  id: number;
+  sequence_name: string;
+  created_at: string;
+  status: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -112,7 +128,7 @@ export async function POST(request: NextRequest) {
       const restrictions = db.prepare(`
         SELECT is_active, max_distance_miles, show_latitude, show_longitude
         FROM location_restrictions WHERE id = 1
-      `).get() as any;
+      `).get() as LocationRestrictionRow | undefined;
       
       if (restrictions?.is_active && restrictions.show_latitude && restrictions.show_longitude) {
         // Require GPS location from client
@@ -179,8 +195,8 @@ export async function POST(request: NextRequest) {
         distanceFromShow: distanceFromShow,
         request_kind: isPlaylist ? 'playlist' : 'song'
       });
-    } catch (txError: any) {
-      if (txError.code === 'RATE_LIMIT_EXCEEDED') {
+    } catch (txError) {
+      if (txError instanceof RateLimitExceededError) {
         const used = txError.requestsUsed || rateLimit;
         console.warn(`[SECURITY] Rate limit exceeded for ${requester_ip} (${used}/${rateLimit} used)`);
         return NextResponse.json({ 
@@ -190,12 +206,13 @@ export async function POST(request: NextRequest) {
           requestsRemaining: 0
         }, { status: 429 });
       }
-      if (txError.code === 'PLAYLIST_ACTIVE') {
+      const txCode = txError instanceof Error && 'code' in txError ? txError.code : undefined;
+      if (txCode === 'PLAYLIST_ACTIVE') {
         return NextResponse.json({
           error: 'Another playlist is already in line. Try again when it finishes.'
         }, { status: 409 });
       }
-      if (txError.code === 'DUPLICATE_REQUEST') {
+      if (txCode === 'DUPLICATE_REQUEST') {
         console.warn(`[SECURITY] Duplicate request detected from ${requester_ip} for ${sequence_name}`);
         return NextResponse.json({ 
           error: `You already requested this ${isPlaylist ? 'playlist' : 'song'} recently. Please wait a few minutes.` 
@@ -222,10 +239,10 @@ export async function POST(request: NextRequest) {
       WHERE requester_ip = ? 
         AND created_at >= datetime('now', '-1 hour')
       ORDER BY created_at DESC
-    `).all(requester_ip);
+    `).all(requester_ip) as RecentEntryRow[];
     
     debugLog(`[Queue DEBUG] Entries in last hour for IP ${requester_ip}:`);
-    recentEntries.forEach((entry: any) => {
+    recentEntries.forEach((entry) => {
       debugLog(`  ID ${entry.id}: ${entry.sequence_name} | ${entry.created_at} | ${entry.status}`);
     });
     
@@ -246,11 +263,11 @@ export async function POST(request: NextRequest) {
       requestsUsed,
       requestsRemaining
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error adding to queue:', error);
-    
+
     // Handle duplicate entries or other constraints
-    if (error.code === 'SQLITE_CONSTRAINT') {
+    if (error instanceof Error && 'code' in error && error.code === 'SQLITE_CONSTRAINT') {
       return NextResponse.json({ error: 'Unable to add sequence to queue' }, { status: 400 });
     }
     

@@ -28,7 +28,13 @@ export async function GET() {
         show_location_name as location_name
       FROM location_restrictions
       WHERE id = 1
-    `).get() as any;
+    `).get() as {
+      enabled: number;
+      max_distance_miles: number;
+      show_latitude: number | null;
+      show_longitude: number | null;
+      location_name: string | null;
+    } | undefined;
 
 
     // Ensure enabled is a boolean (SQLite returns 0/1)

@@ -30,8 +30,8 @@ export async function GET() {
       : [];
 
     return NextResponse.json(playlistList);
-  } catch (error: any) {
-    if (error.name === 'AbortError') {
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
       return NextResponse.json(
         { error: 'FPP request timeout' },
         { status: 504 }

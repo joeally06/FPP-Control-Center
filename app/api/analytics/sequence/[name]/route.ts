@@ -35,7 +35,7 @@ export async function GET(
         SUM(CASE WHEN vote_type = 'down' THEN 1 ELSE 0 END) as downvotes
       FROM votes 
       WHERE sequence_name = ?
-    `).get(sequenceName) as any;
+    `).get(sequenceName) as { totalVotes: number; upvotes: number | null; downvotes: number | null };
 
     // Get average rating from jukebox queue (note: rating column doesn't exist in jukebox_queue)
     // This query will return zeros since jukebox_queue doesn't have rating column
@@ -54,7 +54,7 @@ export async function GET(
         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pendingRequests
       FROM jukebox_queue 
       WHERE sequence_name = ?
-    `).get(sequenceName) as any;
+    `).get(sequenceName) as { totalRequests: number; completedPlays: number | null; pendingRequests: number | null };
 
     // Get recent activity (last 10 requests)
     const recentActivity = db.prepare(`
@@ -76,7 +76,7 @@ export async function GET(
         MAX(created_at) as lastPlayed
       FROM jukebox_queue 
       WHERE sequence_name = ? AND status = 'completed'
-    `).get(sequenceName) as any;
+    `).get(sequenceName) as { firstPlayed: string | null; lastPlayed: string | null };
 
 
     // Calculate derived metrics
@@ -171,7 +171,7 @@ export async function HEAD(
         (SELECT COUNT(*) FROM votes WHERE sequence_name = ?) as votes,
         0 as rating,
         (SELECT COUNT(*) FROM jukebox_queue WHERE sequence_name = ? AND status = 'completed') as plays
-    `).get(sequenceName, sequenceName) as any;
+    `).get(sequenceName, sequenceName) as { votes: number; rating: number; plays: number };
 
 
     return NextResponse.json({
@@ -180,23 +180,23 @@ export async function HEAD(
       playCount: stats.plays || 0
     });
 
-  } catch (error: any) {
-    if (error.message?.includes('Authentication required')) {
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Authentication required')) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
-    if (error.message?.includes('Admin access required')) {
+    if (error instanceof Error && error.message.includes('Admin access required')) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
     console.error('[Analytics] Simple stats error:', error);
     console.error('[Analytics] Error details:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined
     });
     return NextResponse.json(
       { 
         error: 'Failed to fetch stats',
-        details: error.message 
+        details: error instanceof Error ? error.message : undefined 
       },
       { status: 500 }
     );

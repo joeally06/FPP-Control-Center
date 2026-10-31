@@ -96,6 +96,12 @@ export const insertVote = db.prepare(`
   VALUES (?, ?, ?)
 `);
 
+export interface VoteCountRow {
+  sequence_name: string;
+  upvotes: number;
+  downvotes: number;
+}
+
 export const getVoteCounts = db.prepare(`
   SELECT
     sequence_name,
@@ -278,7 +284,13 @@ export const upsertSongCategory = db.prepare(`
     updated_at = CURRENT_TIMESTAMP
 `);
 
-// Sequence metadata prepared statements
+// Sequence metadata prepared statements (columns the readers use)
+export interface SequenceMetadataRow {
+  song_title: string | null;
+  artist: string | null;
+  album_cover_url: string | null;
+}
+
 export const getSequenceMetadata = db.prepare(`
   SELECT * FROM sequence_metadata WHERE sequence_name = ?
 `);
@@ -301,7 +313,16 @@ export const getAllSequenceMetadata = db.prepare(`
   SELECT * FROM sequence_metadata ORDER BY last_updated DESC
 `);
 
-// Media Library (spotify_metadata) prepared statements
+// Media Library (spotify_metadata) prepared statements (columns the readers use)
+export interface MediaLibraryMetadataRow {
+  track_name: string | null;
+  artist_name: string | null;
+  album_name: string | null;
+  album_art_url: string | null;
+  spotify_track_id: string | null;
+  spotify_url: string | null;
+}
+
 export const getMediaLibraryMetadata = db.prepare(`
   SELECT * FROM spotify_metadata WHERE sequence_name = ?
 `);

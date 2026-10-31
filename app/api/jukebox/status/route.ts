@@ -4,7 +4,7 @@ import { toErrorMessage } from '@/lib/api-errors';
 import { getCurrentlyPlaying, updateQueueStatus, getFPPState } from '@/lib/database';
 import { getFppUrl } from '@/lib/fpp-config';
 import { toPublicQueueItem } from '@/lib/jukebox-display';
-import { isFreshPlaying } from '@/lib/fpp-state';
+import { isFreshPlaying, type FppStateRow } from '@/lib/fpp-state';
 import { parseDbTimestamp } from '@/lib/time-utils';
 
 // last_updated is SQLite CURRENT_TIMESTAMP (UTC, no zone); new Date() would read it as local time.
@@ -41,7 +41,7 @@ export async function GET() {
     // This eliminates redundant FPP API calls and improves performance
     let usedCache = false;
     try {
-      const fppState = getFPPState.get() as any;
+      const fppState = getFPPState.get() as FppStateRow | undefined;
 
       if (isFreshPlaying(fppState)) {
         // Return cached FPP status

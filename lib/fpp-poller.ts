@@ -292,11 +292,11 @@ async function fetchFPPStatus(): Promise<{ success: boolean; data?: any; error?:
     }
 
     return { success: true, data, responseTime };
-  } catch (error: any) {
+  } catch (error) {
     const responseTime = Date.now() - startTime;
-    const errorMessage = error.name === 'AbortError' 
+    const errorMessage = error instanceof Error && error.name === 'AbortError' 
       ? 'Request timeout (5s)' 
-      : error.message || 'Unknown error';
+      : error instanceof Error && error.message ? error.message : 'Unknown error';
     
     return { 
       success: false, 

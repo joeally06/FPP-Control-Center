@@ -53,7 +53,16 @@ export async function GET(
 
     if (cached.length > 0) {
       console.log(`[Spotify Metadata] Cache HIT for "${sequenceName}"`);
-      const entry = cached[0] as any;
+      const entry = cached[0] as {
+        album_art_url: string | null;
+        artist_name: string | null;
+        album_name: string | null;
+        track_name: string | null;
+        spotify_uri: string | null;
+        preview_url: string | null;
+        match_confidence: string;
+        last_updated: string;
+      };
       
       return NextResponse.json({
         albumArt: entry.album_art_url,
@@ -212,7 +221,7 @@ export async function DELETE(
       message: 'Cache cleared - next request will fetch fresh data'
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('[Spotify Metadata] Delete error:', error);
     return NextResponse.json(
       { error: 'Failed to clear cache' },

@@ -180,18 +180,18 @@ export async function POST(request: NextRequest) {
       hash: hash.substring(0, 16) // Return first 16 chars for verification
     });
 
-  } catch (error: any) {
-    console.error('[FPP Media Download] Error:', error.message);
+  } catch (error) {
+    console.error('[FPP Media Download] Error:', error instanceof Error ? error.message : String(error));
     
     // SECURITY: Don't expose internal error details
-    if (error.name === 'AbortError') {
+    if (error instanceof Error && error.name === 'AbortError') {
       return NextResponse.json(
         { error: 'Download timeout' },
         { status: 504 }
       );
     }
 
-    if (error.message?.includes('ECONNREFUSED')) {
+    if (error instanceof Error && error.message.includes('ECONNREFUSED')) {
       return NextResponse.json(
         { error: 'Cannot connect to FPP', offline: true },
         { status: 503 }

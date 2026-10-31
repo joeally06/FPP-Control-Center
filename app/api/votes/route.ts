@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getVoteCounts, getUserVote } from '../../../lib/database';
+import { getVoteCounts, getUserVote, type VoteCountRow } from '../../../lib/database';
 import { getDistanceInMiles } from '@/lib/location-utils';
 import { roundMiles } from '@/lib/location-check';
 import { getClientIP } from '@/lib/rate-limit';
 import db from '@/lib/database';
+
+// The columns the request check reads from location_restrictions
+interface LocationRestrictionRow {
+  is_active: number;
+  max_distance_miles: number;
+  show_latitude: number | null;
+  show_longitude: number | null;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -102,7 +110,7 @@ export async function POST(request: NextRequest) {
       const restrictions = db.prepare(`
         SELECT is_active, max_distance_miles, show_latitude, show_longitude
         FROM location_restrictions WHERE id = 1
-      `).get() as any;
+      `).get() as LocationRestrictionRow | undefined;
       
       if (restrictions?.is_active && restrictions.show_latitude && restrictions.show_longitude) {
         // Require GPS location from client
@@ -200,8 +208,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ userVote: userVote?.vote_type || null });
     } else {
       // Get all vote counts
-      const voteCounts = getVoteCounts.all();
-      const countsMap = voteCounts.reduce((acc: any, row: any) => {
+      const voteCounts = getVoteCounts.all() as VoteCountRow[];
+      const countsMap = voteCounts.reduce<Record<string, { upvotes: number; downvotes: number }>>((acc, row) => {
         acc[row.sequence_name] = {
           upvotes: row.upvotes,
           downvotes: row.downvotes

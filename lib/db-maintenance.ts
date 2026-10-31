@@ -128,14 +128,14 @@ export function getDatabaseStats() {
       cacheSize,
       
       // Table counts
-      votes: db.prepare('SELECT COUNT(*) as count FROM votes').get() as any,
-      jukeboxQueue: db.prepare('SELECT COUNT(*) as count FROM jukebox_queue').get() as any,
-      santaLetters: db.prepare('SELECT COUNT(*) as count FROM santa_letters').get() as any,
-      pageViews: db.prepare('SELECT COUNT(*) as count FROM page_views').get() as any,
-      visitors: db.prepare('SELECT COUNT(*) as count FROM visitors').get() as any,
-      sessions: db.prepare('SELECT COUNT(*) as count FROM sessions').get() as any,
-      deviceStatus: db.prepare('SELECT COUNT(*) as count FROM device_status').get() as any,
-      devices: db.prepare('SELECT COUNT(*) as count FROM devices').get() as any,
+      votes: db.prepare('SELECT COUNT(*) as count FROM votes').get() as { count: number },
+      jukeboxQueue: db.prepare('SELECT COUNT(*) as count FROM jukebox_queue').get() as { count: number },
+      santaLetters: db.prepare('SELECT COUNT(*) as count FROM santa_letters').get() as { count: number },
+      pageViews: db.prepare('SELECT COUNT(*) as count FROM page_views').get() as { count: number },
+      visitors: db.prepare('SELECT COUNT(*) as count FROM visitors').get() as { count: number },
+      sessions: db.prepare('SELECT COUNT(*) as count FROM sessions').get() as { count: number },
+      deviceStatus: db.prepare('SELECT COUNT(*) as count FROM device_status').get() as { count: number },
+      devices: db.prepare('SELECT COUNT(*) as count FROM devices').get() as { count: number },
       
       // Calculate approximate database size in MB
       approximateSizeMB: (pageSize * pageCount) / (1024 * 1024),

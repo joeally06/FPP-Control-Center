@@ -85,13 +85,13 @@ export async function GET() {
       lastChecked: new Date().toISOString(), // Keep for backwards compatibility
     });
     
-  } catch (error: any) {
+  } catch (error) {
     console.error('[Update Check] Error:', error);
     return NextResponse.json(
       { 
         error: 'Failed to check for updates', 
-        details: error.message,
-        stderr: error.stderr || null,
+        details: error instanceof Error ? error.message : undefined,
+        stderr: (typeof error === 'object' && error !== null && 'stderr' in error ? error.stderr : null) || null,
       },
       { status: 500 }
     );

@@ -212,10 +212,10 @@ export async function POST(request: NextRequest) {
       mapped: true
     });
 
-  } catch (error: any) {
-    console.error('[Audio Download] Error:', error.message);
+  } catch (error) {
+    console.error('[Audio Download] Error:', error instanceof Error ? error.message : String(error));
     
-    if (error.name === 'TimeoutError') {
+    if (error instanceof Error && error.name === 'TimeoutError') {
       return NextResponse.json(
         { error: 'Download timed out - file may be too large' },
         { status: 504 }

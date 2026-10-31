@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import SpotifyWebApi from 'spotify-web-api-node';
-import { getSequenceMetadata, upsertSequenceMetadata, getMediaLibraryMetadata } from '@/lib/database';
+import { getSequenceMetadata, upsertSequenceMetadata, getMediaLibraryMetadata, type MediaLibraryMetadataRow, type SequenceMetadataRow } from '@/lib/database';
 
 // Initialize Spotify API
 const spotifyApi = new SpotifyWebApi({
@@ -75,13 +75,13 @@ export async function GET(request: NextRequest) {
     // PRIORITY 1: Check Media Library for user-customized metadata
     // Try exact match first, then try without file extension
     if (storageKey) {
-      let mediaLibraryData = getMediaLibraryMetadata.get(storageKey) as any;
+      let mediaLibraryData = getMediaLibraryMetadata.get(storageKey) as MediaLibraryMetadataRow | undefined;
       
       // If not found and storageKey has extension, try without extension
       if (!mediaLibraryData) {
         const nameWithoutExt = storageKey.replace(/\.(fseq|mp3|wav)$/i, '');
         if (nameWithoutExt !== storageKey) {
-          mediaLibraryData = getMediaLibraryMetadata.get(nameWithoutExt) as any;
+          mediaLibraryData = getMediaLibraryMetadata.get(nameWithoutExt) as MediaLibraryMetadataRow | undefined;
         }
       }
       
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
     }
 
     // PRIORITY 2: Check if we already have metadata cached in sequence_metadata
-    const cached = getSequenceMetadata.get(storageKey) as any;
+    const cached = getSequenceMetadata.get(storageKey) as SequenceMetadataRow | undefined;
     if (cached && cached.song_title) {
       return NextResponse.json({
         sequence_name: storageKey,

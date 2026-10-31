@@ -46,7 +46,14 @@ export async function GET(request: Request) {
     console.log('[Queue Processor] Starting queue processing...');
 
     // Get the next queued letter
-    const letter = getNextQueuedLetter.get() as any;
+    const letter = getNextQueuedLetter.get() as {
+      id: number;
+      child_name: string;
+      child_age: number | null;
+      parent_email: string;
+      letter_content: string;
+      retry_count: number | null;
+    } | undefined;
 
     if (!letter) {
       console.log('[Queue Processor] No letters in queue');

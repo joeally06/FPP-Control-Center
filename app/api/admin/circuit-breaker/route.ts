@@ -30,6 +30,15 @@ export const dynamic = 'force-dynamic';
  * GET - Get circuit breaker status and statistics
  * SECURITY: Admin-only access
  */
+interface PollLogRow {
+  success: number;
+  response_time_ms: number | null;
+  error_message: string | null;
+  status: string | null;
+  consecutive_failures: number | null;
+  poll_timestamp: string;
+}
+
 export async function GET() {
   try {
     // SECURITY: Verify admin authentication
@@ -56,16 +65,16 @@ export async function GET() {
       FROM fpp_poll_log
       ORDER BY poll_timestamp DESC
       LIMIT 20
-    `).all();
+    `).all() as PollLogRow[];
 
     // Calculate uptime percentage
     const totalPolls = db.prepare(`
       SELECT COUNT(*) as total FROM fpp_poll_log
-    `).get() as any;
+    `).get() as { total: number };
 
     const successfulPolls = db.prepare(`
       SELECT COUNT(*) as successful FROM fpp_poll_log WHERE success = 1
-    `).get() as any;
+    `).get() as { successful: number };
 
     const uptimePercentage = totalPolls.total > 0
       ? ((successfulPolls.successful / totalPolls.total) * 100).toFixed(2)
@@ -96,7 +105,7 @@ export async function GET() {
         failedPolls: totalPolls.total - successfulPolls.successful,
         uptimePercentage: parseFloat(uptimePercentage),
       },
-      recentPolls: recentPolls.map((poll: any) => ({
+      recentPolls: recentPolls.map((poll) => ({
         success: Boolean(poll.success),
         responseTime: poll.response_time_ms,
         error: poll.error_message,

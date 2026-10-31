@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get top sequences
-    const topSequences = db.prepare(`
+    const topSequences = (db.prepare(`
       SELECT 
         sequence_name as name,
         SUM(CASE WHEN vote_type = 'up' THEN 1 ELSE 0 END) as upvotes,
@@ -122,14 +122,14 @@ export async function GET(request: NextRequest) {
       GROUP BY sequence_name
       ORDER BY upvotes DESC
       LIMIT 10
-    `).all(startDateStr).map((row: any) => ({
+    `).all(startDateStr) as { name: string; upvotes: number; votes: number }[]).map((row) => ({
       name: row.name,
       votes: row.votes,
       rating: row.votes > 0 ? (row.upvotes / row.votes) * 5 : 0
     }));
 
     // Get top playlists (from page views of playlist pages)
-    const topPlaylists = db.prepare(`
+    const topPlaylists = (db.prepare(`
       SELECT 
         page_path as name,
         COUNT(*) as plays
@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
       GROUP BY page_path
       ORDER BY plays DESC
       LIMIT 10
-    `).all(startDateStr).map((row: any) => ({
+    `).all(startDateStr) as { name: string; plays: number }[]).map((row) => ({
       name: row.name.replace('/playlists/', '').replace('/playlists', 'Main'),
       plays: row.plays,
     }));

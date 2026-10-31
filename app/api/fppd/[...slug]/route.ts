@@ -37,10 +37,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         'Content-Type': response.headers.get('Content-Type') || 'application/json',
       },
     });
-  } catch (error: any) {
-    console.error('[FPPD Proxy] Error:', error.message);
+  } catch (error) {
+    console.error('[FPPD Proxy] Error:', error instanceof Error ? error.message : String(error));
 
-    if (error.name === 'AbortError') {
+    if (error instanceof Error && error.name === 'AbortError') {
       return NextResponse.json(
         { 
           error: 'FPP request timeout',
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     return NextResponse.json(
       { 
-        error: `Failed to fetch from FPPD: ${error.message}`,
+        error: `Failed to fetch from FPPD: ${error instanceof Error ? error.message : String(error)}`,
         offline: true,
         message: 'Unable to connect to FPP server. It may be offline or unreachable.'
       },
@@ -102,10 +102,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         'Content-Type': response.headers.get('Content-Type') || 'application/json',
       },
     });
-  } catch (error: any) {
-    console.error('[FPPD Proxy] POST Error:', error.message);
+  } catch (error) {
+    console.error('[FPPD Proxy] POST Error:', error instanceof Error ? error.message : String(error));
 
-    if (error.name === 'AbortError') {
+    if (error instanceof Error && error.name === 'AbortError') {
       return NextResponse.json(
         { 
           error: 'FPP request timeout',
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     return NextResponse.json(
       { 
-        error: `Failed to fetch from FPPD: ${error.message}`,
+        error: `Failed to fetch from FPPD: ${error instanceof Error ? error.message : String(error)}`,
         offline: true,
         message: 'Unable to connect to FPP server. It may be offline or unreachable.'
       },

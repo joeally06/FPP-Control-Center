@@ -12,6 +12,15 @@ const RECENT_REQUESTS_SQL = `
     AND created_at >= COALESCE((SELECT reset_at FROM jukebox_rate_limit_resets WHERE requester_ip = ?), '')
 `;
 
+/** Thrown when a visitor has already used their hourly allowance. */
+export class RateLimitExceededError extends Error {
+  readonly code = 'RATE_LIMIT_EXCEEDED';
+
+  constructor(readonly requestsUsed: number) {
+    super('RateLimitExceeded');
+  }
+}
+
 /** Requests this visitor has used toward the hourly limit. */
 export function countRecentRequests(db: Database.Database, requesterIp: string): number {
   return (db.prepare(RECENT_REQUESTS_SQL).get(requesterIp, requesterIp) as { count: number }).count;
@@ -76,9 +85,7 @@ export function addToQueueTransactional(db: Database.Database, params: {
     // Check duplicate first
     const duplicate = duplicateStmt.get(requester_ip, sequence_name);
     if (duplicate) {
-      const err: any = new Error('DuplicateRequest');
-      err.code = 'DUPLICATE_REQUEST';
-      throw err;
+      throw Object.assign(new Error('DuplicateRequest'), { code: 'DUPLICATE_REQUEST' });
     }
 
     if (activePlaylistStmt?.get()) {
@@ -88,10 +95,7 @@ export function addToQueueTransactional(db: Database.Database, params: {
     const used = countRecentRequests(db, requester_ip);
 
     if (used >= rateLimit) {
-      const err: any = new Error('RateLimitExceeded');
-      err.code = 'RATE_LIMIT_EXCEEDED';
-      err.requestsUsed = used;
-      throw err;
+      throw new RateLimitExceededError(used);
     }
 
     // Insert the queue item with location data

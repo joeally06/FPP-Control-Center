@@ -22,6 +22,23 @@ export function markFppOffline(db: Database.Database): void {
   `).run();
 }
 
+/** A row of fpp_state (the table holds one row, id = 1), with the columns its readers use */
+export interface FppStateRow {
+  status: string | null;
+  current_sequence: string | null;
+  current_playlist: string | null;
+  current_playlist_index: number | null;
+  current_playlist_count: number | null;
+  seconds_played: number | null;
+  seconds_remaining: number | null;
+  volume: number | null;
+  mode: string | null;
+  uptime: number | null;
+  last_poll_success: number | null;
+  last_error: string | null;
+  last_updated: string | null;
+}
+
 interface CachedPlayerState {
   status?: string | null;
   current_sequence?: string | null;
@@ -29,11 +46,11 @@ interface CachedPlayerState {
 }
 
 /** True when the cached state says a sequence is playing and was written recently */
-export function isFreshPlaying(
-  state: CachedPlayerState | null | undefined,
+export function isFreshPlaying<T extends CachedPlayerState>(
+  state: T | null | undefined,
   nowMs: number = Date.now(),
   maxAgeSeconds: number = PLAYING_MAX_AGE_SECONDS,
-): boolean {
+): state is T & { status: 'playing'; current_sequence: string } {
   if (!state || state.status !== 'playing' || !state.current_sequence) return false;
   const updatedMs = parseDbTimestamp(state.last_updated)?.toMillis();
   if (updatedMs === undefined || !Number.isFinite(updatedMs)) return false;

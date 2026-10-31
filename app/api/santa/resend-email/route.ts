@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get letter details
-    const letter = getSantaLetter.get(letterId) as any;
+    const letter = getSantaLetter.get(letterId) as { child_name: string; parent_email: string; santa_reply: string | null } | undefined;
 
     if (!letter) {
       return NextResponse.json(

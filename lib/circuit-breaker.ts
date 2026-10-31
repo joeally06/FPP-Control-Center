@@ -134,12 +134,19 @@ export class FPPCircuitBreaker extends EventEmitter {
         SELECT state, failure_count, success_count, last_failure_time, 
                last_state_change, total_transitions
         FROM fpp_circuit_breaker WHERE id = 1
-      `).get() as any;
+      `).get() as {
+        state: string;
+        failure_count: number | null;
+        success_count: number | null;
+        last_failure_time: number | null;
+        last_state_change: number;
+        total_transitions: number | null;
+      } | undefined;
 
       if (row) {
         // SECURITY: Validate state from database
         const validStates = [CircuitState.CLOSED, CircuitState.OPEN, CircuitState.HALF_OPEN];
-        if (!validStates.includes(row.state)) {
+        if (!(validStates as string[]).includes(row.state)) {
           console.warn('[Circuit Breaker] Invalid state in DB, resetting to CLOSED');
           this.state = CircuitState.CLOSED;
         } else {

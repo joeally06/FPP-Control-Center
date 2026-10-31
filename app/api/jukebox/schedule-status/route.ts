@@ -14,13 +14,14 @@
 import { NextResponse } from 'next/server';
 import { DateTime } from 'luxon';
 import { getFPPState } from '@/lib/database';
+import type { FppStateRow } from '@/lib/fpp-state';
 import { DAY_NAMES, dayIndex, findShowWindow, formatCountdown } from '@/lib/show-schedule';
 import { APP_TIMEZONE } from '@/lib/time-utils';
 
 export async function GET() {
   try {
     // Get cached FPP state (already being polled by fpp-poller.ts)
-    const state = getFPPState.get() as any;
+    const state = getFPPState.get() as FppStateRow | undefined;
 
     if (!state) {
       return NextResponse.json({

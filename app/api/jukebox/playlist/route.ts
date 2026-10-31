@@ -24,6 +24,13 @@ import { getReadOnlyDb } from '@/lib/database';
 // Read-only connection, shared with the other public read-only routes
 type Db = ReturnType<typeof getReadOnlyDb>;
 
+// The columns getCachedPlaylistStmt selects from cached_playlists
+interface CachedPlaylistRow {
+  name: string;
+  data: string;
+  cached_at: string;
+}
+
 function getDatabase(): Db {
   return getReadOnlyDb();
 }
@@ -59,7 +66,7 @@ export async function GET(request: NextRequest) {
     // Fetch from cache
     const database = getDatabase();
     const stmt = getCachedPlaylistStmt(database);
-    const cached = stmt.get(playlistName) as any;
+    const cached = stmt.get(playlistName) as CachedPlaylistRow | undefined;
 
     if (!cached) {
       return NextResponse.json({
@@ -159,7 +166,7 @@ export async function HEAD(request: NextRequest) {
 
     const database = getDatabase();
     const stmt = getCachedPlaylistStmt(database);
-    const cached = stmt.get(playlistName) as any;
+    const cached = stmt.get(playlistName) as CachedPlaylistRow | undefined;
 
     if (!cached) {
       return new NextResponse(null, { status: 404 });

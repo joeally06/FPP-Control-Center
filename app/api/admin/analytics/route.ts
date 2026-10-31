@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminWithRateLimit } from '@/lib/auth-helpers';
-import { getVoteCounts } from '../../../../lib/database';
+import { getVoteCounts, type VoteCountRow } from '../../../../lib/database';
 
 /**
  * GET /api/admin/analytics
@@ -13,10 +13,10 @@ export async function GET(request: NextRequest) {
     await requireAdminWithRateLimit(request);
 
     // Get vote data
-    const voteCounts = getVoteCounts.all();
+    const voteCounts = getVoteCounts.all() as VoteCountRow[];
 
     // Transform data for analytics
-    const analyticsData = voteCounts.map((row: any) => ({
+    const analyticsData = voteCounts.map((row) => ({
       sequence_name: row.sequence_name,
       upvotes: row.upvotes,
       downvotes: row.downvotes,

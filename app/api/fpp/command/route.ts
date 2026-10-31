@@ -138,8 +138,8 @@ export async function POST(request: NextRequest) {
       success: true,
       data,
     });
-  } catch (error: any) {
-    if (error.name === 'AbortError') {
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
       console.error(`[${new Date().toISOString()}] [FPP Command] Request timeout`);
       return NextResponse.json(
         { error: 'FPP request timeout' },

@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
-import { addToQueueTransactional, countRecentRequests, resetRequestLimit } from '../lib/jukebox-queue';
+import { addToQueueTransactional, countRecentRequests, resetRequestLimit, RateLimitExceededError } from '../lib/jukebox-queue';
 
 // Columns the queue insert writes (location columns since migration 016) and the reset table (migration 020)
 const SCHEMA = `
@@ -62,8 +62,8 @@ const SCHEMA = `
       });
       console.error('[test] ❌ Expected rate limit to block, but insert succeeded');
       process.exit(2);
-    } catch (err: any) {
-      if (err.code === 'RATE_LIMIT_EXCEEDED') {
+    } catch (err) {
+      if (err instanceof RateLimitExceededError && err.code === 'RATE_LIMIT_EXCEEDED' && err.requestsUsed === rateLimit) {
         console.log('[test] ✅ Rate limit enforced as expected');
       } else {
         console.error('[test] ❌ Unexpected error:', err);
@@ -191,8 +191,8 @@ const SCHEMA = `
       addToQueueTransactional(db3, { sequence_name: 'one-too-many', requester_ip: ip3, rateLimit: rateLimit3 });
       console.error('[test] ❌ Expected the limit to apply again after the clear');
       process.exit(9);
-    } catch (err: any) {
-      if (err.code !== 'RATE_LIMIT_EXCEEDED') throw err;
+    } catch (err) {
+      if (!(err instanceof RateLimitExceededError)) throw err;
     }
 
     // Clearing again moves the reset forward

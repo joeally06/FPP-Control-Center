@@ -6,11 +6,13 @@ import {
   getSequenceMetadata,
   getMediaLibraryMetadata,
   getActiveScheduleRule,
+  type MediaLibraryMetadataRow,
+  type SequenceMetadataRow,
 } from '@/lib/database';
 import { getFppUrl } from '@/lib/fpp-config';
 import { getSetting } from '@/lib/settings';
 import { createLazyPoller } from '@/lib/lazy-poller';
-import { isFreshPlaying } from '@/lib/fpp-state';
+import { isFreshPlaying, type FppStateRow } from '@/lib/fpp-state';
 import { idleOverrideForRule, resolveIdleMode } from '@/lib/display-idle';
 import type { DisplayConfig, DisplayState, UpcomingQueueItem, ColorTheme, BackgroundStyle, FontStyle, IdleAnimation } from '@/types/display';
 
@@ -119,7 +121,7 @@ function lookupMeta(rawName: string): MetaResult {
 
   // 1. Check spotify_metadata (media library) — uses bare name, has artist_name / track_name
   for (const k of keys) {
-    const row = getMediaLibraryMetadata.get(k) as any;
+    const row = getMediaLibraryMetadata.get(k) as MediaLibraryMetadataRow | undefined;
     if (row?.album_art_url || row?.track_name) {
       return {
         songTitle: row.track_name ?? null,
@@ -131,7 +133,7 @@ function lookupMeta(rawName: string): MetaResult {
 
   // 2. Check sequence_metadata (jukebox Spotify cache) — uses .mp3 keys, has song_title / artist
   for (const k of keys) {
-    const row = getSequenceMetadata.get(k) as any;
+    const row = getSequenceMetadata.get(k) as SequenceMetadataRow | undefined;
     if (row?.album_cover_url || row?.song_title) {
       return {
         songTitle: row.song_title ?? null,
@@ -191,7 +193,7 @@ async function resolveFPPStatus(): Promise<{
 } | null> {
   // 1. Try DB cache first
   try {
-    const fppState = getFPPState.get() as any;
+    const fppState = getFPPState.get() as FppStateRow | undefined;
     // Accept the cache only if it says playing and is fresher than 30 seconds
     if (isFreshPlaying(fppState, Date.now(), 30)) {
       return {
@@ -281,7 +283,7 @@ async function pollDisplayState(): Promise<void> {
       }
 
       // Requester: prefer jukebox playing item, fall back to "FPP Schedule"
-      const jukeboxCurrent = getCurrentlyPlaying.get() as any;
+      const jukeboxCurrent = getCurrentlyPlaying.get() as { requester_name: string | null } | undefined;
       requesterName =
         jukeboxCurrent?.requester_name?.trim()
           ? jukeboxCurrent.requester_name
@@ -328,10 +330,10 @@ async function pollDisplayState(): Promise<void> {
 
     // Upcoming songs: prefer jukebox queue, fall back to FPP playlist API
     let upcomingQueue: UpcomingQueueItem[] = [];
-    const pendingJukebox = (getQueue.all() as any[]).slice(0, maxQueue);
+    const pendingJukebox = (getQueue.all() as { sequence_name: string; requester_name: string | null }[]).slice(0, maxQueue);
 
     if (pendingJukebox.length > 0) {
-      upcomingQueue = pendingJukebox.map((row: any) => {
+      upcomingQueue = pendingJukebox.map((row) => {
         const meta = lookupMeta(row.sequence_name as string);
         return {
           sequenceName: row.sequence_name,

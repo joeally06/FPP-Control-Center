@@ -36,6 +36,13 @@ function getEmailConfig(): EmailConfig {
   };
 }
 
+// The error code if the thrown value carries one (nodemailer and Node system errors do), else its message
+function describeError(err: unknown): string {
+  const code = typeof err === 'object' && err !== null && 'code' in err ? err.code : undefined;
+  if (code) return String(code);
+  return err instanceof Error ? err.message : String(err);
+}
+
 function isRetryableError(err: any) {
   // nodemailer replaces the system error code with its own: a refused or reset connection arrives as
   // ESOCKET (the original ECONNREFUSED is only in the message), a dropped one as ECONNECTION and a failed
@@ -71,15 +78,15 @@ export async function sendMailWithRetries(config: any, mailOptions: any, opts: {
       const info = await transporter.sendMail(mailOptions);
       debugLog(`[email] Sent on attempt ${attempt} - info: ${info && info.messageId}`);
       return info;
-    } catch (err: any) {
+    } catch (err) {
       lastError = err;
       if (isRetryableError(err) && attempt < attempts) {
         const delayMs = Math.floor(initialDelayMs * Math.pow(factor, attempt - 1) + Math.random() * 200);
-        debugLog(`[email] Temporary error (attempt ${attempt}): ${err.code || err.message}. Retrying in ${delayMs}ms`);
+        debugLog(`[email] Temporary error (attempt ${attempt}): ${describeError(err)}. Retrying in ${delayMs}ms`);
         await new Promise(res => setTimeout(res, delayMs));
         continue;
       }
-      debugLog(`[email] Permanent error or no more retries: ${err.code || err.message}`);
+      debugLog(`[email] Permanent error or no more retries: ${describeError(err)}`);
       throw err;
     }
   }

@@ -24,6 +24,23 @@ import { getReadOnlyDb } from '@/lib/database';
 // Read-only connection, shared with the other public read-only routes
 type Db = ReturnType<typeof getReadOnlyDb>;
 
+// The columns getLatestStatusStmt selects from fpp_status_cache
+interface CachedStatusRow {
+  status_name: string;
+  current_playlist: string | null;
+  current_sequence: string | null;
+  seconds_played: number | null;
+  seconds_remaining: number | null;
+  time_elapsed: string | null;
+  time_remaining: string | null;
+  volume: number | null;
+  mode_name: string | null;
+  scheduler_status: string | null;
+  next_playlist: string | null;
+  updated_at: string;
+  created_at: string;
+}
+
 function getDatabase(): Db {
   return getReadOnlyDb();
 }
@@ -57,7 +74,7 @@ export async function GET() {
   try {
     const database = getDatabase();
     const stmt = getLatestStatusStmt(database);
-    const status = stmt.get() as any;
+    const status = stmt.get() as CachedStatusRow | undefined;
 
     // No cached status available
     if (!status) {
@@ -152,7 +169,7 @@ export async function HEAD() {
   try {
     const database = getDatabase();
     const stmt = getLatestStatusStmt(database);
-    const status = stmt.get() as any;
+    const status = stmt.get() as CachedStatusRow | undefined;
 
     if (!status) {
       return new NextResponse(null, { status: 503 });
