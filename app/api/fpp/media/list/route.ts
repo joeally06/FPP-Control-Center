@@ -8,6 +8,9 @@ import { isAdminSession } from '@/lib/auth-helpers';
  * List audio files from FPP server
  * ADMIN ONLY - Security: Requires admin authentication
  */
+// FPP's /api/media returns plain file names or objects describing them
+type FppMediaEntry = string | { name?: string; size?: number; mtime?: string };
+
 export async function GET() {
   try {
     // SECURITY: Verify admin authentication
@@ -64,7 +67,7 @@ export async function GET() {
     const fileList = Array.isArray(data) ? data : [];
     
     const audioFiles = fileList
-      .filter((file: any) => {
+      .filter((file: FppMediaEntry | null) => {
         // Handle both string filenames and file objects
         const fileName = typeof file === 'string' ? file : file?.name;
         if (!fileName) return false;
@@ -72,7 +75,7 @@ export async function GET() {
         const ext = fileName.toLowerCase().split('.').pop();
         return allowedExtensions.includes(ext || '');
       })
-      .map((file: any) => {
+      .map((file: FppMediaEntry | null) => {
         // Handle both string filenames and file objects
         const fileName = typeof file === 'string' ? file : file?.name || '';
         const fileSize = typeof file === 'object' ? (file?.size || 0) : 0;

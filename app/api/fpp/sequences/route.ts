@@ -18,13 +18,13 @@ export async function GET() {
       SELECT name, filename, length_ms, channel_count, raw_data, synced_at
       FROM fpp_sequences
       ORDER BY name ASC
-    `).all();
+    `).all() as { name: string; filename: string; length_ms: number | null; channel_count: number | null; raw_data: string }[];
 
     if (cachedSequences.length > 0) {
       console.log(`[FPP Sequences] Returning ${cachedSequences.length} sequences from cache`);
       
       // Parse raw_data JSON for each sequence
-      const parsedSequences = cachedSequences.map((sequence: any) => {
+      const parsedSequences = cachedSequences.map((sequence) => {
         try {
           return JSON.parse(sequence.raw_data);
         } catch {

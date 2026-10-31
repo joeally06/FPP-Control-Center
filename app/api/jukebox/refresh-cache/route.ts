@@ -119,7 +119,7 @@ export async function POST() {
     const schedule = await scheduleResponse.json();
 
     const playlistNames = new Set<string>();
-    schedule.forEach((entry: any) => {
+    schedule.forEach((entry: { playlist?: string }) => {
       if (entry.playlist) {
         playlistNames.add(entry.playlist);
       }
@@ -148,7 +148,7 @@ export async function POST() {
           loadedPlaylists.set(playlistName, playlist);
           
           // Helper function to add sequences with order
-          const addSequence = (item: any) => {
+          const addSequence = (item: { sequenceName?: string; duration?: unknown }) => {
             if (item.sequenceName) {
               // Remove .fseq extension
               const sequenceName = item.sequenceName.replace(/\.fseq$/i, '');

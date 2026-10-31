@@ -2,6 +2,16 @@ import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-helpers';
 import { searchSpotify } from '@/lib/spotify-token';
 
+// A track in Spotify's search response, with the fields this route returns
+interface SpotifySearchTrack {
+  id: string;
+  name: string;
+  artists: { name: string }[];
+  album: { name: string; images: { url: string }[] };
+  uri: string;
+  preview_url: string | null;
+}
+
 /**
  * GET /api/spotify/search
  * Search Spotify for track metadata
@@ -23,7 +33,7 @@ export async function GET(request: Request) {
     const results = await searchSpotify(query, limit);
 
     return NextResponse.json({
-      results: results.map((track: any) => ({
+      results: results.map((track: SpotifySearchTrack) => ({
         id: track.id,
         name: track.name,
         artist: track.artists[0]?.name,

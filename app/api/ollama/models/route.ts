@@ -19,6 +19,15 @@ function formatSize(bytes: number): string {
  * Fetch available models from Ollama server with metadata
  * ADMIN ONLY
  */
+// The fields of Ollama's /api/tags entries that are returned to the admin page
+interface OllamaModel {
+  name: string;
+  size?: number;
+  modified_at?: string;
+  digest?: string;
+  details?: { family?: string; format?: string; parameter_size?: string };
+}
+
 export async function GET() {
   try {
     await requireAdmin();
@@ -46,7 +55,7 @@ export async function GET() {
     
     // Extract model names and metadata from response
     // Ollama /api/tags returns { models: [{ name, model, modified_at, size, digest, details }, ...] }
-    const models = data.models?.map((model: any) => ({
+    const models = data.models?.map((model: OllamaModel) => ({
       name: model.name,
       size: model.size,
       sizeFormatted: formatSize(model.size || 0),

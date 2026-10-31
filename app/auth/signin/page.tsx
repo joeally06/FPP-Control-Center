@@ -1,11 +1,11 @@
 'use client';
 
-import { getProviders, signIn, getSession } from 'next-auth/react';
+import { getProviders, signIn, getSession, type ClientSafeProvider } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function SignIn() {
-  const [providers, setProviders] = useState<any>(null);
+  const [providers, setProviders] = useState<Record<string, ClientSafeProvider> | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export default function SignIn() {
         <p className="text-gray-600 mb-6 text-center">
           Sign in with your preferred provider to access admin controls.
         </p>
-        {providers && Object.values(providers).map((provider: any) => (
+        {providers && Object.values(providers).map((provider) => (
           provider.id !== 'facebook' && (
             <button
               key={provider.name}

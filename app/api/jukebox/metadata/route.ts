@@ -148,7 +148,7 @@ export async function GET(request: NextRequest) {
       const metadata = {
         sequence_name: storageKey,
         song_title: track.name,
-        artist: track.artists.map((a: any) => a.name).join(', '),
+        artist: track.artists.map((a) => a.name).join(', '),
         album: album.name,
         release_year: releaseYear,
         album_cover_url: albumCover,

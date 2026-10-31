@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Parse JSON data
-    let playlistData: any;
+    let playlistData: unknown;
     try {
       playlistData = JSON.parse(cached.data);
     } catch (parseError) {

@@ -165,10 +165,10 @@ async function fetchUpcomingFromPlaylist(
     const data = await res.json();
 
     // FPP playlist response: { mainPlaylist: [ { sequenceName, mediaName, ... }, ... ] }
-    const items: any[] = data.mainPlaylist ?? data.entries ?? [];
+    const items: { sequenceName?: string; mediaName?: string }[] = data.mainPlaylist ?? data.entries ?? [];
     const next = items.slice(currentIndex + 1, currentIndex + 1 + limit);
     return next
-      .map((item: any) => item.sequenceName ?? item.mediaName ?? '')
+      .map((item) => item.sequenceName ?? item.mediaName ?? '')
       .filter(Boolean);
   } catch {
     return [];

@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Convert worksheet to JSON array
-    const data: Record<string, any>[] = [];
+    const data: Record<string, unknown>[] = [];
     const headers: string[] = [];
     
     worksheet.eachRow((row, rowNumber) => {
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
         });
       } else {
         // Data rows
-        const rowData: Record<string, any> = {};
+        const rowData: Record<string, unknown> = {};
         row.eachCell((cell, colNumber) => {
           const header = headers[colNumber - 1];
           if (header) {
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     let imported = 0;
     const errors: string[] = [];
 
-    for (const row of data as any[]) {
+    for (const row of data) {
       try {
         insertModel.run(
           row['Model Name'] || 'Unknown',

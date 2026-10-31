@@ -18,14 +18,14 @@ export async function GET() {
       SELECT name, description, item_count, duration, raw_data, synced_at
       FROM fpp_playlists
       ORDER BY name ASC
-    `).all();
+    `).all() as { name: string; description: string | null; item_count: number | null; duration: number | null; raw_data: string }[];
 
     if (cachedPlaylists.length > 0) {
       console.log(`[FPP Playlists] Returning ${cachedPlaylists.length} playlists from cache`);
       
       // Parse raw_data JSON for each playlist; rows that aren't a playlist object
       // (FPP's "" cached for a jukebox song's .fseq name) are left out
-      const parsedPlaylists = cachedPlaylists.flatMap((playlist: any) => {
+      const parsedPlaylists = cachedPlaylists.flatMap((playlist) => {
         try {
           const parsed = JSON.parse(playlist.raw_data);
           return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? [parsed] : [];

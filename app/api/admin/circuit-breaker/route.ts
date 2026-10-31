@@ -20,7 +20,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { getCircuitBreaker, CircuitState } from '@/lib/circuit-breaker';
+import { getCircuitBreaker, CircuitState, type CircuitBreakerStats, type FPPCircuitBreaker } from '@/lib/circuit-breaker';
 import db from '@/lib/database';
 import { isAdminSession } from '@/lib/auth-helpers';
 
@@ -205,7 +205,7 @@ function formatDuration(ms: number): string {
   return `${(ms / 3600000).toFixed(1)}h`;
 }
 
-function getRecommendations(stats: any, circuitBreaker: any): string[] {
+function getRecommendations(stats: CircuitBreakerStats, circuitBreaker: FPPCircuitBreaker): string[] {
   const recommendations: string[] = [];
 
   if (circuitBreaker.isFPPOffline()) {

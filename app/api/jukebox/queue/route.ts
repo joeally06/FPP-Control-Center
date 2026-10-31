@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!isPlaylist) incrementSequenceRequests.run(sequence_name);
-    const result = { lastInsertRowid: transactionResult.id } as any;
+    const result = { lastInsertRowid: transactionResult.id };
 
     // Calculate how many requests the user has used in the last hour
     const now = getUtcNow();

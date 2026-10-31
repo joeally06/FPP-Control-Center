@@ -51,7 +51,6 @@ interface PlaylistDetails {
     sequenceName?: string;
     type?: string;
   }>;
-  [key: string]: any;
 }
 
 export default function Home() {
@@ -227,7 +226,7 @@ export default function Home() {
     setTimeout(() => setMessage(null), 3000);
   };
 
-  const sendCommand = async (command: string, args: any[]) => {
+  const sendCommand = async (command: string, args: unknown[]) => {
     setLoading(true);
     try {
       const response = await fetch('/api/fpp/command', {
@@ -295,7 +294,7 @@ export default function Home() {
 
     // Add leadIn sequences first (these come before mainPlaylist in FPP)
     if (details.leadIn && Array.isArray(details.leadIn)) {
-      details.leadIn.forEach((item: any) => {
+      details.leadIn.forEach((item) => {
         if (item.sequenceName) {
           sequences.push({ name: item.sequenceName, type: item.type || 'sequence', section: 'Lead In' });
         }
@@ -304,7 +303,7 @@ export default function Home() {
 
     // Add mainPlaylist sequences
     if (details.mainPlaylist && Array.isArray(details.mainPlaylist)) {
-      details.mainPlaylist.forEach((item: any) => {
+      details.mainPlaylist.forEach((item) => {
         if (item.sequenceName) {
           sequences.push({ name: item.sequenceName, type: item.type || 'sequence', section: 'Main' });
         }
@@ -313,7 +312,7 @@ export default function Home() {
 
     // Add leadOut sequences last
     if (details.leadOut && Array.isArray(details.leadOut)) {
-      details.leadOut.forEach((item: any) => {
+      details.leadOut.forEach((item) => {
         if (item.sequenceName) {
           sequences.push({ name: item.sequenceName, type: item.type || 'sequence', section: 'Lead Out' });
         }

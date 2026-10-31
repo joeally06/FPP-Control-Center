@@ -79,6 +79,19 @@ function normalizeFilename(filename: string): string {
  * Returns:
  *   - items: Array of PlaylistItem with status
  */
+// One item of a playlist section as FPP reports it (cached in fpp_playlists.raw_data)
+interface PlaylistEntry {
+  mediaName?: string;
+  sequenceName?: string;
+  enabled?: number;
+}
+
+interface CachedPlaylistData {
+  leadIn?: PlaylistEntry[];
+  mainPlaylist?: PlaylistEntry[];
+  leadOut?: PlaylistEntry[];
+}
+
 export async function GET(request: NextRequest) {
   try {
     // SECURITY: Verify admin authentication
@@ -128,7 +141,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Parse playlist data
-    let playlistData: any;
+    let playlistData: CachedPlaylistData;
     try {
       playlistData = JSON.parse(cachedPlaylist.raw_data);
     } catch {
@@ -152,7 +165,7 @@ export async function GET(request: NextRequest) {
     const items: PlaylistItem[] = [];
 
     const processEntry = (
-      entry: { mediaName?: string; sequenceName?: string; enabled?: number },
+      entry: PlaylistEntry,
       type: 'leadIn' | 'main' | 'leadOut'
     ) => {
       // Skip disabled items or items without sequence name
@@ -187,13 +200,13 @@ export async function GET(request: NextRequest) {
 
     // Process all playlist sections
     if (Array.isArray(playlistData.leadIn)) {
-      playlistData.leadIn.forEach((entry: any) => processEntry(entry, 'leadIn'));
+      playlistData.leadIn.forEach((entry) => processEntry(entry, 'leadIn'));
     }
     if (Array.isArray(playlistData.mainPlaylist)) {
-      playlistData.mainPlaylist.forEach((entry: any) => processEntry(entry, 'main'));
+      playlistData.mainPlaylist.forEach((entry) => processEntry(entry, 'main'));
     }
     if (Array.isArray(playlistData.leadOut)) {
-      playlistData.leadOut.forEach((entry: any) => processEntry(entry, 'leadOut'));
+      playlistData.leadOut.forEach((entry) => processEntry(entry, 'leadOut'));
     }
 
     console.log(`[Playlist Status] ${sanitizedName}: ${items.length} items`);

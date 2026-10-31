@@ -1,7 +1,7 @@
 import NextAuth, { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import { JWT } from 'next-auth/jwt';
-import { Session } from 'next-auth';
+import { Session, User } from 'next-auth';
 import { hashEmail, createSafeUserId } from '@/lib/privacy-utils';
 import { SESSION } from '@/lib/constants';
 import { isAdminEmail } from '@/lib/admin-emails';
@@ -69,7 +69,7 @@ export const authOptions: NextAuthOptions = {
       
       return true; // Allow all Google OAuth users
     },
-    async jwt({ token, user }: { token: JWT; user?: any }) {
+    async jwt({ token, user }: { token: JWT; user?: User }) {
       // Add role to token
       if (user) {
         // Check if user email is in admin list
