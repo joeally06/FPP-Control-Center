@@ -8,7 +8,10 @@ const nextConfig = {
   experimental: {
     // Every `next build` starts clean. The persistent build cache (on by default since Next 16.3) has shipped
     // stale Tailwind CSS with newly added @theme colours missing, and the self-update builds on top of it.
-    turbopackFileSystemCacheForBuild: false,turbopackFileSystemCacheForDev: false,
+     turbopackFileSystemCacheForBuild: false,
+    // Next 16.4 bug: restarting `next dev` over a saved dev cache can reload the browser tab forever
+    // (vercel/next.js#100251, #100267). Turning the dev cache off avoids it; dev restarts compile from scratch.
+    turbopackFileSystemCacheForDev: false,
   },
 
   async headers() {

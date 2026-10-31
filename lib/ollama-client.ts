@@ -248,7 +248,7 @@ export async function isModelAvailable(
     }
     
     const data = await response.json();
-    const models = data.models?.map((model: any) => model.name) || [];
+    const models = data.models?.map((model: { name: string }) => model.name) || [];
     
     // Check for exact match or base name match (e.g., "llama3.2" matches "llama3.2:latest")
     return models.some((m: string) => 

@@ -1,6 +1,6 @@
 // CSV Export Utilities
 
-export function convertToCSV(data: any[], headers: string[]): string {
+export function convertToCSV<T extends object>(data: T[], headers: string[]): string {
   if (!data || data.length === 0) return '';
 
   // Create header row
@@ -9,7 +9,7 @@ export function convertToCSV(data: any[], headers: string[]): string {
   // Create data rows
   const dataRows = data.map(row => {
     return headers.map(header => {
-      const value = row[header];
+      const value: unknown = row[header as keyof T];
       // Handle null/undefined
       if (value === null || value === undefined) return '';
       // Escape commas and quotes in strings
@@ -39,7 +39,7 @@ export function downloadCSV(filename: string, csvContent: string) {
   document.body.removeChild(link);
 }
 
-export function exportRequestAnalytics(data: any) {
+export function exportRequestAnalytics(data: { mostRequested: object[]; recentActivity: object[] }) {
   const { mostRequested, recentActivity } = data;
 
   // Export Most Requested Songs
@@ -55,7 +55,7 @@ export function exportRequestAnalytics(data: any) {
   }, 500);
 }
 
-export function exportVoteAnalytics(data: any) {
+export function exportVoteAnalytics(data: { topVoted: object[]; controversial: object[]; votingTrend: object[] }) {
   const { topVoted, controversial, votingTrend } = data;
 
   // Export Top Voted Songs

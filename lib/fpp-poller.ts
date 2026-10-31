@@ -208,11 +208,38 @@ let playingSecondsRemaining: number | null = null;
 // Input Validation & Sanitization
 // ============================================================================
 
+// The parts of FPP's /api/fppd/status response that the poller reads (FPP sends more; every field may be missing)
+interface FppStatus {
+  status_name?: string;
+  current_sequence?: string | null;
+  current_playlist?: { playlist?: string; index?: number; count?: number };
+  seconds_played?: number | string | null;
+  seconds_remaining?: number | string | null;
+  time_elapsed?: string;
+  time_remaining?: string;
+  volume?: number;
+  mode_name?: string;
+  uptime?: number;
+  scheduler?: { status?: string; nextPlaylist?: { playlistName?: string } };
+}
+
+// One entry of mainPlaylist in FPP's /api/playlist/<name> response
+interface FppPlaylistItem {
+  sequenceName?: string;
+  playlistName?: string;
+  duration?: number;
+  enabled?: boolean;
+}
+
+interface FppPlaylistDetails {
+  mainPlaylist?: FppPlaylistItem[];
+}
+
 /**
  * Validate and sanitize FPP status response
  * SECURITY: Prevent injection attacks via malicious FPP responses
  */
-function validateFPPStatus(data: any): boolean {
+function validateFPPStatus(data: FppStatus | null | undefined): boolean {
   if (!data || typeof data !== 'object') return false;
   
   // Validate status_name
@@ -244,7 +271,7 @@ function validateFPPStatus(data: any): boolean {
  * Sanitize string input to prevent SQL injection
  * (Belt-and-suspenders approach - prepared statements already protect us)
  */
-function sanitizeString(input: any): string | null {
+function sanitizeString(input: unknown): string | null {
   if (!input) return null;
   if (typeof input !== 'string') return String(input).substring(0, 255);
   
@@ -260,7 +287,7 @@ function sanitizeString(input: any): string | null {
  * Fetch FPP status from device with timeout and error handling
  * SECURITY: Timeout prevents hanging on slow/malicious responses
  */
-async function fetchFPPStatus(): Promise<{ success: boolean; data?: any; error?: string; responseTime: number }> {
+async function fetchFPPStatus(): Promise<{ success: boolean; data?: FppStatus; error?: string; responseTime: number }> {
   const startTime = Date.now();
   
   try {
@@ -309,7 +336,7 @@ async function fetchFPPStatus(): Promise<{ success: boolean; data?: any; error?:
 /**
  * Fetch playlist details from FPP (optional, for caching sequences)
  */
-async function fetchPlaylistDetails(playlistName: string): Promise<any | null> {
+async function fetchPlaylistDetails(playlistName: string): Promise<FppPlaylistDetails | null> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), POLLER.TIMEOUT);
@@ -341,7 +368,7 @@ async function fetchPlaylistDetails(playlistName: string): Promise<any | null> {
  * Uses transactions for atomic updates
  * SECURITY: Now also caches to fpp_status table for frontend API consumption
  */
-function updateDatabase(status: any, responseTime: number): void {
+function updateDatabase(status: FppStatus, responseTime: number): void {
   try {
     // Normalize numeric fields that might be strings
     const secondsPlayed = typeof status.seconds_played === 'string' ? parseFloat(status.seconds_played) : status.seconds_played;
@@ -413,7 +440,7 @@ function updateDatabase(status: any, responseTime: number): void {
     // Reset failure counter on success
     consecutiveFailures = 0;
     currentPollInterval = POLL_INTERVAL;
-    playingSecondsRemaining = status.status_name === 'playing' && Number.isFinite(secondsRemaining) ? secondsRemaining : null;
+    playingSecondsRemaining = status.status_name === 'playing' && typeof secondsRemaining === 'number' && Number.isFinite(secondsRemaining) ? secondsRemaining : null;
 
     // ✅ CIRCUIT BREAKER: Record success
     circuitBreaker.recordSuccess();
@@ -422,13 +449,14 @@ function updateDatabase(status: any, responseTime: number): void {
 
     // Async: Fetch and cache playlist details (don't block polling)
     if (status.current_playlist?.playlist) {
-      fetchPlaylistDetails(status.current_playlist.playlist)
+      const activePlaylistName = status.current_playlist.playlist;
+      fetchPlaylistDetails(activePlaylistName)
         .then(details => {
           if (details?.mainPlaylist) {
-            syncPlaylistSequences(status.current_playlist.playlist, details.mainPlaylist);
+            syncPlaylistSequences(activePlaylistName, details.mainPlaylist);
             
             // ✅ NEW: Cache full playlist data for frontend API
-            cachePlaylistData(status.current_playlist.playlist, details);
+            cachePlaylistData(activePlaylistName, details);
           }
         })
         .catch(err => {
@@ -453,7 +481,7 @@ function updateDatabase(status: any, responseTime: number): void {
 /**
  * Sync playlist sequences to database
  */
-function syncPlaylistSequences(playlistName: string, sequences: any[]): void {
+function syncPlaylistSequences(playlistName: string, sequences: FppPlaylistItem[]): void {
   try {
     const transaction = db.transaction(() => {
       // Clear existing sequences
@@ -482,7 +510,7 @@ function syncPlaylistSequences(playlistName: string, sequences: any[]): void {
  * ✅ NEW: Cache playlist data for frontend API consumption
  * SECURITY: Stores playlist JSON for secure backend API access
  */
-function cachePlaylistData(playlistName: string, data: any): void {
+function cachePlaylistData(playlistName: string, data: unknown): void {
   try {
     insertCachedPlaylist.run(
       playlistName,

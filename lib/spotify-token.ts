@@ -168,7 +168,17 @@ export interface SpotifyTrackMetadata {
   previewUrl: string | null;
 }
 
-export function extractTrackMetadata(track: any): SpotifyTrackMetadata {
+// The parts of a Spotify search result track that extractTrackMetadata reads
+export interface SpotifyTrack {
+  id?: string;
+  uri?: string;
+  name?: string;
+  preview_url?: string | null;
+  artists?: { name?: string }[];
+  album?: { name?: string; images?: { url?: string }[] };
+}
+
+export function extractTrackMetadata(track: SpotifyTrack | null | undefined): SpotifyTrackMetadata {
   if (!track) {
     return {
       albumArt: null,

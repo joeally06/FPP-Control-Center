@@ -43,23 +43,47 @@ function describeError(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-function isRetryableError(err: any) {
+function isRetryableError(err: unknown) {
   // nodemailer replaces the system error code with its own: a refused or reset connection arrives as
   // ESOCKET (the original ECONNREFUSED is only in the message), a dropped one as ECONNECTION and a failed
   // lookup as EDNS. ETIMEDOUT, ESOCKET and ECONNECTION are the codes nodemailer itself calls transient.
   // Not retried: EAUTH (wrong login), EENVELOPE (bad address), ETLS and 5xx answers - waiting won't fix those.
   const retryableCodes = ['ESOCKET', 'ECONNECTION', 'EDNS', 'ETIMEDOUT', 'ECONNREFUSED', 'EAI_AGAIN', 'ECONNRESET', 'ENOTFOUND'];
-  if (!err) return false;
+  if (!err || typeof err !== 'object') return false;
+  const code = 'code' in err ? err.code : undefined;
+  const responseCode = 'responseCode' in err ? err.responseCode : undefined;
+  const message = 'message' in err ? err.message : undefined;
   // nodemailer adds `code` to underlying errors
-  if (err.code && retryableCodes.includes(err.code)) return true;
+  if (typeof code === 'string' && retryableCodes.includes(code)) return true;
   // Some SMTP errors use responseCode for 4xx (temporary)
-  if (err.responseCode && typeof err.responseCode === 'number' && err.responseCode >= 400 && err.responseCode < 500) return true;
+  if (typeof responseCode === 'number' && responseCode >= 400 && responseCode < 500) return true;
   // Fallback: treat network errors as retryable by looking for common phrases
-  if (typeof err.message === 'string' && (err.message.includes('ETIMEDOUT') || err.message.includes('Connection timed out') || err.message.includes('ECONNRESET') || err.message.includes('connect EHOSTUNREACH'))) return true;
+  if (typeof message === 'string' && (message.includes('ETIMEDOUT') || message.includes('Connection timed out') || message.includes('ECONNRESET') || message.includes('connect EHOSTUNREACH'))) return true;
   return false;
 }
 
-export async function sendMailWithRetries(config: any, mailOptions: any, opts: { attempts?: number; initialDelayMs?: number; factor?: number; verify?: boolean; createTransport?: () => any; } = {}) {
+// What sendMailWithRetries needs from the SMTP settings, the message and the transport (nodemailer's own types are not installed)
+interface SmtpConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+  auth: { user: string; pass: string };
+}
+
+interface MailMessage {
+  from?: string;
+  to?: string;
+  subject?: string;
+  text?: string;
+  html?: string;
+}
+
+interface MailTransport {
+  verify(): Promise<unknown>;
+  sendMail(message: MailMessage): Promise<{ messageId?: string }>;
+}
+
+export async function sendMailWithRetries(config: SmtpConfig, mailOptions: MailMessage, opts: { attempts?: number; initialDelayMs?: number; factor?: number; verify?: boolean; createTransport?: () => MailTransport; } = {}) {
   const attempts = opts.attempts ?? 3;
   const initialDelayMs = opts.initialDelayMs ?? 1000;
   const factor = opts.factor ?? 2;
@@ -67,7 +91,7 @@ export async function sendMailWithRetries(config: any, mailOptions: any, opts: {
   const createTransport = opts.createTransport;
 
   let attempt = 0;
-  let lastError: any = null;
+  let lastError: unknown = null;
   while (attempt < attempts) {
     attempt += 1;
     try {

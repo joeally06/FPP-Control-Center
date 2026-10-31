@@ -10,7 +10,7 @@ function isAnalyticsAllowed(): boolean {
   if (typeof window === 'undefined') return false;
   
   // Check if user has explicitly disabled analytics
-  if ((window as any).disableAnalytics === true) return false;
+  if (window.disableAnalytics === true) return false;
   
   // Check cookie consent
   const consent = localStorage.getItem('cookie-consent');

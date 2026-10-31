@@ -74,22 +74,22 @@ export function anonymizeIP(ip: string): string {
  * @param data - Object containing potentially sensitive data
  * @returns Object with sensitive fields redacted
  */
-export function redactSensitiveData(data: Record<string, any>): Record<string, any> {
+export function redactSensitiveData(data: Record<string, unknown>): Record<string, unknown> {
   const redacted = { ...data };
   
   // Hash email fields
   if (redacted.email) {
-    redacted.emailHash = hashEmail(redacted.email);
+    redacted.emailHash = hashEmail(String(redacted.email));
     delete redacted.email;
   }
   
   // Anonymize IP fields
   if (redacted.ip) {
-    redacted.ip = anonymizeIP(redacted.ip);
+    redacted.ip = anonymizeIP(String(redacted.ip));
   }
   
   if (redacted.requester_ip) {
-    redacted.requester_ip = anonymizeIP(redacted.requester_ip);
+    redacted.requester_ip = anonymizeIP(String(redacted.requester_ip));
   }
   
   return redacted;

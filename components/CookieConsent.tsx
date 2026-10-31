@@ -20,11 +20,11 @@ export default function CookieConsent() {
     }
   }, []);
 
-  const applyConsent = (consent: any) => {
+  const applyConsent = (consent: { analytics?: boolean }) => {
     if (consent.analytics === false) {
       // Disable analytics tracking
       if (typeof window !== 'undefined') {
-        (window as any).disableAnalytics = true;
+        window.disableAnalytics = true;
       }
     }
   };

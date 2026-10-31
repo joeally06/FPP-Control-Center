@@ -185,10 +185,10 @@ export function createSuccessResponse<T = unknown>(
  *   return createSuccessResponse(data);
  * });
  */
-export function withErrorHandling<T extends (...args: any[]) => Promise<NextResponse>>(
-  handler: T
-): T {
-  return (async (...args: any[]) => {
+export function withErrorHandling<A extends unknown[]>(
+  handler: (...args: A) => Promise<NextResponse>
+): (...args: A) => Promise<NextResponse> {
+  return async (...args: A) => {
     try {
       return await handler(...args);
     } catch (error) {
@@ -198,7 +198,7 @@ export function withErrorHandling<T extends (...args: any[]) => Promise<NextResp
       // Return standardized error response
       return createErrorResponse(error);
     }
-  }) as T;
+  };
 }
 
 /**

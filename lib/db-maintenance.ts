@@ -69,7 +69,7 @@ export function archiveOldData(daysToKeep = 365) {
   const startTime = Date.now();
   
   try {
-    const stats: any = {
+    const stats = {
       pageViews: 0,
       deviceStatus: 0,
       sessions: 0,
@@ -168,7 +168,7 @@ const ALLOWED_TABLES = [
 export function optimizeTable(tableName: string) {
   try {
     // SECURITY: Validate table name against whitelist to prevent SQL injection
-    if (!ALLOWED_TABLES.includes(tableName as any)) {
+    if (!(ALLOWED_TABLES as readonly string[]).includes(tableName)) {
       console.error(`❌ Invalid table name: ${tableName}`);
       return { success: false, error: new Error('Invalid table name') };
     }
@@ -215,14 +215,14 @@ export function enableSlowQueryLogging(thresholdMs = 100) {
   
   const originalPrepare = db.prepare.bind(db);
   
-  (db as any).prepare = function(sql: string) {
+  Object.assign(db, { prepare(sql: string) {
     const stmt = originalPrepare(sql);
     const originalRun = stmt.run.bind(stmt);
     const originalGet = stmt.get.bind(stmt);
     const originalAll = stmt.all.bind(stmt);
     
     // Wrap run()
-    stmt.run = function(...args: any[]) {
+    stmt.run = function(...args: unknown[]) {
       const start = Date.now();
       const result = originalRun(...args);
       const duration = Date.now() - start;
@@ -235,7 +235,7 @@ export function enableSlowQueryLogging(thresholdMs = 100) {
     };
     
     // Wrap get()
-    stmt.get = function(...args: any[]) {
+    stmt.get = function(...args: unknown[]) {
       const start = Date.now();
       const result = originalGet(...args);
       const duration = Date.now() - start;
@@ -248,7 +248,7 @@ export function enableSlowQueryLogging(thresholdMs = 100) {
     };
     
     // Wrap all()
-    stmt.all = function(...args: any[]) {
+    stmt.all = function(...args: unknown[]) {
       const start = Date.now();
       const result = originalAll(...args);
       const duration = Date.now() - start;
@@ -261,7 +261,7 @@ export function enableSlowQueryLogging(thresholdMs = 100) {
     };
     
     return stmt;
-  };
+  } });
 }
 
 // Export default maintenance function

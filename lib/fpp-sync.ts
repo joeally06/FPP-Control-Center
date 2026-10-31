@@ -49,7 +49,7 @@ export async function syncFppData(): Promise<SyncResult> {
     console.log('[FPP Sync] Found', playlistNames.length, 'playlist names');
     
     // Fetch full details for each playlist
-    const playlists: any[] = [];
+    const playlists: FppPlaylistDetail[] = [];
     for (const name of playlistNames) {
       try {
         const playlistRes = await fetch(`${fppUrl}/api/playlist/${encodeURIComponent(name)}`, {
@@ -190,6 +190,14 @@ export async function syncFppData(): Promise<SyncResult> {
       timestamp
     };
   }
+}
+
+// The parts of FPP's /api/playlist/<name> response that the sync reads
+interface FppPlaylistDetail {
+  name?: string;
+  desc?: string;
+  mainPlaylist?: unknown[];
+  playlistInfo?: { total_duration?: number };
 }
 
 /**
