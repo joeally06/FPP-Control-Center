@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
     let playlistData: any;
     try {
       playlistData = JSON.parse(cachedPlaylist.raw_data);
-    } catch (parseError) {
+    } catch {
       console.error('[Playlist Status] Failed to parse playlist data');
       return NextResponse.json(
         { error: 'Invalid playlist data' },

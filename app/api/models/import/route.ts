@@ -6,7 +6,7 @@ import ExcelJS from 'exceljs';
 export async function POST(request: NextRequest) {
   try {
     await requireAdmin();
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

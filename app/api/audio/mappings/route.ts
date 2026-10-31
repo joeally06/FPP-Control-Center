@@ -18,7 +18,7 @@ interface AudioMapping {
  * Get all audio mappings
  * ADMIN ONLY
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // SECURITY: Verify admin authentication
     const session = await getServerSession(authOptions);
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
       try {
         const content = await readFile(MAPPING_FILE, 'utf-8');
         mappings = JSON.parse(content);
-      } catch (error) {
+      } catch {
         console.warn('[Audio Mappings] Failed to read existing file, creating new');
       }
     }

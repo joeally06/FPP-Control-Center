@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { addToQueue, getQueue, incrementSequenceRequests, getActiveTheme, getFPPState } from '@/lib/database';
+import { getQueue, incrementSequenceRequests, getActiveTheme, getFPPState } from '@/lib/database';
 import { addToQueueTransactional, countRecentRequests } from '@/lib/jukebox-queue';
 import { getClientIP, getSongRequestRateLimit } from '@/lib/rate-limit';
 import { getUtcNow, getUtcOffset } from '@/lib/time-utils';
@@ -100,7 +100,6 @@ export async function POST(request: NextRequest) {
 
     // Check location restrictions if user provided GPS location
     let distanceFromShow = null;
-    let locationBlocked = false;
     let locationDetails = {
       latitude: null as number | null,
       longitude: null as number | null,
@@ -141,7 +140,6 @@ export async function POST(request: NextRequest) {
         );
         
         if (distanceFromShow > restrictions.max_distance_miles) {
-          locationBlocked = true;
           console.log(`[Security] Request blocked - User is ${distanceFromShow.toFixed(2)} miles away (limit: ${restrictions.max_distance_miles})`);
           
           return NextResponse.json({

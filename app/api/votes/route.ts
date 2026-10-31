@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { insertVote, getVoteCounts, getUserVote } from '../../../lib/database';
+import { getVoteCounts, getUserVote } from '../../../lib/database';
 import { getDistanceInMiles } from '@/lib/location-utils';
 import { roundMiles } from '@/lib/location-check';
 import { getClientIP } from '@/lib/rate-limit';

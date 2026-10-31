@@ -12,11 +12,6 @@ import {
   AdminH3,
   AdminText,
   AdminLabel,
-  AdminValue,
-  AdminSuccess,
-  AdminError,
-  AdminWarning,
-  AdminInfo
 } from '@/components/admin/Typography';
 import {
   badge, button, card, cardTitle, dangerButton, eyebrow, field, insetBox, smallButton, tabClass,
@@ -163,7 +158,7 @@ export default function SantaLettersPage() {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        await response.json();
         alert('Queue processing triggered! Check console for details.');
         await fetchLetters();
       } else {

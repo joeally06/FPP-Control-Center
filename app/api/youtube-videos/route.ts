@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAllYouTubeVideos, getYouTubeVideosByTheme, getActiveTheme } from '@/lib/database';
+import { getYouTubeVideosByTheme, getActiveTheme } from '@/lib/database';
 import { normalizeThemeId } from '@/lib/themes/theme-config';
 
 /**

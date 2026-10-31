@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { readdir, stat } from 'fs/promises';
@@ -19,7 +19,7 @@ interface LocalAudioFile {
  * Get list of local audio files
  * ADMIN ONLY
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // SECURITY: Verify admin authentication
     const session = await getServerSession(authOptions);
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
             size: stats.size,
             lastModified: stats.mtime.toISOString()
           });
-        } catch (error) {
+        } catch {
           console.warn(`[Local Files] Failed to stat ${fileName}`);
         }
       }

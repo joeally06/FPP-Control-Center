@@ -1,12 +1,10 @@
 'use client';
 
-import { useState } from 'react';
 import { formatDateTime } from '@/lib/time-utils';
 import AdminNavigation from '@/components/AdminNavigation';
 import { AdminH1, AdminH2, AdminH3, AdminText, AdminTextSmall } from '@/components/admin/Typography';
 
 export default function PrivacyPage() {
-  const [showCookieSettings, setShowCookieSettings] = useState(false);
 
   const handleResetCookies = () => {
     if (confirm('This will reset your cookie preferences and reload the page. Continue?')) {

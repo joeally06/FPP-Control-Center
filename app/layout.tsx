@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import CookieConsent from "@/components/CookieConsent";
-import Footer from "@/components/Footer";
 
 // Background services are now initialized in instrumentation.ts
 

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { isAdminSession } from '@/lib/auth-helpers';
@@ -8,7 +8,7 @@ import { syncFppData, getSyncStatus } from '@/lib/fpp-sync';
  * POST /api/fpp/sync - Trigger manual sync
  * 🔒 ADMIN ONLY - Requires admin authentication
  */
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
  * GET /api/fpp/sync - Get current sync status
  * 🔒 AUTHENTICATED USERS - Any logged-in user can view status
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Check authentication (any user)
     const session = await getServerSession(authOptions);

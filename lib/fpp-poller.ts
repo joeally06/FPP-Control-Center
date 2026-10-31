@@ -25,7 +25,7 @@ import path from 'path';
 import fs from 'fs';
 import { config } from 'dotenv';
 import { getCircuitBreaker, CircuitState } from './circuit-breaker';
-import { getFppHost, getFppPort, FPP_DEFAULTS } from './fpp-config';
+import { getFppHost } from './fpp-config';
 import { POLLER } from './constants';
 import { nextPollDelay } from './poll-timing';
 import { markFppOffline } from './fpp-state';
@@ -45,7 +45,6 @@ if (fs.existsSync(envPath)) {
 const FPP_HOST = process.env.FPP_HOST || getFppHost();
 const FPP_PORT = process.env.FPP_PORT || '80';
 const POLL_INTERVAL = parseInt(process.env.FPP_POLL_INTERVAL || String(POLLER.DEFAULT_INTERVAL));
-const MIN_POLL_INTERVAL = POLLER.MIN_INTERVAL;
 const MAX_POLL_INTERVAL = POLLER.MAX_INTERVAL;
 const RETRY_BACKOFF_MULTIPLIER = 1.5; // Exponential backoff
 const MAX_CONSECUTIVE_FAILURES = 10; // Max failures before longer backoff
@@ -61,7 +60,7 @@ console.log(`[FPP Poller] Poll Interval: ${POLL_INTERVAL}ms`);
 const circuitBreaker = getCircuitBreaker();
 
 // Listen to circuit state changes
-circuitBreaker.on('stateChange', (newState: CircuitState, previousState: CircuitState) => {
+circuitBreaker.on('stateChange', (newState: CircuitState) => {
   if (newState === CircuitState.OPEN) {
     console.log('[FPP Poller] 🛑 Circuit OPEN - Pausing aggressive polling');
     console.log('[FPP Poller] Poll interval increased to 60s to save resources');
@@ -328,7 +327,7 @@ async function fetchPlaylistDetails(playlistName: string): Promise<any | null> {
 
     if (!response.ok) return null;
     return await response.json();
-  } catch (error) {
+  } catch {
     return null;
   }
 }

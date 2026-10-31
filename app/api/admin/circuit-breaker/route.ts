@@ -30,7 +30,7 @@ export const dynamic = 'force-dynamic';
  * GET - Get circuit breaker status and statistics
  * SECURITY: Admin-only access
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // SECURITY: Verify admin authentication
     const session = await getServerSession(authOptions);
@@ -57,18 +57,6 @@ export async function GET(request: NextRequest) {
       ORDER BY poll_timestamp DESC
       LIMIT 20
     `).all();
-
-    // Get circuit breaker state history
-    const stateHistory = db.prepare(`
-      SELECT 
-        state,
-        failure_count,
-        success_count,
-        total_transitions,
-        updated_at
-      FROM fpp_circuit_breaker
-      WHERE id = 1
-    `).get() as any;
 
     // Calculate uptime percentage
     const totalPolls = db.prepare(`

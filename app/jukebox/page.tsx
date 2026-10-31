@@ -13,8 +13,7 @@ import LetterToSantaModal from '@/components/LetterToSantaModal';
 import TriviaModal from '@/components/trivia/TriviaModal';
 import LocationPermissionModal, {
   getCachedLocation,
-  getStoredPermissionStatus,
-  clearLocationPermission
+  getStoredPermissionStatus
 } from '@/components/LocationPermissionModal';
 import LocationStatusBadge, { type LocationStatus } from '@/components/LocationStatusBadge';
 import Toast from '@/components/Toast';
@@ -71,9 +70,9 @@ export default function JukeboxPage() {
   const [showTriviaModal, setShowTriviaModal] = useState(false);
   const isChristmasTheme = theme.id === 'christmas';
   const [youtubeVideos, setYoutubeVideos] = useState<YouTubeVideo[]>([]);
-  const [loadingYouTubeVideos, setLoadingYouTubeVideos] = useState(false);
+  const [, setLoadingYouTubeVideos] = useState(false);
   const [scheduleStatus, setScheduleStatus] = useState<ScheduleStatus | null>(null);
-  const [loadingSchedule, setLoadingSchedule] = useState(true);
+  const [, setLoadingSchedule] = useState(true);
   const [jukeboxRateLimit, setJukeboxRateLimit] = useState<number>(3);
   const [requestsRemaining, setRequestsRemaining] = useState<number | null>(null);
   const [siteName, setSiteName] = useState('');
@@ -90,7 +89,7 @@ export default function JukeboxPage() {
   // Playback position reported by the FPP poller cache; a new song refreshes the title and queue
   const fetchDataRef = useRef<(() => Promise<void>) | null>(null);
   const { fppProgress, nowTick } = useFppProgress(() => { fetchDataRef.current?.(); });
-  const [locationError, setLocationError] = useState<string | null>(null);
+  const [, setLocationError] = useState<string | null>(null);
   const [checkingLocation, setCheckingLocation] = useState(false);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [locationPermissionStatus, setLocationPermissionStatus] = useState<'granted' | 'denied' | 'skipped' | null>(null);
@@ -282,16 +281,6 @@ export default function JukeboxPage() {
     showToast('📍 You can browse songs. Enable location when you\'re ready to request one!', 'info');
   };
 
-  const resetLocationPermission = () => {
-    clearLocationPermission();
-    setUserLocation(null);
-    setLocationPermissionStatus(null);
-    setDistanceFromShow(null);
-    setLocationError(null);
-    // Show the modal to allow re-granting
-    setShowLocationModal(true);
-  };
-
   /**
    * Request location permission lazily - shows modal if permission not yet granted
    * Returns true if location is available (or not required), false if modal was shown
@@ -425,7 +414,7 @@ export default function JukeboxPage() {
     // Refresh request status to keep it up to date
     const requestStatusInterval = setInterval(() => {
       if (jukeboxRateLimit > 0) {
-        fetchRequestStatus(jukeboxRateLimit);
+        fetchRequestStatus();
       }
     }, TIMING.POLL_INTERVAL_MEDIUM);
 
@@ -544,7 +533,7 @@ export default function JukeboxPage() {
         setAudienceEnabled(data.audienceEnabled === true);
 
         // After getting rate limit, fetch current request status
-        await fetchRequestStatus(data.rateLimit || 3);
+        await fetchRequestStatus();
       }
     } catch (error) {
       console.error('Failed to fetch jukebox settings:', error);
@@ -552,7 +541,7 @@ export default function JukeboxPage() {
     }
   };
 
-  const fetchRequestStatus = async (rateLimit: number) => {
+  const fetchRequestStatus = async () => {
     try {
       // Get user's IP-based request count from the queue
       const response = await fetch('/api/jukebox/request-status');
@@ -638,45 +627,6 @@ export default function JukeboxPage() {
     }
   };
 
-  const refreshSequenceCache = async () => {
-    if (!isAdmin) {
-      setMessage('⚠️ Only admins can refresh the song cache.');
-      return;
-    }
-
-    setLoadingSequences(true);
-    setMessage('🔄 Refreshing sequence cache from FPP...');
-
-    try {
-      const response = await fetch('/api/jukebox/refresh-cache', {
-        method: 'POST'
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setMessage(`✅ Cache refreshed! ${data.sequencesCached} sequences loaded.`);
-        // Reload sequences from cache
-        await fetchAvailableSequences();
-      } else {
-        const errorMsg = data.details || data.error || 'Failed to refresh cache';
-        if (data.error === 'FPP is offline') {
-          setMessage('⚠️ FPP is offline. Cannot refresh cache at this time.');
-        } else if (data.error === 'FPP server timeout') {
-          setMessage('⏱️ FPP server timeout. The server may be offline or busy.');
-        } else {
-          setMessage(`❌ ${errorMsg}`);
-        }
-      }
-    } catch (error) {
-      console.error('[Jukebox] Error refreshing cache:', error);
-      setMessage('❌ Network error while refreshing cache.');
-    } finally {
-      setLoadingSequences(false);
-      setTimeout(() => setMessage(''), 5000);
-    }
-  };
-
   // Helper function to submit a request (can be called directly or as pending action)
   // locationOverride is passed when called from handleLocationGranted (before state updates)
   const submitRequest = async (sequenceName: string, requesterNameValue: string, locationOverride?: UserLocation, isPlaylist = false) => {
@@ -724,7 +674,7 @@ export default function JukeboxPage() {
           showToast(data.error || 'Failed to add song', 'error');
         }
       }
-    } catch (error) {
+    } catch {
       setMessage('❌ Error submitting request');
       showToast('Error submitting request. Please try again.', 'error');
     } finally {

@@ -18,11 +18,7 @@ interface Status {
   current_sequence: string;
 }
 
-interface PlaylistControlsProps {
-  fppUrl?: string;
-}
-
-export default function PlaylistControls({ fppUrl }: PlaylistControlsProps) {
+export default function PlaylistControls() {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [sequences, setSequences] = useState<Sequence[]>([]);
   const [selectedPlaylist, setSelectedPlaylist] = useState<string>('');

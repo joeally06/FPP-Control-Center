@@ -39,8 +39,6 @@ interface VoteRatioData {
   downvotes: number;
 }
 
-const COLORS = ['#10b981', '#ef4444', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899'];
-
 export function VotingTrendChart({ data }: { data: VotingTrendData[] }) {
   return (
     <div className={card}>

@@ -79,7 +79,7 @@ export function formatTime(time24: string): string {
       .set({ hour, minute });
     
     return dt.toLocaleString(DateTime.TIME_SIMPLE); // "4:00 PM"
-  } catch (error) {
+  } catch {
     return time24;
   }
 }

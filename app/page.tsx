@@ -58,13 +58,13 @@ export default function Home() {
   const [status, setStatus] = useState<Status | null>(null);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [playlistDetails, setPlaylistDetails] = useState<Map<string, PlaylistDetails>>(new Map());
-  const [allSequences, setAllSequences] = useState<Sequence[]>([]);
+  const [, setAllSequences] = useState<Sequence[]>([]);
   const [selectedPlaylist, setSelectedPlaylist] = useState<string>('');
   const [selectedSequence, setSelectedSequence] = useState<string>('');
   const [repeat, setRepeat] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<ShowSummary | null>(null);
   const [queue, setQueue] = useState<PublicQueueItem[]>([]);
   const [confirmStopNow, setConfirmStopNow] = useState(false);
@@ -348,17 +348,6 @@ export default function Home() {
     setSelectedSequence('');
   };
 
-  const stopSequence = () => {
-    if (!selectedSequence) {
-      showMessage('error', 'Please select a sequence');
-      return;
-    }
-    const sequenceName = selectedSequence.replace(/\.fseq$/i, '');
-    sendCommand('FSEQ Effect Stop', [sequenceName]);
-  };
-
-  const stopAllEffects = () => sendCommand('Effects Stop', []);
-
   const handleVolumeChange = async (vol: number) => {
     if (!isOnline || !status) return;
     try {
@@ -368,7 +357,7 @@ export default function Home() {
         body: JSON.stringify({ volume: vol })
       });
       setStatus({ ...status, volume: vol });
-    } catch (err) {
+    } catch {
       showMessage('error', 'Failed to set volume');
     }
   };

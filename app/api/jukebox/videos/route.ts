@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
  * HEAD /api/jukebox/videos
  * Quick count check (doesn't return body)
  */
-export async function HEAD(request: NextRequest) {
+export async function HEAD() {
   try {
     const database = getDatabase();
     const countStmt = database.prepare(`
@@ -158,7 +158,7 @@ export async function HEAD(request: NextRequest) {
         'X-Video-Count': String(result.count)
       }
     });
-  } catch (error) {
+  } catch {
     return new NextResponse(null, { status: 500 });
   }
 }

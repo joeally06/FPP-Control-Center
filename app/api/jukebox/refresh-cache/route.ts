@@ -79,7 +79,6 @@ export async function POST() {
     // Retry logic for FPP connection
     let scheduleResponse;
     let retries = 3;
-    let lastError;
     
     while (retries > 0) {
       try {
@@ -94,7 +93,6 @@ export async function POST() {
         clearTimeout(timeoutId);
         break; // Success, exit retry loop
       } catch (error) {
-        lastError = error;
         retries--;
         console.warn(`[Jukebox Cache] Schedule fetch failed (${retries} retries left):`, error);
         if (retries === 0) {

@@ -33,7 +33,7 @@ async function loadMappings() {
   try {
     const content = await fs.readFile(MAPPING_FILE, 'utf-8');
     audioMappings = JSON.parse(content);
-  } catch (error) {
+  } catch {
     audioMappings = {};
   }
 }
@@ -48,7 +48,7 @@ async function loadAvailableAudioFiles() {
       f.endsWith('.mp3') || f.endsWith('.wav') || f.endsWith('.ogg') || 
       f.endsWith('.m4a') || f.endsWith('.flac') || f.endsWith('.aac')
     );
-  } catch (error) {
+  } catch {
     availableAudioFiles = [];
   }
 }
@@ -173,7 +173,7 @@ async function pollFPPStatus() {
       currentState.position = position;
       currentState.timestamp = pollTimestamp;
     }
-  } catch (error) {
+  } catch {
     // Silent error - don't spam console
   }
 }
@@ -186,7 +186,7 @@ function broadcast(data: SyncState) {
   clients.forEach((controller) => {
     try {
       controller.enqueue(message);
-    } catch (error) {
+    } catch {
       deadClients.push(controller);
     }
   });
@@ -228,14 +228,14 @@ export async function GET(req: NextRequest) {
       const message = `data: ${JSON.stringify(currentState)}\n\n`;
       try {
         controller.enqueue(message);
-      } catch (error) {
+      } catch {
         // Ignore
       }
       
       const keepAlive = setInterval(() => {
         try {
           controller.enqueue(': ping\n\n');
-        } catch (error) {
+        } catch {
           clearInterval(keepAlive);
           clients.delete(controller);
         }
@@ -246,7 +246,7 @@ export async function GET(req: NextRequest) {
         clients.delete(controller);
         try {
           controller.close();
-        } catch (error) {
+        } catch {
           // Already closed
         }
       });
@@ -268,7 +268,7 @@ export async function GET(req: NextRequest) {
 }
 
 // Reload audio files endpoint
-export async function POST(req: NextRequest) {
+export async function POST() {
   try {
     await loadAvailableAudioFiles();
     await loadMappings();

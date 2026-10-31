@@ -18,7 +18,7 @@
  * @route GET /api/jukebox/now-playing
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getReadOnlyDb } from '@/lib/database';
 
 // Read-only connection, shared with the other public read-only routes
@@ -53,7 +53,7 @@ const getLatestStatusStmt = (db: Db) => db.prepare(`
  * GET /api/jukebox/now-playing
  * Returns current FPP status from cache
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const database = getDatabase();
     const stmt = getLatestStatusStmt(database);
@@ -148,7 +148,7 @@ function formatCacheAge(seconds: number): string {
  * HEAD /api/jukebox/now-playing
  * Quick health check (doesn't return body)
  */
-export async function HEAD(request: NextRequest) {
+export async function HEAD() {
   try {
     const database = getDatabase();
     const stmt = getLatestStatusStmt(database);
@@ -169,7 +169,7 @@ export async function HEAD(request: NextRequest) {
         'X-Cache-Stale': String(isStale)
       }
     });
-  } catch (error) {
+  } catch {
     return new NextResponse(null, { status: 500 });
   }
 }

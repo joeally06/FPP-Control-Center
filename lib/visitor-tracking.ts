@@ -1,4 +1,3 @@
-import { TIMING } from './constants';
 import { keyedHash } from './privacy-key';
 
 // Anonymize IP address with a keyed hash (the key is never in the repo, see lib/privacy-key.ts)

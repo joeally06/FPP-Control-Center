@@ -1,6 +1,5 @@
 import NextAuth, { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
-import FacebookProvider from 'next-auth/providers/facebook';
 import { JWT } from 'next-auth/jwt';
 import { Session } from 'next-auth';
 import { hashEmail, createSafeUserId } from '@/lib/privacy-utils';
@@ -48,7 +47,7 @@ export const authOptions: NextAuthOptions = {
     }
   },
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account }) {
       const isAdmin = isAdminEmail(user.email);
       
       // GDPR: Log login attempts with hashed email (no PII)

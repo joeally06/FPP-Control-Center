@@ -30,7 +30,6 @@ export async function GET() {
     // Read update status from file
     let status = 'idle';
     let message = 'No update in progress';
-    const lastCheck = null;
 
     if (existsSync(STATUS_FILE)) {
       const statusContent = readFileSync(STATUS_FILE, 'utf-8').trim();

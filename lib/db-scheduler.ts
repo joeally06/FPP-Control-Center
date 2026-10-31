@@ -1,4 +1,4 @@
-import { runQuickMaintenance, runFullMaintenance, archiveOldData } from './db-maintenance';
+import { runQuickMaintenance, runFullMaintenance } from './db-maintenance';
 
 /**
  * Automated Database Maintenance Scheduler

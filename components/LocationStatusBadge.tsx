@@ -1,7 +1,5 @@
 'use client';
 
-import { useTheme } from '@/lib/themes/theme-context';
-
 export type LocationStatus = 'granted' | 'denied' | 'checking' | 'unknown' | 'out-of-range';
 
 interface LocationStatusBadgeProps {
@@ -23,8 +21,6 @@ export default function LocationStatusBadge({
   onRequestPermission,
   compact = false
 }: LocationStatusBadgeProps) {
-  const { theme } = useTheme();
-
   const getStatusConfig = () => {
     switch (status) {
       case 'granted':

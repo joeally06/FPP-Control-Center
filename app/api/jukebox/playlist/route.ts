@@ -176,7 +176,7 @@ export async function HEAD(request: NextRequest) {
         'X-Cache-Stale': String(isStale)
       }
     });
-  } catch (error) {
+  } catch {
     return new NextResponse(null, { status: 500 });
   }
 }

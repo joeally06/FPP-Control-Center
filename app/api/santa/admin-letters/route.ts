@@ -9,11 +9,10 @@ import {
   updateSantaReply,
   updateSantaLetterStatus,
 } from '@/lib/database';
-import { sendSantaReply } from '@/lib/email-service';
 import { isAdminSession } from '@/lib/auth-helpers';
 
 // GET: Fetch all letters (admin only)
-export async function GET(request: NextRequest) {
+export async function GET() {
   const session = await getServerSession(authOptions);
 
   if (!isAdminSession(session)) {

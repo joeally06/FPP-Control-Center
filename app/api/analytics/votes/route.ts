@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-helpers';
 import { getDb } from '@/lib/database';
 
+// A copy of the object without the given keys (the SQL helper columns must not appear in the response)
+function omit<T extends object, K extends keyof T>(obj: T, ...keys: K[]): Omit<T, K> {
+  const copy: Partial<T> = { ...obj };
+  for (const key of keys) delete copy[key];
+  return copy as Omit<T, K>;
+}
+
 export async function GET() {
   try {
     // Require admin authentication
@@ -67,11 +74,11 @@ export async function GET() {
 
     // Separate the results
     const topVoted = votingStats.filter(row => row.category === 'top')
-      .map(({ category, ...rest }) => rest);
+      .map(row => omit(row, 'category'));
     const controversial = votingStats.filter(row => row.category === 'controversial')
-      .map(({ category, net_votes, ...rest }) => ({ 
-        ...rest, 
-        vote_difference: Math.abs(rest.upvotes - rest.downvotes) 
+      .map(row => ({
+        ...omit(row, 'category', 'net_votes'),
+        vote_difference: Math.abs(row.upvotes - row.downvotes)
       }));
 
     // Total voting statistics

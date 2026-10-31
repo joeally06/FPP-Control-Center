@@ -18,7 +18,7 @@ interface AudioMapping {
  * Get sequence to audio file mappings
  * PUBLIC - Used by audio sync server
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Check if mapping file exists
     if (!existsSync(MAPPING_FILE)) {
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
       try {
         const content = await readFile(MAPPING_FILE, 'utf-8');
         mappings = JSON.parse(content);
-      } catch (error) {
+      } catch {
         console.warn('[Audio Mapping] Failed to read existing file, creating new');
       }
     }

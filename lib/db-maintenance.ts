@@ -1,4 +1,3 @@
-import Database from 'better-sqlite3';
 import db from './database';
 
 /**

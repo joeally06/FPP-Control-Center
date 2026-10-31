@@ -70,7 +70,7 @@ export function isRecent(utcTimestamp: string | null, minutes: number = 5): bool
     const now = DateTime.now();
     
     return now.diff(dt, 'minutes').minutes <= minutes;
-  } catch (error) {
+  } catch {
     return false;
   }
 }
@@ -95,7 +95,7 @@ export function formatTime(time24: string): string {
       .set({ hour, minute });
     
     return dt.toLocaleString(DateTime.TIME_SIMPLE); // "4:00 PM"
-  } catch (error) {
+  } catch {
     return time24;
   }
 }
@@ -120,7 +120,6 @@ export function getTimezoneName(): string {
  * Format duration in seconds to readable format
  */
 export function formatDuration(seconds: number): string {
-  const duration = DateTime.fromSeconds(0).plus({ seconds });
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;

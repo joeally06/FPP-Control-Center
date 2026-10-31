@@ -1,6 +1,6 @@
 import React from 'react';
 import { LucideIcon } from 'lucide-react';
-import { animations, textStyles } from '@/lib/theme';
+import { animations } from '@/lib/theme';
 
 interface StatCardProps {
   icon: LucideIcon;

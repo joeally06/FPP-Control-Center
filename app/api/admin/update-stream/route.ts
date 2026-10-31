@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { existsSync, readFileSync, statSync, watchFile, unwatchFile, writeFileSync } from 'fs';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'fs';
 import path from 'path';
 import { isAdminSession } from '@/lib/auth-helpers';
 

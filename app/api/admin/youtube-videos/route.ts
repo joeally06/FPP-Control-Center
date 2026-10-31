@@ -3,9 +3,6 @@ import { requireAdminWithRateLimit } from '@/lib/auth-helpers';
 import {
   insertYouTubeVideo,
   getAllYouTubeVideos,
-  getYouTubeVideoById,
-  updateYouTubeVideo,
-  deleteYouTubeVideo,
   getYouTubeVideoByYouTubeId
 } from '@/lib/database';
 

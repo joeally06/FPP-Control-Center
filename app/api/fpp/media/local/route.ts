@@ -13,7 +13,7 @@ const AUDIO_DIR = join(process.cwd(), 'public', 'audio');
  * List locally stored audio files
  * ADMIN ONLY - Security: Requires admin authentication
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // SECURITY: Verify admin authentication
     const session = await getServerSession(authOptions);

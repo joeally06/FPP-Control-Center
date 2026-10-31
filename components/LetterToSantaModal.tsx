@@ -19,8 +19,6 @@ export default function LetterToSantaModal({ isOpen, onClose }: LetterToSantaMod
     message: string;
   }>({ type: null, message: '' });
   const [letterCount, setLetterCount] = useState<number>(0);
-  const [emailCount, setEmailCount] = useState<number>(0);
-  const [ipCount, setIpCount] = useState<number>(0);
   const [dailyLimit, setDailyLimit] = useState<number>(1);
   const [loadingLimit, setLoadingLimit] = useState(true);
 
@@ -70,8 +68,6 @@ export default function LetterToSantaModal({ isOpen, onClose }: LetterToSantaMod
 
       if (response.ok) {
         const data = await response.json();
-        setEmailCount(data.emailCount || 0);
-        setIpCount(data.ipCount || 0);
         setLetterCount(data.count || 0); // Use the max of email/IP counts
         
         // Use limit from check-limit response if available
@@ -144,7 +140,6 @@ export default function LetterToSantaModal({ isOpen, onClose }: LetterToSantaMod
       } else {
         // Handle rate limit errors with dual limit info
         if (response.status === 429 && (data.reason === 'email_limit' || data.reason === 'ip_limit')) {
-          const limitType = data.reason === 'email_limit' ? 'email address' : 'location';
           setSubmitStatus({
             type: 'error',
             message: `${data.error}\n\nWe limit letters by both email address and location to ensure everyone gets a fair chance! 🎄`,
@@ -156,7 +151,7 @@ export default function LetterToSantaModal({ isOpen, onClose }: LetterToSantaMod
           });
         }
       }
-    } catch (error) {
+    } catch {
       setSubmitStatus({
         type: 'error',
         message: 'Failed to send letter. Please check your connection and try again.',

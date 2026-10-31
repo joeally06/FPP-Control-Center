@@ -37,7 +37,7 @@ export async function GET(
           console.log(`[Playlist Details] Returning cached data for: ${playlistName}`);
           return NextResponse.json(data);
         }
-      } catch (parseError) {
+      } catch {
         console.warn(`[Playlist Details] Failed to parse cached data for ${playlistName}`);
         // Continue to fetch from FPP
       }

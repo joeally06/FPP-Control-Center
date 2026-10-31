@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
 /**
  * GET database statistics (admin only)
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Verify admin authentication
     const session = await getServerSession(authOptions);
