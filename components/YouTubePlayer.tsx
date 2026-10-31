@@ -2,11 +2,41 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+// The parts of the YouTube IFrame Player API this component uses
+// (https://developers.google.com/youtube/iframe_api_reference); the API script adds window.YT at runtime
+interface YouTubePlayerApi {
+  destroy(): void;
+  loadVideoById(videoId: string): void;
+  pauseVideo(): void;
+}
+
+interface YouTubePlayerEvent {
+  target: YouTubePlayerApi;
+  data: number;
+}
+
+interface YouTubeApi {
+  Player: new (
+    element: HTMLElement,
+    options: {
+      videoId: string;
+      width: string;
+      height: string;
+      playerVars: Record<string, number | string | undefined>;
+      events: {
+        onReady: (event: YouTubePlayerEvent) => void;
+        onStateChange: (event: YouTubePlayerEvent) => void;
+        onError: (event: YouTubePlayerEvent) => void;
+      };
+    }
+  ) => YouTubePlayerApi;
+}
+
 interface YouTubePlayerProps {
   videoId: string;
   onStateChange?: (state: number) => void;
   onReady?: () => void;
-  onError?: (error: any) => void;
+  onError?: (error: unknown) => void;
   width?: string;
   height?: string;
   className?: string;
@@ -29,7 +59,7 @@ export function YouTubePlayer({
   fallbackToIframe = true
 }: YouTubePlayerProps) {
   const playerRef = useRef<HTMLDivElement>(null);
-  const player = useRef<any>(null);
+  const player = useRef<YouTubePlayerApi | null>(null);
   const [isAPIReady, setIsAPIReady] = useState(false);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -38,7 +68,7 @@ export function YouTubePlayer({
   // Load YouTube API
   useEffect(() => {
     // Check if API is already loaded
-    if ((window as any).YT && (window as any).YT.Player) {
+    if (window.YT && window.YT.Player) {
       setIsAPIReady(true);
       return;
     }
@@ -47,7 +77,7 @@ export function YouTubePlayer({
     if (document.querySelector('script[src*="youtube.com/iframe_api"]')) {
       // Script is loading, wait for it
       const checkAPI = () => {
-        if ((window as any).YT && (window as any).YT.Player) {
+        if (window.YT && window.YT.Player) {
           setIsAPIReady(true);
           if (apiLoadTimeout) {
             clearTimeout(apiLoadTimeout);
@@ -75,7 +105,7 @@ export function YouTubePlayer({
     script.onload = () => {
       // Wait for the API to be ready
       const checkAPI = () => {
-        if ((window as any).YT && (window as any).YT.Player) {
+        if (window.YT && window.YT.Player) {
           setIsAPIReady(true);
           if (timeout) clearTimeout(timeout);
           setApiLoadTimeout(null);
@@ -95,7 +125,7 @@ export function YouTubePlayer({
     document.head.appendChild(script);
 
     // Set up global callback as backup
-    (window as any).onYouTubeIframeAPIReady = () => {
+    window.onYouTubeIframeAPIReady = () => {
       setIsAPIReady(true);
       if (timeout) clearTimeout(timeout);
       setApiLoadTimeout(null);
@@ -104,8 +134,8 @@ export function YouTubePlayer({
     // Cleanup
     return () => {
       if (timeout) clearTimeout(timeout);
-      if ((window as any).onYouTubeIframeAPIReady) {
-        delete (window as any).onYouTubeIframeAPIReady;
+      if (window.onYouTubeIframeAPIReady) {
+        delete window.onYouTubeIframeAPIReady;
       }
     };
   }, [onError]);
@@ -126,7 +156,9 @@ export function YouTubePlayer({
     }
 
     try {
-      player.current = new (window as any).YT.Player(playerRef.current, {
+      const YT = window.YT;
+      if (!YT) throw new Error('YouTube API is not loaded');
+      player.current = new YT.Player(playerRef.current, {
         videoId,
         width,
         height,
@@ -141,7 +173,7 @@ export function YouTubePlayer({
           origin: typeof window !== 'undefined' ? window.location.origin : undefined, // Specify origin to reduce CORS warnings
         },
         events: {
-          onReady: (event: any) => {
+          onReady: (event: YouTubePlayerEvent) => {
             console.log('[YouTube Player] Player ready for video:', videoId);
             setIsPlayerReady(true);
             
@@ -155,11 +187,11 @@ export function YouTubePlayer({
             
             onReady?.();
           },
-          onStateChange: (event: any) => {
+          onStateChange: (event: YouTubePlayerEvent) => {
             console.log('[YouTube Player] State changed:', event.data);
             onStateChange?.(event.data);
           },
-          onError: (event: any) => {
+          onError: (event: YouTubePlayerEvent) => {
             console.error('[YouTube Player] Player error:', event.data);
             onError?.(event.data);
           }
@@ -265,8 +297,8 @@ export function YouTubePlayer({
 // YouTube Player API types (for TypeScript)
 declare global {
   interface Window {
-    YT: any;
-    onYouTubeIframeAPIReady: () => void;
+    YT?: YouTubeApi;
+    onYouTubeIframeAPIReady?: () => void;
   }
 }
 

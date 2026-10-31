@@ -35,7 +35,7 @@ export default function EditModelModal({ model, onClose, onSave }: EditModelModa
   const [formData, setFormData] = useState(model);
   const [saving, setSaving] = useState(false);
 
-  const handleChange = (field: keyof Model, value: any) => {
+  const handleChange = <K extends keyof Model>(field: K, value: Model[K]) => {
     setFormData({ ...formData, [field]: value });
   };
 

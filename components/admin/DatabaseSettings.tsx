@@ -9,8 +9,18 @@ import {
 } from '@/components/admin/Typography';
 import { card, insetBox, eyebrow, smallButton, smallDangerButton, notice } from '@/components/admin/ui-classes';
 
+// What /api/database/maintenance reports (getDatabaseStats); every part may be missing
+interface DatabaseStats {
+  approximateSizeMB?: number;
+  journalMode?: string;
+  pageViews?: { count?: number };
+  visitors?: { count?: number };
+  jukeboxQueue?: { count?: number };
+  santaLetters?: { count?: number };
+}
+
 export default function DatabaseSettings() {
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<DatabaseStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 

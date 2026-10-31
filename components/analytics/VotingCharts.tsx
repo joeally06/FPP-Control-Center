@@ -13,7 +13,8 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer
+  ResponsiveContainer,
+  type PieLabelRenderProps
 } from 'recharts';
 import { ThumbsUp, ThumbsDown } from 'lucide-react';
 import { card, insetBox } from '@/components/admin/ui-classes';
@@ -124,7 +125,7 @@ export function VoteRatioPieChart({ song }: { song: VoteRatioData }) {
             cx="50%"
             cy="50%"
             labelLine={false}
-            label={(entry: any) => `${entry.name}: ${(entry.percent * 100).toFixed(0)}%`}
+            label={(entry: PieLabelRenderProps) => `${entry.name}: ${((entry.percent ?? 0) * 100).toFixed(0)}%`}
             outerRadius={60}
             fill="#8884d8"
             dataKey="value"

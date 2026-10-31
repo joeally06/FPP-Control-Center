@@ -96,7 +96,7 @@ export default function PlaylistControls() {
     setTimeout(() => setMessage(null), 3000);
   };
 
-  const sendCommand = async (command: string, args: any[]) => {
+  const sendCommand = async (command: string, args: unknown[]) => {
     setLoading(true);
     try {
       const response = await fetch('/api/fpp/command', {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, type PieLabelRenderProps } from 'recharts';
 
 interface EngagementData {
   overview: {
@@ -123,7 +123,7 @@ export default function UserEngagementPanel() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={(entry: any) => `${entry.name}: ${entry.value}`}
+                  label={(entry: PieLabelRenderProps) => `${entry.name}: ${entry.value}`}
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"

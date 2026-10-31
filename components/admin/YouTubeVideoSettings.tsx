@@ -13,13 +13,24 @@ import {
 } from '@/components/admin/Typography';
 import { card, insetBox, button, accentButton, smallButton, smallDangerButton, field, notice, badge } from '@/components/admin/ui-classes';
 
+// A video as /api/admin/youtube-videos returns it
+interface YouTubeVideo {
+  id: number;
+  title: string;
+  youtube_id: string;
+  description: string | null;
+  thumbnail_url: string | null;
+  theme: 'christmas' | 'halloween';
+  created_at: string;
+}
+
 export default function YouTubeVideoSettings() {
-  const [videos, setVideos] = useState<any[]>([]);
+  const [videos, setVideos] = useState<YouTubeVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
-  const [editingVideo, setEditingVideo] = useState<any>(null);
+  const [editingVideo, setEditingVideo] = useState<YouTubeVideo | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     youtubeUrl: '',
@@ -159,7 +170,7 @@ export default function YouTubeVideoSettings() {
     }
   };
 
-  const startEdit = (video: any) => {
+  const startEdit = (video: YouTubeVideo) => {
     setEditingVideo(video);
     setFormData({
       title: video.title || '',

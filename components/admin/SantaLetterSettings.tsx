@@ -13,12 +13,19 @@ import {
   accentButton, button, card, checkInput, choiceCard, field, notice, sizedField, smallButton,
 } from '@/components/admin/ui-classes';
 
+// An installed model as /api/ollama/models reports it
+interface OllamaModelInfo {
+  name: string;
+  sizeFormatted: string;
+  sizeGB: string;
+}
+
 export default function SantaLetterSettings() {
   const [santaEnabled, setSantaEnabled] = useState(true);
   const [dailyLimit, setDailyLimit] = useState(1);
   const [dailyCap, setDailyCap] = useState(50);
   const [ollamaModel, setOllamaModel] = useState('llama3.2:latest');
-  const [availableModels, setAvailableModels] = useState<any[]>([]);
+  const [availableModels, setAvailableModels] = useState<OllamaModelInfo[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
