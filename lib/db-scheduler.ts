@@ -73,7 +73,9 @@ export function stopMaintenanceScheduler() {
 //   });
 // }
 
-export default {
+const scheduler = {
   startMaintenanceScheduler,
   stopMaintenanceScheduler,
 };
+
+export default scheduler;

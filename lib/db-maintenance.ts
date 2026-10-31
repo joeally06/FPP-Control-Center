@@ -265,7 +265,7 @@ export function enableSlowQueryLogging(thresholdMs = 100) {
 }
 
 // Export default maintenance function
-export default {
+const maintenance = {
   runFullMaintenance,
   runQuickMaintenance,
   archiveOldData,
@@ -274,3 +274,5 @@ export default {
   checkIntegrity,
   enableSlowQueryLogging,
 };
+
+export default maintenance;
