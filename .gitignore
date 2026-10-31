@@ -79,3 +79,6 @@ public/audio/*.aac
 # runtime data written by the app - local to each install, never touched by updates
 data/audio-mapping.json
 public/uploads/
+
+# test scratch files (the tests create and delete these)
+/tmp/

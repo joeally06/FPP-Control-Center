@@ -1,7 +1,0 @@
-{
-  "name": "fixture",
-  "version": "1.0.0",
-  "devDependencies": {
-    "left-pad": "^2.0.0"
-  }
-}
