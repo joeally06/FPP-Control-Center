@@ -29,6 +29,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  type PieLabelRenderProps,
 } from 'recharts';
 
 interface AnalyticsData {
@@ -53,6 +54,16 @@ interface AnalyticsData {
     sent: number;
     failed: number;
   };
+}
+
+// What /api/analytics/export?format=pdf returns (only the fields the PDF uses)
+interface PdfReportData {
+  generated: string;
+  range: string;
+  summary: { totalPageViews: number; totalVotes: number; totalSantaLetters: number };
+  pageViews?: { page_path: string; view_time: string }[];
+  votes?: { sequence_name: string; vote_type: string; created_at: string }[];
+  santaLetters?: { child_name: string; child_age: number | string | null; status: string; created_at: string }[];
 }
 
 // useSearchParams needs a Suspense boundary on this prerendered page
@@ -147,7 +158,7 @@ function SiteAnalytics() {
           throw new Error(`API returned ${response.status}: ${response.statusText}`);
         }
         
-        const reportData = await response.json();
+        const reportData: PdfReportData = await response.json();
         
         if (!reportData || !reportData.summary) {
           throw new Error('Invalid data received from API');
@@ -197,7 +208,7 @@ function SiteAnalytics() {
           doc.text('Recent Page Views', 14, yPos);
           yPos += 6;
           
-          const pageViewRows = reportData.pageViews.slice(0, 30).map((view: any) => [
+          const pageViewRows = reportData.pageViews.slice(0, 30).map(view => [
             view.page_path,
             new Date(view.view_time).toLocaleString(),
           ]);
@@ -212,7 +223,7 @@ function SiteAnalytics() {
             styles: { fontSize: 9 },
           });
           
-          yPos = (doc as any).lastAutoTable.finalY + 10;
+          yPos = (doc.lastAutoTable?.finalY ?? yPos) + 10;
         }
         
         // Check if we need a new page
@@ -228,7 +239,7 @@ function SiteAnalytics() {
           doc.text('Recent Votes', 14, yPos);
           yPos += 6;
           
-          const voteRows = reportData.votes.slice(0, 30).map((vote: any) => [
+          const voteRows = reportData.votes.slice(0, 30).map(vote => [
             vote.sequence_name,
             vote.vote_type === 'up' ? '👍 Up' : '👎 Down',
             new Date(vote.created_at).toLocaleString(),
@@ -244,7 +255,7 @@ function SiteAnalytics() {
             styles: { fontSize: 9 },
           });
           
-          yPos = (doc as any).lastAutoTable.finalY + 10;
+          yPos = (doc.lastAutoTable?.finalY ?? yPos) + 10;
         }
         
         // Check if we need a new page for Santa Letters
@@ -260,7 +271,7 @@ function SiteAnalytics() {
           doc.text('Santa Letters', 14, yPos);
           yPos += 6;
           
-          const letterRows = reportData.santaLetters.slice(0, 20).map((letter: any) => [
+          const letterRows = reportData.santaLetters.slice(0, 20).map(letter => [
             letter.child_name,
             letter.child_age || 'N/A',
             letter.status,
@@ -503,7 +514,7 @@ function SiteAnalytics() {
                   <Tooltip
                     contentStyle={tooltipStyle}
                     cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-                    formatter={(value: any, name: string | number | undefined) => {
+                    formatter={(value, name) => {
                       if (name === 'votes') return [value, 'Votes'];
                       if (name === 'rating') return [Number(value).toFixed(1), 'Rating'];
                       return [value, name ?? ''];
@@ -559,7 +570,7 @@ function SiteAnalytics() {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }: PieLabelRenderProps) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="value"

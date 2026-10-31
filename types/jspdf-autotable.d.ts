@@ -1,26 +1,8 @@
-declare module 'jspdf-autotable' {
-  import { jsPDF } from 'jspdf';
+import 'jspdf';
 
-  interface UserOptions {
-    head?: any[][];
-    body?: any[][];
-    foot?: any[][];
-    startY?: number;
-    margin?: number | { top?: number; right?: number; bottom?: number; left?: number };
-    theme?: 'striped' | 'grid' | 'plain';
-    styles?: any;
-    headStyles?: any;
-    bodyStyles?: any;
-    footStyles?: any;
-    columnStyles?: any;
-  }
-
-  export default function autoTable(doc: jsPDF, options: UserOptions): jsPDF;
-}
-
+// jspdf-autotable sets doc.lastAutoTable after drawing a table but does not declare it in its own types
 declare module 'jspdf' {
   interface jsPDF {
-    autoTable: (options: any) => jsPDF;
     lastAutoTable?: {
       finalY: number;
     };
