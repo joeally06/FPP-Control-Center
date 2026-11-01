@@ -452,7 +452,10 @@ export default function JukeboxSongs({ songs, playlists, reloadKey, filter, onFi
           )}
         </div>
 
-        <AdvancedTools onChanged={onChanged} />
+        <AdvancedTools
+          onChanged={onChanged}
+          audioFiles={playlist ? [...new Set(list.map((song) => song.audioFile).filter((file): file is string => !!file))] : null}
+        />
       </div>
 
       {selected && (
@@ -852,9 +855,13 @@ function SongPanel({ song, playlist, onClose, onChanged }: SongPanelProps) {
   );
 }
 
-/** Rarely needed: the audio files kept for phones, and a bulk fix for missing Spotify links. */
-function AdvancedTools({ onChanged }: { onChanged: () => Promise<void> }) {
-  const [files, setFiles] = useState<LocalAudioFile[] | null>(null);
+/**
+ * Rarely needed: the audio files kept for phones, and a bulk fix for missing Spotify links.
+ * `audioFiles` limits the file list to the open playlist's songs; null lists every file on the server.
+ */
+function AdvancedTools({ onChanged, audioFiles }: { onChanged: () => Promise<void>; audioFiles: string[] | null }) {
+  const [allFiles, setFiles] = useState<LocalAudioFile[] | null>(null);
+  const files = allFiles && audioFiles ? allFiles.filter((file) => audioFiles.includes(file.name)) : allFiles;
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<Message>(null);
 
@@ -910,7 +917,7 @@ function AdvancedTools({ onChanged }: { onChanged: () => Promise<void> }) {
     <details
       className={card}
       onToggle={(e) => {
-        if ((e.currentTarget as HTMLDetailsElement).open && files === null) loadFiles();
+        if ((e.currentTarget as HTMLDetailsElement).open && allFiles === null) loadFiles();
       }}
     >
       <summary className="cursor-pointer text-sm font-semibold text-adm-text">Advanced: audio files and Spotify links</summary>
@@ -920,7 +927,7 @@ function AdvancedTools({ onChanged }: { onChanged: () => Promise<void> }) {
 
         <div>
           <div className="mb-2 flex items-center justify-between gap-3">
-            <AdminH3 className="mb-0">Audio files on this server</AdminH3>
+            <AdminH3 className="mb-0">{audioFiles ? 'Audio files for this playlist' : 'Audio files on this server'}</AdminH3>
             {files !== null && files.length > 0 && (
               <button onClick={() => deleteFiles(files.map((file) => file.name))} disabled={busy !== null} className={smallDangerButton}>
                 <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -957,7 +964,10 @@ function AdvancedTools({ onChanged }: { onChanged: () => Promise<void> }) {
 
         <div className="border-t border-adm-line pt-4">
           <AdminH3 className="mb-0.5">Spotify links</AdminH3>
-          <AdminTextMuted>Looks up the “Open in Spotify” link for songs that have a title and artist but no link yet.</AdminTextMuted>
+          <AdminTextMuted>
+            Looks up the “Open in Spotify” link for songs that have a title and artist but no link yet.
+            {audioFiles ? ' This covers every song, not only this playlist.' : ''}
+          </AdminTextMuted>
           <button onClick={refreshSpotifyLinks} disabled={busy !== null} className={`${smallButton} mt-3`}>
             <RefreshCw className={`h-3.5 w-3.5 ${busy === 'links' ? 'animate-spin' : ''}`} aria-hidden="true" />
             {busy === 'links' ? 'Looking up…' : 'Fill in missing Spotify links'}
