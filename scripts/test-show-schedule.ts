@@ -156,7 +156,7 @@ try {
   assert.strictEqual(findScheduledPlaylist([], thursday), null);
   print('Test 9 OK');
 
-  // Test 10: playlists the Scheduler can still start
+  // Test 10: playlists the Scheduler can run today
   print('Test 10: activeSchedulePlaylists');
   const names = (entries: FppScheduleEntry[], today: string) => [...activeSchedulePlaylists(entries, today)].sort();
   const season = [
@@ -177,6 +177,39 @@ try {
   assert.deepStrictEqual(names(overNewYear, '2026-12-30'), ['Winter']);
   assert.deepStrictEqual(names(overNewYear, '2026-01-03'), ['Winter']);
   assert.deepStrictEqual(names(overNewYear, '2026-06-15'), []);
+
+  // A playlist is hidden until its start date, and shown from that day on
+  const second = [entry('Second', '18:00', '22:00', { startDate: '2026-12-11', endDate: '2026-12-24' })];
+  assert.deepStrictEqual(names(second, '2026-12-10'), [], 'starts tomorrow');
+  assert.deepStrictEqual(names(second, '2026-12-11'), ['Second'], 'the start date itself is on');
+  assert.deepStrictEqual(names(second, '2026-12-24'), ['Second']);
+  assert.deepStrictEqual(names(second, '2026-12-25'), []);
+  // Two playlists, one after the other: only the one in season is offered
+  const inOrder = [
+    entry('First', '18:00', '22:00', { startDate: '2026-11-20', endDate: '2026-12-10' }),
+    entry('Second', '18:00', '22:00', { startDate: '2026-12-11', endDate: '2026-12-24' }),
+  ];
+  assert.deepStrictEqual(names(inOrder, '2026-12-10'), ['First']);
+  assert.deepStrictEqual(names(inOrder, '2026-12-11'), ['Second']);
+  // One playlist on two entries is offered while either is in season
+  assert.deepStrictEqual(names([entry('Twice', '18:00', '22:00', { startDate: '2026-12-20', endDate: '2026-12-24' }), entry('Twice', '12:00', '14:00', { startDate: '2026-12-01', endDate: '2026-12-15' })], '2026-12-10'), ['Twice']);
+  // A start date only (no end), a yearless start, a mixed pair, and a holiday name on the start side
+  assert.deepStrictEqual(names([entry('Open Ended', '18:00', '22:00', { startDate: '2026-12-11' })], '2026-12-10'), []);
+  assert.deepStrictEqual(names([entry('Open Ended', '18:00', '22:00', { startDate: '2026-12-11' })], '2026-12-30'), ['Open Ended']);
+  assert.deepStrictEqual(names([entry('Yearly', '18:00', '22:00', { startDate: '0000-12-11' })], '2026-12-10'), []);
+  assert.deepStrictEqual(names([entry('Mixed', '18:00', '22:00', { startDate: '0000-12-11', endDate: '2026-12-24' })], '2026-12-12'), ['Mixed']);
+  assert.deepStrictEqual(names([entry('Mixed', '18:00', '22:00', { startDate: '0000-12-11', endDate: '2026-12-24' })], '2026-12-25'), []);
+  assert.deepStrictEqual(names([entry('Holiday Start', '18:00', '22:00', { startDate: 'Thanksgiving', endDate: '2026-12-24' })], '2026-12-10'), ['Holiday Start'], 'a holiday name cannot be resolved, so it stays open');
+  assert.deepStrictEqual(names([entry('Holiday Start', '18:00', '22:00', { startDate: 'Thanksgiving', endDate: '2026-12-24' })], '2026-12-25'), [], 'the real end date still applies');
+  // FPP compares month and day only once either date has no year: this season runs every Nov 25 - Jan 6
+  const everyYear = [entry('Every Year', '18:00', '22:00', { startDate: '0000-11-25', endDate: '2027-01-06' })];
+  assert.deepStrictEqual(names(everyYear, '2026-12-10'), ['Every Year']);
+  assert.deepStrictEqual(names(everyYear, '2027-01-02'), ['Every Year'], 'over New Year');
+  assert.deepStrictEqual(names(everyYear, '2026-06-01'), []);
+  assert.deepStrictEqual(names(everyYear, '2026-11-24'), [], 'the day before it starts');
+  // A holiday name next to a yearless date: cannot tell which way it wraps, so never wrongly hidden
+  assert.deepStrictEqual(names([entry('Holiday End', '18:00', '22:00', { startDate: '0000-12-11', endDate: 'Christmas' })], '2026-12-10'), ['Holiday End']);
+  assert.deepStrictEqual(names([entry('Holiday Start', '18:00', '22:00', { startDate: 'Thanksgiving', endDate: '0000-01-06' })], '2026-12-10'), ['Holiday Start']);
   print('Test 10 OK');
 
   print('All tests passed');

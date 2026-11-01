@@ -245,7 +245,7 @@ try {
   assert.strictEqual(playlistDetailsLine({ itemCount: 1, durationSeconds: null }), '1 song');
   print('Test 8 OK');
 
-  // Test 9: the songs a theme offers come from its tagged playlists that the Scheduler can still start
+  // Test 9: the songs a theme offers come from its tagged playlists that the Scheduler can run today
   print('Test 9: listThemeSongs / listVisitorPlaylists with the schedule / isRequestableSong');
   syncJukeboxPlaylists(db, ['Christmas Classics', 'Spooky', 'New', 'Eve Show'], details([
     ['Eve Show', { itemCount: 2, durationSeconds: 600, songs: ['Wizards', 'Eve Song'] }],
@@ -265,7 +265,7 @@ try {
   assert.strictEqual(christmas.songs.has('Dragula'), false, 'Halloween songs stay out of Christmas');
   assert.deepStrictEqual([...listThemeSongs(db, 'halloween').songs.keys()], ['Dragula']);
 
-  // Only playlists the Scheduler can still start
+  // Only playlists the Scheduler can run today
   const onlyEve = listThemeSongs(db, 'christmas', new Set(['Eve Show']));
   assert.deepStrictEqual(onlyEve.playlists, ['Eve Show']);
   assert.deepStrictEqual([...onlyEve.songs.keys()], ['Wizards', 'Eve Song']);

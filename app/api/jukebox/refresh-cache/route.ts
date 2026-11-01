@@ -117,7 +117,7 @@ export async function POST() {
     }
     
     const schedule = await scheduleResponse.json();
-    // Keep a copy: the jukebox offers only playlists the Scheduler can still start
+    // Keep a copy: the jukebox offers only playlists the Scheduler can run today
     if (Array.isArray(schedule)) storeSchedule(db, schedule);
 
     const playlistNames = new Set<string>();

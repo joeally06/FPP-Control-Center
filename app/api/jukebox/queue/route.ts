@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     const rateLimit = getSongRequestRateLimit();
 
     const themeId = normalizeThemeId((getActiveTheme.get() as { active_theme_id?: string } | undefined)?.active_theme_id);
-    // Only playlists FPP's Scheduler can still start are offered (null until a schedule has been stored)
+    // Only playlists FPP's Scheduler can run today are offered (null until a schedule has been stored)
     const activePlaylists = activePlaylistNames(db);
 
     // A playlist request names an FPP playlist the admin tagged for the active theme instead of a song

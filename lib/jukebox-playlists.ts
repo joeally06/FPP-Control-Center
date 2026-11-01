@@ -7,7 +7,7 @@ import { APP_TIMEZONE } from './time-utils';
 
 // FPP playlists visitors can request. The list comes from FPP on every song-cache refresh;
 // the theme is set by the admin, and visitors only see playlists tagged with the active theme
-// that FPP's Scheduler can still start (an enabled entry whose end date has not passed).
+// that FPP's Scheduler can start today (an enabled entry whose start date has arrived and end date has not passed).
 
 export interface JukeboxPlaylistRow {
   name: string;
@@ -130,7 +130,7 @@ export function storeSchedule(db: Database.Database, entries: FppScheduleEntry[]
 }
 
 /**
- * Playlists FPP's Scheduler can still start, from the stored schedule (a Set), or null when no schedule
+ * Playlists FPP's Scheduler can run today, from the stored schedule (a Set), or null when no schedule
  * has been stored yet, in which case nothing is filtered.
  */
 export function activePlaylistNames(db: Database.Database, now = DateTime.now().setZone(APP_TIMEZONE)): Set<string> | null {
@@ -147,7 +147,7 @@ export function listJukeboxPlaylists(db: Database.Database): JukeboxPlaylistRow[
 
 /**
  * Playlists visitors can request while `themeId` is active: tagged with it, not empty, and (when `active`
- * is given) still startable by FPP's Scheduler.
+ * is given) in season in FPP's Scheduler.
  */
 export function listVisitorPlaylists(db: Database.Database, themeId: ThemeId, active: ReadonlySet<string> | null = null): VisitorPlaylist[] {
   const rows = db.prepare(`
@@ -173,7 +173,7 @@ export interface ThemeSongs {
 }
 
 /**
- * Songs from the playlists tagged with `themeId` that FPP's Scheduler can still start (`active`, or null
+ * Songs from the playlists tagged with `themeId` that FPP's Scheduler can run today (`active`, or null
  * for no schedule check). Not restricted until the theme has a tagged playlist whose songs are known
  * (they are stored on each sync from FPP), so an untagged theme or a fresh install offers every song.
  */

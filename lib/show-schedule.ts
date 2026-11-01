@@ -59,34 +59,50 @@ export function dayMatches(code: number | undefined, date: DateTime): boolean {
 
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
-/**
- * Has a schedule entry's end date gone by? `today` is "YYYY-MM-DD" in the show's timezone.
- * FPP also allows yearless dates ("0000-12-25", every year) and holiday names; a holiday name or a missing
- * date cannot be resolved here, so those count as not ended.
- */
-function endDatePassed(entry: FppScheduleEntry, today: string): boolean {
-  const end = ISO_DATE.exec(entry.endDate ?? '');
-  if (!end) return false;
-  if (end[1] !== '0000') return today > entry.endDate!;
-
-  const todayMonthDay = today.slice(5);
-  const endMonthDay = (entry.endDate as string).slice(5);
-  const start = ISO_DATE.exec(entry.startDate ?? '');
-  const startMonthDay = start && start[1] === '0000' ? (entry.startDate as string).slice(5) : null;
-  // A range that runs over New Year (start after end) is out of season only between the two
-  if (startMonthDay && startMonthDay > endMonthDay) return todayMonthDay > endMonthDay && todayMonthDay < startMonthDay;
-  return todayMonthDay > endMonthDay;
+/** A schedule date FPP wrote as "YYYY-MM-DD" (a real day) or "0000-MM-DD" (that day every year); null for anything else */
+function parseScheduleDate(value: string | undefined): { iso: string; monthDay: string; yearless: boolean } | null {
+  const match = ISO_DATE.exec(value ?? '');
+  return match ? { iso: match[0], monthDay: match[0].slice(5), yearless: match[1] === '0000' } : null;
 }
 
 /**
- * Playlists FPP's Scheduler can still start: an enabled entry whose end date has not passed.
- * `today` is "YYYY-MM-DD" in the show's timezone. Start dates are not checked.
+ * Is `today` ("YYYY-MM-DD" in the show's timezone) inside a schedule entry's start and end dates, both included?
+ * Like FPP, a season with a yearless date on either side is compared by month and day only, and one that runs over
+ * New Year (start after end) is in season outside the gap between them. FPP also allows holiday names, which cannot be
+ * resolved here: next to a real date only that date is checked, and next to a yearless one the entry counts as in season.
+ */
+function inSeason(entry: FppScheduleEntry, today: string): boolean {
+  const start = parseScheduleDate(entry.startDate);
+  const end = parseScheduleDate(entry.endDate);
+  const todayMonthDay = today.slice(5);
+
+  if (start && end) {
+    if (start.yearless || end.yearless) {
+      return start.monthDay <= end.monthDay
+        ? todayMonthDay >= start.monthDay && todayMonthDay <= end.monthDay
+        : todayMonthDay >= start.monthDay || todayMonthDay <= end.monthDay;
+    }
+    return today >= start.iso && today <= end.iso;
+  }
+
+  const bound = start ?? end;
+  if (!bound) return true;
+  // A holiday name on the other side: a lone yearless date cannot say which way the season wraps
+  const otherIsHoliday = !!(start ? entry.endDate : entry.startDate);
+  if (bound.yearless && otherIsHoliday) return true;
+  const arrived = bound.yearless ? todayMonthDay >= bound.monthDay : today >= bound.iso;
+  return start ? arrived : bound.yearless ? todayMonthDay <= bound.monthDay : today <= bound.iso;
+}
+
+/**
+ * Playlists FPP's Scheduler can start today: an enabled entry whose start date has arrived and whose end date
+ * has not passed. `today` is "YYYY-MM-DD" in the show's timezone.
  */
 export function activeSchedulePlaylists(entries: FppScheduleEntry[], today: string): Set<string> {
   const names = new Set<string>();
   for (const entry of entries) {
     if (!entry.enabled || !entry.playlist || entry.playlist.trim() === '') continue;
-    if (endDatePassed(entry, today)) continue;
+    if (!inSeason(entry, today)) continue;
     names.add(entry.playlist);
   }
   return names;

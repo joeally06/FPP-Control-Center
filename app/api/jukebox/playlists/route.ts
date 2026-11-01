@@ -5,7 +5,7 @@ import { normalizeThemeId } from '@/lib/themes/theme-config';
 
 /**
  * GET /api/jukebox/playlists
- * Playlists visitors can request: the ones the admin tagged with the active theme that FPP's Scheduler can still start.
+ * Playlists visitors can request: the ones the admin tagged with the active theme that FPP's Scheduler can run today (start date arrived, end date not passed).
  * PUBLIC - read-only, from the database (no FPP call)
  */
 export async function GET() {

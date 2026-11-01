@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Download, Link2, Music, RefreshCw, Search, Trash2, X } from 'lucide-react';
+import { Download, Link2, Music, Pencil, RefreshCw, Search, Trash2, X } from 'lucide-react';
 import type { AdminSong, AudioStatus, SongFilter } from '@/lib/jukebox-songs';
 import { MAX_CATEGORY_LENGTH, SUGGESTED_CATEGORIES, formatClock } from '@/lib/jukebox-display';
 import { AdminH3, AdminLabel, AdminTextMuted } from '@/components/admin/Typography';
@@ -216,7 +216,7 @@ export default function JukeboxSongs({ songs, filter, onFilterChange, onChanged 
                     <button
                       onClick={() => setSelectedName(song.name)}
                       aria-pressed={isSelected}
-                      className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-adm-hover ${isSelected ? 'bg-adm-raised' : ''}`}
+                      className={`flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-adm-hover ${isSelected ? 'bg-adm-raised' : ''}`}
                     >
                       <SongArt song={song} />
                       <span className="min-w-0 flex-1">
@@ -232,6 +232,15 @@ export default function JukeboxSongs({ songs, filter, onFilterChange, onChanged 
                         </span>
                       </span>
                       <span className={`${audio.className} shrink-0`}>{audio.label}</span>
+                      <span
+                        className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                          isSelected ? 'border-adm-accent bg-adm-warn-bg text-adm-warn' : 'border-adm-control-line bg-adm-control text-adm-text'
+                        }`}
+                      >
+                        <Pencil className="h-3 w-3" aria-hidden="true" />
+                        {/* Icon only on a phone so the title keeps its room; the word stays for screen readers */}
+                        <span className="sr-only sm:not-sr-only">{isSelected ? 'Editing' : 'Edit'}</span>
+                      </span>
                     </button>
                   </li>
                 );
