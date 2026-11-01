@@ -37,7 +37,10 @@ export function dayIndex(date: DateTime): number {
 }
 
 // FPP's day codes above 6 (ScheduleEntry.h): 7 every day, 8 weekdays, 9 weekend, 10 Mon/Wed/Fri, 11 Tue/Thu,
-// 12 Sun-Thu, 13 Fri/Sat, 14 odd days of the month, 15 even days. Other values (day-mask form) match nothing.
+// 12 Sun-Thu, 13 Fri/Sat, 14 odd days of the month, 15 even days. The "Day Mask" form is 0x10000 plus one bit per
+// weekday, Sunday 0x4000 down to Saturday 0x100.
+const DAY_MASK_FLAG = 0x10000;
+const DAY_MASK_SUNDAY = 0x4000;
 const WEEKDAY_CODES: Record<number, number[]> = {
   8: [1, 2, 3, 4, 5],
   9: [0, 6],
@@ -52,6 +55,7 @@ export function dayMatches(code: number | undefined, date: DateTime): boolean {
   if (code === undefined) return false;
   if (code >= 0 && code <= 6) return code === dayIndex(date);
   if (code === 7) return true;
+  if (code & DAY_MASK_FLAG) return (code & (DAY_MASK_SUNDAY >> dayIndex(date))) !== 0;
   if (code === 14) return date.day % 2 === 1;
   if (code === 15) return date.day % 2 === 0;
   return WEEKDAY_CODES[code]?.includes(dayIndex(date)) ?? false;

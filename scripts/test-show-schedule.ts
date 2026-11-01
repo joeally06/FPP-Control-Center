@@ -124,7 +124,12 @@ try {
   assert.deepStrictEqual([14, 15].map((code) => dayMatches(code, thursday)), [false, true], 'the 10th is an even day');
   assert.deepStrictEqual([14, 15].map((code) => dayMatches(code, friday)), [true, false]);
   assert.strictEqual(dayMatches(undefined, thursday), false);
-  assert.strictEqual(dayMatches(0x10000 | 6, thursday), false, 'the day-mask form is not understood');
+  // Day-mask form (0x10000 + weekday bits): the Sunday + Wednesday entry from FPP's Scheduler
+  const sundayWednesday = 0x10000 | 0x4000 | 0x800;
+  assert.deepStrictEqual([sunday, thursday.minus({ days: 1 }), thursday, monday].map((day) => dayMatches(sundayWednesday, day)), [true, true, false, false]);
+  assert.strictEqual(dayMatches(0x10000 | 0x100, thursday.plus({ days: 2 })), true, 'Saturday bit');
+  assert.strictEqual(dayMatches(0x10000 | 6, thursday), false, 'a mask with no weekday bit matches nothing');
+  assert.strictEqual(summary([{ enabled: 1, day: sundayWednesday, playlist: 'Praise', startTime: '04:30', endTime: '22:30' }], sunday.set({ hour: 16, minute: 41 })).live, true, 'a day-mask show is on Sunday afternoon');
   // The next show now finds an entry on "Fri/Sat"
   const weekendShow: FppScheduleEntry[] = [{ enabled: 1, day: 13, playlist: 'Christmas', startTime: '18:00', endTime: '22:00' }];
   assert.deepStrictEqual(summary(weekendShow, thursday).next, 'Friday 2026-12-11 18:00');
