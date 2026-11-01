@@ -168,6 +168,60 @@ export function resolveSongDetails(db: Database.Database, playlist: string | nul
   };
 }
 
+/** Names a song may be stored under: without its extension, and without a trailing _YY / _YYYY (FPP adds those). Bare name first. */
+export function songNameKeys(...raw: (string | null | undefined)[]): string[] {
+  const keys: string[] = [];
+  for (const name of raw) {
+    const bare = (name ?? '').replace(/\.(fseq|mp3|wav|ogg|m4a|flac|aac)$/i, '').trim();
+    if (!bare) continue;
+    keys.push(bare);
+    const stripped = bare.replace(/_\d{2,4}$/, '').trim();
+    if (stripped && stripped !== bare) keys.push(stripped);
+  }
+  return [...new Set(keys)];
+}
+
+/**
+ * What one playlist set for a song, found under the first of `keys` it holds; null when it set nothing.
+ * Fields it left empty are null, so the caller keeps the song's default for them.
+ */
+export function playlistSongDetails(
+  db: Database.Database,
+  playlist: string,
+  keys: string[]
+): { title: string | null; artist: string | null; album: string | null; albumArt: string | null } | null {
+  if (keys.length === 0) return null;
+  const rows = db.prepare(`
+    SELECT sequence_name, title, artist, album, art_url FROM jukebox_playlist_songs
+    WHERE playlist_name = ? AND sequence_name IN (${keys.map(() => '?').join(', ')})
+  `).all(playlist, ...keys) as { sequence_name: string; title: string | null; artist: string | null; album: string | null; art_url: string | null }[];
+  for (const key of keys) {
+    const row = rows.find((candidate) => candidate.sequence_name === key);
+    if (row && (row.title || row.artist || row.album || row.art_url)) {
+      return { title: row.title || null, artist: row.artist || null, album: row.album || null, albumArt: row.art_url || null };
+    }
+  }
+  return null;
+}
+
+/**
+ * The playlist whose own details belong to the song playing now: the playlist of a requested playlist, the
+ * playlist a requested song was picked from (only while FPP really plays that song), else what FPP is running.
+ * `fppSequenceKeys` are the names FPP's current sequence may be stored under.
+ */
+export function playlistForNowPlaying(
+  current: { request_kind?: string | null; sequence_name: string; source_playlist?: string | null } | null | undefined,
+  fppSequenceKeys: string[],
+  fppPlaylist: string | null
+): string | null {
+  // A requested playlist counts only while FPP is still in it (the queue row can lag a moment behind FPP)
+  if (current?.request_kind === 'playlist' && (!fppPlaylist || fppPlaylist === current.sequence_name)) return current.sequence_name;
+  if (current?.source_playlist && songNameKeys(current.sequence_name).some((key) => fppSequenceKeys.includes(key))) {
+    return current.source_playlist;
+  }
+  return fppPlaylist;
+}
+
 /** A song as the admin sees it inside one playlist: the playlist's own details laid over the defaults. */
 export interface PlaylistAdminSong extends AdminSong {
   /** True when this playlist has its own details for the song */

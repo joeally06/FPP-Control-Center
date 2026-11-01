@@ -191,6 +191,15 @@ export function setPlaylistSongDetails(db: Database.Database, playlist: string, 
   })();
 }
 
+/**
+ * The playlist a visitor picked a song from, kept only when it is one the theme offers and it holds that song.
+ * Anything else (a page left open since before a change, a made-up name) is dropped: the request still goes through.
+ */
+export function sourcePlaylistFor(themeSongs: ThemeSongs, sequence: string, requested: unknown): string | null {
+  if (typeof requested !== 'string' || requested.length === 0 || requested.length > 255) return null;
+  return themeSongs.order.get(requested)?.includes(sequence) ? requested : null;
+}
+
 /** One playlist in the admin's picker: its tag, how many songs it holds and where it stands in FPP's Scheduler. */
 export interface AdminPlaylist {
   name: string;

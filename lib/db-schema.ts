@@ -121,6 +121,9 @@ export function applySchema(db: Database.Database): void {
     // Jukebox queue - 'song' or 'playlist' (a playlist row keeps the playlist name in sequence_name)
     { table: 'jukebox_queue', column: 'request_kind', definition: "TEXT DEFAULT 'song'" },
 
+    // Jukebox queue - the playlist a song was picked from (its own title, artist and art show while it plays); NULL = none
+    { table: 'jukebox_queue', column: 'source_playlist', definition: 'TEXT' },
+
     // Playlist songs - details set for one playlist; empty = use the song's default details (also created below for new databases)
     { table: 'jukebox_playlist_songs', column: 'title', definition: 'TEXT' },
     { table: 'jukebox_playlist_songs', column: 'artist', definition: 'TEXT' },

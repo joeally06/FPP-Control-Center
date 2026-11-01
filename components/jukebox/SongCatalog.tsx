@@ -27,7 +27,8 @@ interface SongCatalogProps {
   requestsRemaining: number | null;
   rateLimit: number;
   busy: boolean;
-  onRequest: (song: CatalogSong) => void;
+  /** `playlist` is the chip the song was picked from (null when the list has no playlist chips) */
+  onRequest: (song: CatalogSong, playlist: string | null) => void;
   headerSlot?: ReactNode;
 }
 
@@ -180,7 +181,7 @@ export default function SongCatalog({
                 {state === 'available' ? (
                   <button
                     type="button"
-                    onClick={() => onRequest(song)}
+                    onClick={() => onRequest(song, activePlaylist)}
                     disabled={busy}
                     aria-label={`Request ${title}`}
                     className="sp-btn-accent min-h-10 min-w-[92px] shrink-0 rounded-full px-3.5 text-[13px] font-extrabold transition disabled:opacity-60"

@@ -52,6 +52,8 @@ export function addToQueueTransactional(db: Database.Database, params: {
   distanceFromShow?: number | null;
   /** 'playlist': sequence_name is an FPP playlist name, and only one playlist may be in line at a time */
   request_kind?: RequestKind;
+  /** A song picked from a playlist's list: that playlist, so its own details show while the song plays */
+  source_playlist?: string | null;
 }) {
   const { 
     sequence_name, 
@@ -65,16 +67,19 @@ export function addToQueueTransactional(db: Database.Database, params: {
     region,
     countryCode,
     distanceFromShow,
-    request_kind = 'song'
+    request_kind = 'song',
+    source_playlist
   } = params;
   const isPlaylist = request_kind === 'playlist';
+  const fromPlaylist = !isPlaylist && source_playlist ? source_playlist : null;
 
-  // request_kind is only written for playlists; song rows get the column default ('song')
+  // request_kind is only written for playlists; song rows get the column default ('song').
+  // source_playlist is only written when a song was picked from a playlist's list.
   const insert = db.prepare(`
     INSERT INTO jukebox_queue (
       sequence_name, media_name, requester_name, requester_ip,
-      latitude, longitude, city, region, country_code, distance_from_show${isPlaylist ? ', request_kind' : ''}
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?${isPlaylist ? ", 'playlist'" : ''})
+      latitude, longitude, city, region, country_code, distance_from_show${isPlaylist ? ', request_kind' : ''}${fromPlaylist ? ', source_playlist' : ''}
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?${isPlaylist ? ", 'playlist'" : ''}${fromPlaylist ? ', ?' : ''})
   `);
   const activePlaylistStmt = isPlaylist
     ? db.prepare(`SELECT id FROM jukebox_queue WHERE request_kind = 'playlist' AND status IN ('pending', 'playing') LIMIT 1`)
@@ -109,7 +114,8 @@ export function addToQueueTransactional(db: Database.Database, params: {
       city || null,
       region || null,
       countryCode || null,
-      distanceFromShow || null
+      distanceFromShow || null,
+      ...(fromPlaylist ? [fromPlaylist] : [])
     );
     return { id: res.lastInsertRowid, requestsUsed: used + 1 };
   });

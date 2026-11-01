@@ -47,9 +47,13 @@ function print(msg: string) {
     original_playlist: 'Main', original_item_index: 3, was_resumed: 0, started_at: null, duration_ms: 1000, sequence_id: 4,
   };
   const pub = toPublicQueueItem(row);
-  assert.deepStrictEqual(Object.keys(pub).sort(), ['created_at', 'id', 'media_name', 'played_at', 'priority', 'request_kind', 'requester_name', 'sequence_name', 'status']);
+  assert.deepStrictEqual(Object.keys(pub).sort(), ['created_at', 'id', 'media_name', 'played_at', 'priority', 'request_kind', 'requester_name', 'sequence_name', 'source_playlist', 'status']);
   assert.strictEqual(pub.request_kind, 'song');
   assert.strictEqual(toPublicQueueItem({ ...row, request_kind: 'playlist' }).request_kind, 'playlist');
+  // The playlist a song was picked from is public (it is only a name); a requested playlist has none of its own
+  assert.strictEqual(pub.source_playlist, null);
+  assert.strictEqual(toPublicQueueItem({ ...row, source_playlist: 'Christmas 2026' }).source_playlist, 'Christmas 2026');
+  assert.strictEqual(toPublicQueueItem({ ...row, request_kind: 'playlist', source_playlist: 'Christmas 2026' }).source_playlist, null);
   assert.strictEqual(pub.requester_name, 'Ava');
   const json = JSON.stringify(pub);
   for (const secret of ['203.0.113.9', '30.1', '-97.7', 'Austin', 'distance']) {
@@ -386,9 +390,9 @@ const SONGS: CatalogSong[] = [
 // Test 20: buildQueueView - titles, waits and the new request's wait
 (() => {
   print('Test 20: buildQueueView');
-  const item = (id: number, name: string, kind: 'song' | 'playlist' = 'song'): PublicQueueItem => ({
+  const item = (id: number, name: string, kind: 'song' | 'playlist' = 'song', source: string | null = null): PublicQueueItem => ({
     id, sequence_name: name, media_name: null, requester_name: null, status: 'pending', priority: 0,
-    created_at: '2026-10-28 20:00:00', played_at: null, request_kind: kind,
+    created_at: '2026-10-28 20:00:00', played_at: null, request_kind: kind, source_playlist: source,
   });
   const songs: CatalogSong[] = [
     { name: 'Carol', title: 'Carol of the Bells', artist: null, durationSeconds: 120, category: null },
@@ -409,6 +413,10 @@ const SONGS: CatalogSong[] = [
   assert.strictEqual(buildQueueView([], songs, playlists, 45).newRequestWait, 45, 'empty queue → wait for the current song');
   assert.strictEqual(buildQueueView([], songs, playlists, null).newRequestWait, null, 'nothing known');
   assert.strictEqual(buildQueueView([item(1, 'Carol.fseq')], songs, playlists, 0).titles[0], 'Carol of the Bells', 'a .fseq name still finds its song');
+  // A song picked from a playlist shows that playlist's own title, where the admin set one
+  const withOwn: CatalogSong[] = [{ ...songs[0], byPlaylist: { Classics: { title: 'Carol (classic cut)', artist: null } } }, songs[1]];
+  assert.deepStrictEqual(buildQueueView([item(1, 'Carol', 'song', 'Classics'), item(2, 'Carol', 'song', 'Other'), item(3, 'Carol')], withOwn, playlists, 0).titles,
+    ['Carol (classic cut)', 'Carol of the Bells', 'Carol of the Bells']);
   print('Test 20 OK');
 })();
 

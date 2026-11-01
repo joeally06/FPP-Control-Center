@@ -9,6 +9,7 @@ export interface CurrentlyPlaying {
   cached?: boolean; // Whether data is from cache or direct FPP query
   cache_age_seconds?: number; // Age of cached data in seconds
   playlist_name?: string; // Set while a visitor-requested playlist is playing
+  source_playlist?: string | null; // The playlist this song was picked from (or FPP is running); its own details show for it
 }
 
 export interface SequenceMetadata {

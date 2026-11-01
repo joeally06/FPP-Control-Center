@@ -15,6 +15,7 @@ import {
   playlistDetails,
   setPlaylistSongDetails,
   setPlaylistThemes,
+  sourcePlaylistFor,
   storeSchedule,
   syncJukeboxPlaylists,
   type PlaylistDetails,
@@ -47,7 +48,8 @@ const SCHEMA = `
     region TEXT,
     country_code TEXT,
     distance_from_show REAL,
-    request_kind TEXT DEFAULT 'song'
+    request_kind TEXT DEFAULT 'song',
+    source_playlist TEXT
   );
   CREATE TABLE jukebox_rate_limit_resets (
     requester_ip TEXT PRIMARY KEY,
@@ -427,6 +429,26 @@ try {
   assert.deepStrictEqual(listAdminPlaylists(db, today).map((p) => [p.name, p.theme, p.season, p.startsOn]),
     [['Later', null, 'upcoming', '2026-12-11'], ['One', 'christmas', 'in-season', null]]);
   print('Test 12 OK');
+
+  // Test 13: the playlist a song was picked from is kept on the queue row, and only when it is a real one
+  print('Test 13: source_playlist');
+  const offered = { restricted: true, playlists: ['One'], songs: new Map([['Carol', ['One']]]), order: new Map([['One', ['Carol', 'Wizards']], ['Gone', ['Carol']]]) };
+  assert.strictEqual(sourcePlaylistFor(offered, 'Carol', 'One'), 'One');
+  assert.strictEqual(sourcePlaylistFor(offered, 'Wizards', 'One'), 'One');
+  assert.strictEqual(sourcePlaylistFor(offered, 'Carol', 'Two'), null, 'a playlist the theme does not offer');
+  assert.strictEqual(sourcePlaylistFor(offered, 'Other Song', 'One'), null, 'a song that playlist does not hold');
+  for (const bad of [undefined, null, '', 5, {}, ['One'], 'x'.repeat(256)]) assert.strictEqual(sourcePlaylistFor(offered, 'Carol', bad), null, `${JSON.stringify(bad)?.slice(0, 20)} is dropped`);
+  assert.strictEqual(sourcePlaylistFor({ restricted: false, playlists: [], songs: new Map(), order: new Map() }, 'Carol', 'One'), null, 'a theme with no playlists has no source');
+
+  const kept = addToQueueTransactional(db, { sequence_name: 'Carol', requester_name: 'Ben', requester_ip: '192.0.2.50', rateLimit: 5, source_playlist: 'One' });
+  const plain = addToQueueTransactional(db, { sequence_name: 'Wizards', requester_name: 'Ben', requester_ip: '192.0.2.50', rateLimit: 5 });
+  const sourceOf = (id: number | bigint) => db.prepare('SELECT source_playlist, request_kind FROM jukebox_queue WHERE id = ?').get(id) as { source_playlist: string | null; request_kind: string };
+  assert.deepStrictEqual(sourceOf(kept.id), { source_playlist: 'One', request_kind: 'song' });
+  assert.deepStrictEqual(sourceOf(plain.id), { source_playlist: null, request_kind: 'song' });
+  // A whole-playlist request never carries a source playlist
+  const whole = addToQueueTransactional(db, { sequence_name: 'One', requester_name: 'Ben', requester_ip: '192.0.2.51', rateLimit: 5, request_kind: 'playlist', source_playlist: 'One' });
+  assert.deepStrictEqual(sourceOf(whole.id), { source_playlist: null, request_kind: 'playlist' });
+  print('Test 13 OK');
 
   print('All tests passed');
 } catch (err) {

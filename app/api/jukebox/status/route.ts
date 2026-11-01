@@ -53,6 +53,8 @@ export async function GET() {
           requester_name: 'FPP Schedule',
           played_at: fppState.last_updated,
           status: 'playing',
+          // The playlist FPP is running, so that playlist's own song details show (null or a sequence name matches none)
+          source_playlist: fppState.current_playlist ?? null,
           // Include cache metadata for debugging
           cached: true,
           cache_age_seconds: cacheAgeSeconds(fppState.last_updated)

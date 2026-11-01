@@ -86,6 +86,8 @@ export default function JukeboxPage() {
   const [listening, setListening] = useState(false);
   const playerRef = useRef<HTMLDivElement>(null);
   const [confirmSong, setConfirmSong] = useState<CatalogSong | null>(null);
+  // The playlist chip the song being confirmed was picked from
+  const [confirmSongPlaylist, setConfirmSongPlaylist] = useState<string | null>(null);
   const [playlists, setPlaylists] = useState<VisitorPlaylist[]>([]);
   const [confirmPlaylist, setConfirmPlaylist] = useState<VisitorPlaylist | null>(null);
   // Playback position reported by the FPP poller cache; a new song refreshes the title and queue
@@ -654,7 +656,13 @@ export default function JukeboxPage() {
 
   // Helper function to submit a request (can be called directly or as pending action)
   // locationOverride is passed when called from handleLocationGranted (before state updates)
-  const submitRequest = async (sequenceName: string, requesterNameValue: string, locationOverride?: UserLocation, isPlaylist = false) => {
+  const submitRequest = async (
+    sequenceName: string,
+    requesterNameValue: string,
+    locationOverride?: UserLocation,
+    isPlaylist = false,
+    sourcePlaylist: string | null = null
+  ) => {
     setLoading(true);
     setMessage('');
     setLocationError(null);
@@ -671,6 +679,7 @@ export default function JukeboxPage() {
         },
         body: JSON.stringify({
           [isPlaylist ? 'playlist_name' : 'sequence_name']: sequenceName,
+          source_playlist: sourcePlaylist || undefined,
           requester_name: requesterNameValue || undefined,
           userLocation: locationToUse
         }),
@@ -711,17 +720,18 @@ export default function JukeboxPage() {
   const confirmRequest = async () => {
     if (!confirmSong) return;
     const capturedSong = confirmSong.name;
+    const capturedFrom = confirmSongPlaylist;
     const capturedName = requesterName.trim();
     setConfirmSong(null);
 
     // The callback receives location directly when called from handleLocationGranted
-    const hasLocation = await ensureLocationPermission((location?: UserLocation) => submitRequest(capturedSong, capturedName, location));
+    const hasLocation = await ensureLocationPermission((location?: UserLocation) => submitRequest(capturedSong, capturedName, location, false, capturedFrom));
     if (!hasLocation) {
       // If false is returned, the action was already executed or modal will be shown
       return;
     }
 
-    await submitRequest(capturedSong, capturedName);
+    await submitRequest(capturedSong, capturedName, undefined, false, capturedFrom);
   };
 
   // Same flow for a whole playlist
@@ -755,9 +765,16 @@ export default function JukeboxPage() {
     }
   };
 
-  const fetchMetadata = async (sequenceName: string) => {
+  // The playlist whose own title, artist and art belong to the song playing now
+  const playingFromPlaylist = currentlyPlaying?.playlist_name ?? currentlyPlaying?.source_playlist ?? null;
+
+  // `sequenceName` may be the audio file name; `songName` is the FPP sequence the playlist knows the song by
+  const fetchMetadata = async (sequenceName: string, playlist: string | null, songName: string | null) => {
     try {
-      const response = await fetch(`/api/jukebox/metadata?sequence=${encodeURIComponent(sequenceName)}`);
+      const playlistParam = playlist
+        ? `&playlist=${encodeURIComponent(playlist)}${songName ? `&song=${encodeURIComponent(songName)}` : ''}`
+        : '';
+      const response = await fetch(`/api/jukebox/metadata?sequence=${encodeURIComponent(sequenceName)}${playlistParam}`);
       if (response.ok) {
         const metadata = await response.json();
         setCurrentMetadata(metadata);
@@ -772,16 +789,16 @@ export default function JukeboxPage() {
     // Start after this render, not during the effect body (React flags state updates made synchronously in an effect)
     const id = setTimeout(() => {
       if (currentlyPlaying?.media_name) {
-        fetchMetadata(currentlyPlaying.media_name);
+        fetchMetadata(currentlyPlaying.media_name, playingFromPlaylist, currentlyPlaying.sequence_name ?? null);
       } else if (currentlyPlaying?.sequence_name) {
         // Fallback to sequence name if media name not available
-        fetchMetadata(currentlyPlaying.sequence_name);
+        fetchMetadata(currentlyPlaying.sequence_name, playingFromPlaylist, currentlyPlaying.sequence_name);
       } else {
         setCurrentMetadata(null);
       }
     }, 0);
     return () => clearTimeout(id);
-  }, [currentlyPlaying?.media_name, currentlyPlaying?.sequence_name]);
+  }, [currentlyPlaying?.media_name, currentlyPlaying?.sequence_name, playingFromPlaylist]);
 
   // Determine if interactive features should be shown
   const showInteractiveFeatures = scheduleStatus?.isActive || isAdmin;
@@ -968,7 +985,10 @@ export default function JukeboxPage() {
                 requestsRemaining={requestsRemaining}
                 rateLimit={jukeboxRateLimit}
                 busy={loading || checkingLocation}
-                onRequest={setConfirmSong}
+                onRequest={(song, playlist) => {
+                  setConfirmSong(song);
+                  setConfirmSongPlaylist(playlist);
+                }}
                 headerSlot={
                   locationBadgeStatus !== null ? (
                     <LocationStatusBadge

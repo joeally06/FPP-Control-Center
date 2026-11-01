@@ -86,7 +86,7 @@ print('Test 7: after the real migrations, lib/database.ts imports, and importing
 
   const check = new Database(migrated, { readonly: true });
   const cols = (check.pragma('table_info(jukebox_queue)') as Array<{ name: string }>).map((c) => c.name);
-  for (const col of ['request_kind', 'latitude', 'media_name']) assert.ok(cols.includes(col), `jukebox_queue.${col}`);
+  for (const col of ['request_kind', 'source_playlist', 'latitude', 'media_name']) assert.ok(cols.includes(col), `jukebox_queue.${col}`);
   check.close();
 }
 

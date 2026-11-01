@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import {
+import db, {
   getFPPState,
   getCurrentlyPlaying,
   getQueue,
@@ -9,6 +9,7 @@ import {
   type MediaLibraryMetadataRow,
   type SequenceMetadataRow,
 } from '@/lib/database';
+import { playlistForNowPlaying, playlistSongDetails } from '@/lib/jukebox-songs';
 import { getFppUrl } from '@/lib/fpp-config';
 import { getSetting } from '@/lib/settings';
 import { createLazyPoller } from '@/lib/lazy-poller';
@@ -116,7 +117,19 @@ interface MetaResult {
  * Priority: spotify_metadata (media library) > sequence_metadata (jukebox cache)
  * Returns null fields rather than throwing so callers can fall back to cleanName.
  */
-function lookupMeta(rawName: string): MetaResult {
+function lookupMeta(rawName: string, playlist: string | null = null): MetaResult {
+  const base = lookupDefaultMeta(rawName);
+  // What the admin set for this song in this playlist replaces the default, field by field
+  const own = playlist ? playlistSongDetails(db, playlist, candidateKeys(rawName)) : null;
+  if (!own) return base;
+  return {
+    songTitle: own.title ?? base.songTitle,
+    artist: own.artist ?? base.artist,
+    albumArtUrl: own.albumArt ?? base.albumArtUrl,
+  };
+}
+
+function lookupDefaultMeta(rawName: string): MetaResult {
   const keys = candidateKeys(rawName);
 
   // 1. Check spotify_metadata (media library) — uses bare name, has artist_name / track_name
@@ -274,16 +287,19 @@ async function pollDisplayState(): Promise<void> {
       trackIndex = fppStatus.trackIndex;
       trackCount = fppStatus.trackCount;
 
-      // Enrich with cached Spotify metadata (DB only — no external calls)
+      const jukeboxCurrent = getCurrentlyPlaying.get() as
+        { requester_name: string | null; sequence_name: string; request_kind: string | null; source_playlist: string | null } | undefined;
+
+      // Enrich with cached Spotify metadata (DB only — no external calls), using the playlist
+      // the song was picked from (or FPP is running) for its own title, artist and art
       if (sequenceName) {
-        const meta = lookupMeta(sequenceName);
+        const meta = lookupMeta(sequenceName, playlistForNowPlaying(jukeboxCurrent, candidateKeys(sequenceName), fppStatus.currentPlaylist));
         songTitle = meta.songTitle ?? cleanName(sequenceName);
         artist = meta.artist;
         albumArtUrl = meta.albumArtUrl;
       }
 
       // Requester: prefer jukebox playing item, fall back to "FPP Schedule"
-      const jukeboxCurrent = getCurrentlyPlaying.get() as { requester_name: string | null } | undefined;
       requesterName =
         jukeboxCurrent?.requester_name?.trim()
           ? jukeboxCurrent.requester_name
@@ -330,11 +346,12 @@ async function pollDisplayState(): Promise<void> {
 
     // Upcoming songs: prefer jukebox queue, fall back to FPP playlist API
     let upcomingQueue: UpcomingQueueItem[] = [];
-    const pendingJukebox = (getQueue.all() as { sequence_name: string; requester_name: string | null }[]).slice(0, maxQueue);
+    const pendingJukebox = (getQueue.all() as { sequence_name: string; requester_name: string | null; request_kind: string | null; source_playlist: string | null }[]).slice(0, maxQueue);
 
     if (pendingJukebox.length > 0) {
       upcomingQueue = pendingJukebox.map((row) => {
-        const meta = lookupMeta(row.sequence_name as string);
+        // A requested playlist is named by the playlist, not a song, so only songs look up a playlist's own details
+        const meta = lookupMeta(row.sequence_name as string, row.request_kind === 'playlist' ? null : row.source_playlist);
         return {
           sequenceName: row.sequence_name,
           songTitle: meta.songTitle ?? cleanName(row.sequence_name as string),
@@ -351,8 +368,9 @@ async function pollDisplayState(): Promise<void> {
         zeroBasedIndex,
         maxQueue,
       );
+      const runningPlaylist = fppStatus.currentPlaylist;
       upcomingQueue = nextSeqNames.map((seqName) => {
-        const meta = lookupMeta(seqName);
+        const meta = lookupMeta(seqName, runningPlaylist);
         return {
           sequenceName: seqName,
           songTitle: meta.songTitle ?? cleanName(seqName),

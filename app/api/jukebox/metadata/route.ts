@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import SpotifyWebApi from 'spotify-web-api-node';
-import { getSequenceMetadata, upsertSequenceMetadata, getMediaLibraryMetadata, type MediaLibraryMetadataRow, type SequenceMetadataRow } from '@/lib/database';
+import db, { getSequenceMetadata, upsertSequenceMetadata, getMediaLibraryMetadata, type MediaLibraryMetadataRow, type SequenceMetadataRow } from '@/lib/database';
+import { playlistSongDetails, songNameKeys } from '@/lib/jukebox-songs';
 
 // Initialize Spotify API
 const spotifyApi = new SpotifyWebApi({
@@ -58,11 +59,38 @@ function parseSequenceName(sequenceName: string) {
   };
 }
 
+/**
+ * GET /api/jukebox/metadata?sequence=…[&media=…][&playlist=…&song=…]
+ * Title, artist, album and cover for a song. With `playlist`, what that playlist set for the song replaces the
+ * song's default details, field by field; `song` is the FPP sequence name the playlist knows the song by
+ * (only used to find the playlist's entry, `sequence` stays the default lookup). PUBLIC - read-only.
+ */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const sequenceName = searchParams.get('sequence');
-  const mediaName = searchParams.get('media');
-  
+  const response = await lookupMetadata(searchParams.get('sequence'), searchParams.get('media'));
+
+  const playlist = searchParams.get('playlist');
+  if (!playlist || playlist.length > 255 || !response.ok) return response;
+
+  try {
+    // A playlist keys its songs by sequence name, which can differ from the audio file name `sequence` may carry
+    const own = playlistSongDetails(db, playlist, songNameKeys(searchParams.get('song'), searchParams.get('sequence'), searchParams.get('media')));
+    if (!own) return response;
+    const metadata = await response.json();
+    return NextResponse.json({
+      ...metadata,
+      song_title: own.title ?? metadata.song_title,
+      artist: own.artist ?? metadata.artist,
+      album: own.album ?? metadata.album,
+      album_cover_url: own.albumArt ?? metadata.album_cover_url,
+    });
+  } catch (error) {
+    console.error('Error applying playlist song details:', error);
+    return response;
+  }
+}
+
+async function lookupMetadata(sequenceName: string | null, mediaName: string | null): Promise<NextResponse> {
   // Use media name if provided, otherwise fall back to sequence name
   const lookupName = mediaName || sequenceName;
   const storageKey = sequenceName || mediaName; // Use sequence name as storage key for backward compatibility

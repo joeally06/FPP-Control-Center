@@ -9,9 +9,12 @@ import {
   listPlaylistSongs,
   mediaNamesFromPlaylists,
   normalizeAudioName,
+  playlistForNowPlaying,
+  playlistSongDetails,
   readAudioState,
   resolveSongDetails,
   songAudio,
+  songNameKeys,
   type AudioState,
   type SetupSummary,
 } from '../lib/jukebox-songs';
@@ -172,6 +175,30 @@ try {
   assert.deepStrictEqual([archive[0].title, archive[0].artist, archive[0].albumArt, archive[0].ownDetails],
     ['Last Season Song', 'Old Band', 'https://i.scdn.co/old.jpg', false]);
   print('Test 4b OK');
+
+  // Test 4c: finding a playlist's own details for the song that is playing, and which playlist that is
+  print('Test 4c: songNameKeys / playlistSongDetails / playlistForNowPlaying');
+  assert.deepStrictEqual(songNameKeys('Song A.fseq'), ['Song A']);
+  assert.deepStrictEqual(songNameKeys('Song A.mp3', 'Song A.fseq'), ['Song A'], 'the same song through its audio and sequence names');
+  assert.deepStrictEqual(songNameKeys('Pick Out A Tree_25.mp3'), ['Pick Out A Tree_25', 'Pick Out A Tree'], 'FPP year suffix: exact name first, then without it');
+  assert.deepStrictEqual(songNameKeys(null, undefined, '  '), []);
+  assert.deepStrictEqual(playlistSongDetails(db, 'Classics', ['Song A']), { title: 'Song A (classic cut)', artist: null, album: null, albumArt: null });
+  assert.deepStrictEqual(playlistSongDetails(db, 'Christmas 2026', ['Nope', 'Song A']), { title: null, artist: null, album: null, albumArt: '/api/jukebox/song-art/5' }, 'the first key the playlist holds');
+  assert.strictEqual(playlistSongDetails(db, 'Christmas 2026', ['Song B']), null, 'a song the playlist holds but set nothing for');
+  assert.strictEqual(playlistSongDetails(db, 'Other', ['Song A']), null, 'a playlist that does not hold it');
+  assert.strictEqual(playlistSongDetails(db, 'Classics', []), null);
+  assert.strictEqual(playlistSongDetails(db, "x' OR '1'='1", ['Song A']), null, 'names are bound, not pasted into the query');
+
+  const fppKeys = songNameKeys('Song A.fseq');
+  assert.strictEqual(playlistForNowPlaying({ request_kind: 'playlist', sequence_name: 'Classics' }, fppKeys, 'Classics'), 'Classics', 'a requested playlist FPP is in');
+  assert.strictEqual(playlistForNowPlaying({ request_kind: 'playlist', sequence_name: 'Classics' }, fppKeys, null), 'Classics', 'FPP names no playlist: trust the request');
+  assert.strictEqual(playlistForNowPlaying({ request_kind: 'playlist', sequence_name: 'Classics' }, fppKeys, 'Main Show'), 'Main Show', 'FPP has already left the requested playlist');
+  assert.strictEqual(playlistForNowPlaying({ request_kind: 'song', sequence_name: 'Song A', source_playlist: 'Christmas 2026' }, fppKeys, 'Main Show'), 'Christmas 2026', 'the playlist the song was picked from');
+  assert.strictEqual(playlistForNowPlaying({ request_kind: 'song', sequence_name: 'Song A', source_playlist: 'Christmas 2026' }, songNameKeys('Other.fseq'), 'Main Show'), 'Main Show', 'FPP is not playing that song (yet or any more)');
+  assert.strictEqual(playlistForNowPlaying({ request_kind: 'song', sequence_name: 'Song A', source_playlist: null }, fppKeys, 'Main Show'), 'Main Show', 'a song picked without a playlist');
+  assert.strictEqual(playlistForNowPlaying(undefined, fppKeys, 'Main Show'), 'Main Show', 'the schedule is playing');
+  assert.strictEqual(playlistForNowPlaying(null, fppKeys, null), null);
+  print('Test 4c OK');
 
   // Test 5: reading the mapping file and audio folder; missing ones are empty
   print('Test 5: readAudioState');

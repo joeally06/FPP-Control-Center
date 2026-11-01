@@ -12,6 +12,8 @@ export interface PublicQueueItem {
   created_at: string;
   played_at: string | null;
   request_kind: RequestKind;
+  /** For a song picked from a playlist's list, that playlist (its own details show while the song plays) */
+  source_playlist: string | null;
 }
 
 export type RequestKind = 'song' | 'playlist';
@@ -26,6 +28,7 @@ interface QueueRowLike {
   created_at: string;
   played_at?: string | null;
   request_kind?: string | null;
+  source_playlist?: string | null;
 }
 
 export function toPublicQueueItem(row: QueueRowLike): PublicQueueItem {
@@ -39,6 +42,7 @@ export function toPublicQueueItem(row: QueueRowLike): PublicQueueItem {
     created_at: row.created_at,
     played_at: row.played_at ?? null,
     request_kind: row.request_kind === 'playlist' ? 'playlist' : 'song',
+    source_playlist: row.request_kind === 'playlist' ? null : (row.source_playlist ?? null),
   };
 }
 
@@ -387,7 +391,12 @@ export function buildQueueView(
 ) {
   const songByName = new Map(songs.map((song) => [song.name, song]));
   const playlistByName = new Map(playlists.map((playlist) => [playlist.name, playlist]));
-  const queueSongs = queue.map((item) => (item.request_kind === 'playlist' ? undefined : songByName.get(stripFseq(item.sequence_name))));
+  // A song picked from a playlist's list shows that playlist's own title where the admin set one
+  const queueSongs = queue.map((item) => {
+    if (item.request_kind === 'playlist') return undefined;
+    const song = songByName.get(stripFseq(item.sequence_name));
+    return song ? songForPlaylist(song, item.source_playlist) : undefined;
+  });
   const titles = queue.map((item, i) =>
     item.request_kind === 'playlist' ? `${item.sequence_name} (playlist)` : queueSongs[i]?.title || item.sequence_name
   );

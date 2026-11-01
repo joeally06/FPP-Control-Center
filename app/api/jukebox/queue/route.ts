@@ -9,7 +9,7 @@ import { isRequestableSong, lookupMediaName } from '@/lib/jukebox-catalog';
 import { getDistanceInMiles } from '@/lib/location-utils';
 import { roundMiles } from '@/lib/location-check';
 import { toPublicQueueItem } from '@/lib/jukebox-display';
-import { activePlaylistNames, listThemeSongs, listVisitorPlaylists } from '@/lib/jukebox-playlists';
+import { activePlaylistNames, listThemeSongs, listVisitorPlaylists, sourcePlaylistFor } from '@/lib/jukebox-playlists';
 import { normalizeThemeId } from '@/lib/themes/theme-config';
 
 export async function GET() {
@@ -95,9 +95,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Songs must be ones the admin synced from FPP and the active theme offers; hidden sequences can't be queued
-    if (!isPlaylist && !isRequestableSong(db, sequence_name, listThemeSongs(db, themeId, activePlaylists))) {
+    const themeSongs = listThemeSongs(db, themeId, activePlaylists);
+    if (!isPlaylist && !isRequestableSong(db, sequence_name, themeSongs)) {
       return NextResponse.json({ error: "That song isn't available right now" }, { status: 404 });
     }
+    // The playlist the visitor picked the song from, so that playlist's own details show while it plays
+    const sourcePlaylist = isPlaylist ? null : sourcePlaylistFor(themeSongs, sequence_name, body.source_playlist);
 
     // SECURITY: Validate requester_name input
     if (requester_name !== undefined && requester_name !== null) {
@@ -196,7 +199,8 @@ export async function POST(request: NextRequest) {
         region: null,
         countryCode: null,
         distanceFromShow: distanceFromShow,
-        request_kind: isPlaylist ? 'playlist' : 'song'
+        request_kind: isPlaylist ? 'playlist' : 'song',
+        source_playlist: sourcePlaylist
       });
     } catch (txError) {
       if (txError instanceof RateLimitExceededError) {
