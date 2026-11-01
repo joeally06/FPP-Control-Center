@@ -26,7 +26,11 @@ export default function AudioSyncPlayer({ onClose }: AudioSyncPlayerProps) {
   const [isManuallyPaused, setIsManuallyPaused] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced');
   const [driftMs, setDriftMs] = useState<number>(0);
-  
+  // Mirror of the audio element's play state and speed, kept current by the element's own events, so the buttons and
+  // the drift line do not read the element while the screen is drawn
+  const [isAudioPaused, setIsAudioPaused] = useState(true);
+  const [playbackRate, setPlaybackRate] = useState(1);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -108,7 +112,16 @@ export default function AudioSyncPlayer({ onClose }: AudioSyncPlayerProps) {
     audio.preload = 'auto';
     audioRef.current = audio;
 
+    // Loading a new track silently pauses the element, so 'emptied' and 'loadstart' are mirrored too
+    const mirrorAudioState = () => {
+      setIsAudioPaused(audio.paused);
+      setPlaybackRate(audio.playbackRate);
+    };
+    const mirroredEvents = ['play', 'pause', 'ended', 'emptied', 'loadstart', 'ratechange'] as const;
+    mirroredEvents.forEach((name) => audio.addEventListener(name, mirrorAudioState));
+
     return () => {
+      mirroredEvents.forEach((name) => audio.removeEventListener(name, mirrorAudioState));
       audio.pause();
       audio.src = '';
     };
@@ -329,7 +342,7 @@ export default function AudioSyncPlayer({ onClose }: AudioSyncPlayerProps) {
           <button
             type="button"
             onClick={handlePlay}
-            disabled={!audioRef.current?.paused}
+            disabled={!isAudioPaused}
             aria-label="Play"
             className="sp-btn-accent flex h-14 w-14 items-center justify-center rounded-full transition disabled:opacity-50"
           >
@@ -338,7 +351,7 @@ export default function AudioSyncPlayer({ onClose }: AudioSyncPlayerProps) {
           <button
             type="button"
             onClick={handlePause}
-            disabled={audioRef.current?.paused}
+            disabled={isAudioPaused}
             aria-label="Pause"
             className="sp-btn-outline flex h-12 w-12 items-center justify-center rounded-full transition disabled:opacity-50"
           >
@@ -356,13 +369,13 @@ export default function AudioSyncPlayer({ onClose }: AudioSyncPlayerProps) {
       )}
 
       {/* Sync Quality Indicator */}
-      {syncState?.isPlaying && !audioRef.current?.paused && (
+      {syncState?.isPlaying && !isAudioPaused && (
         <p className="mt-3 text-center text-xs tabular-nums">
           <span className={`font-semibold ${getSyncStatusColor()}`}>{getSyncStatusText()}</span>
           <span className="sp-muted">
             {' · drift '}
             <span className={getDriftColor()}>{driftMs >= 0 ? '+' : ''}{driftMs}ms</span>
-            {audioRef.current && Math.abs(audioRef.current.playbackRate - 1.0) > 0.01 && ` · ${audioRef.current.playbackRate.toFixed(2)}×`}
+            {Math.abs(playbackRate - 1.0) > 0.01 && ` · ${playbackRate.toFixed(2)}×`}
           </span>
         </p>
       )}
