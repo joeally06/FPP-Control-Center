@@ -105,7 +105,6 @@ export default function AudioSyncPlayer({ onClose }: AudioSyncPlayerProps) {
   // Initialize audio element
   useEffect(() => {
     const audio = new Audio();
-    audio.volume = volume;
     audio.preload = 'auto';
     audioRef.current = audio;
 
@@ -130,54 +129,7 @@ export default function AudioSyncPlayer({ onClose }: AudioSyncPlayerProps) {
     return () => clearInterval(interval);
   }, [syncState?.isPlaying, isManuallyPaused, syncAudio]);
 
-  const connectEventSource = () => {
-    try {
-      const eventSource = new EventSource('/api/audio/sync');
-      eventSourceRef.current = eventSource;
-
-      eventSource.onopen = () => {
-        setIsConnected(true);
-      };
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data: SyncState = JSON.parse(event.data);
-          handleSyncUpdate(data);
-        } catch (err) {
-          console.error('[Audio Sync] Parse error:', err);
-        }
-      };
-
-      eventSource.onerror = () => {
-        setIsConnected(false);
-        eventSource.close();
-        
-        // Attempt reconnection after 5 seconds
-        reconnectTimeoutRef.current = setTimeout(() => {
-          console.log('[Audio Sync] Reconnecting...');
-          connectEventSource();
-        }, 5000);
-      };
-    } catch (err) {
-      console.error('[Audio Sync] Connection failed:', err);
-    }
-  };
-
-  // EventSource (SSE) connection
-  useEffect(() => {
-    connectEventSource();
-
-    return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const handleSyncUpdate = (data: SyncState) => {
+  const handleSyncUpdate = useCallback((data: SyncState) => {
     setSyncState(data);
 
     if (!audioRef.current) return;
@@ -231,7 +183,54 @@ export default function AudioSyncPlayer({ onClose }: AudioSyncPlayerProps) {
       audio.currentTime = targetPosition;
       audio.play().catch(err => console.error('[Audio Sync] Auto-play failed:', err));
     }
-  };
+  }, [calculateTargetPosition]);
+
+  // EventSource (SSE) connection
+  useEffect(() => {
+    const connectEventSource = () => {
+      try {
+        const eventSource = new EventSource('/api/audio/sync');
+        eventSourceRef.current = eventSource;
+
+        eventSource.onopen = () => {
+          setIsConnected(true);
+        };
+
+        eventSource.onmessage = (event) => {
+          try {
+            const data: SyncState = JSON.parse(event.data);
+            handleSyncUpdate(data);
+          } catch (err) {
+            console.error('[Audio Sync] Parse error:', err);
+          }
+        };
+
+        eventSource.onerror = () => {
+          setIsConnected(false);
+          eventSource.close();
+          
+          // Attempt reconnection after 5 seconds
+          reconnectTimeoutRef.current = setTimeout(() => {
+            console.log('[Audio Sync] Reconnecting...');
+            connectEventSource();
+          }, 5000);
+        };
+      } catch (err) {
+        console.error('[Audio Sync] Connection failed:', err);
+      }
+    };
+
+    connectEventSource();
+
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+    };
+  }, [handleSyncUpdate]);
 
   const handlePlay = () => {
     if (!audioRef.current || !syncState) return;

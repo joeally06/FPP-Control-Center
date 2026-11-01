@@ -363,7 +363,7 @@ export default function JukeboxPage() {
       setShowLocationModal(true);
       return false;
     }
-  }, [userLocation, locationPermissionStatus, locationRestrictionsEnabled]);
+  }, [userLocation, locationPermissionStatus, locationRestrictionsEnabled, showToast]);
 
   const fetchYouTubeVideos = async () => {
     try {
@@ -561,6 +561,12 @@ export default function JukeboxPage() {
     }
   };
 
+  // The polling effect below starts once; it reads the current settings loader and rate limit through this ref
+  const latestSettingsRef = useRef({ fetchJukeboxSettings, jukeboxRateLimit });
+  useEffect(() => {
+    latestSettingsRef.current = { fetchJukeboxSettings, jukeboxRateLimit };
+  });
+
   useEffect(() => {
     // Start after this render, not during the effect body (React flags state updates made synchronously in an effect)
     const firstLoads = setTimeout(() => {
@@ -569,7 +575,7 @@ export default function JukeboxPage() {
       fetchData();
       fetchYouTubeVideos();
       fetchScheduleStatus(); // Check schedule status
-      fetchJukeboxSettings(); // Fetch jukebox rate limit, insert mode, and visitor page settings
+      latestSettingsRef.current.fetchJukeboxSettings(); // Fetch jukebox rate limit, insert mode, and visitor page settings
       fetchLocationRestrictions(); // Fetch location settings for distance calculation
     }, 0);
 
@@ -578,7 +584,7 @@ export default function JukeboxPage() {
 
     // Refresh request status to keep it up to date
     const requestStatusInterval = setInterval(() => {
-      if (jukeboxRateLimit > 0) {
+      if (latestSettingsRef.current.jukeboxRateLimit > 0) {
         fetchRequestStatus();
       }
     }, TIMING.POLL_INTERVAL_MEDIUM);

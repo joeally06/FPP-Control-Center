@@ -118,8 +118,8 @@ export default function Home() {
         if (playlistsRes.ok) {
           const data = await playlistsRes.json();
           setPlaylists(data || []);
-          if (data.length > 0 && !selectedPlaylist) {
-            setSelectedPlaylist(data[0].name);
+          if (data.length > 0) {
+            setSelectedPlaylist((current) => current || data[0].name);
           }
         }
 

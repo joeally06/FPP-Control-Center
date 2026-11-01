@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { TIMING } from '@/lib/constants';
 
 interface FPPConnectionState {
@@ -121,9 +121,14 @@ export function FPPConnectionProvider({ children }: { children: React.ReactNode 
     checkConnection();
   }, [retryTimer, countdownTimer, checkConnection]);
 
-  // Initial health check
+  // Initial health check. checkConnection changes whenever the retry state does, so the check on open reads the
+  // current one through a ref instead of listing it (listing it would re-check every time a retry is scheduled)
+  const checkConnectionRef = useRef(checkConnection);
   useEffect(() => {
-    checkConnection();
+    checkConnectionRef.current = checkConnection;
+  });
+  useEffect(() => {
+    checkConnectionRef.current();
   }, []);
 
   // Cleanup on unmount

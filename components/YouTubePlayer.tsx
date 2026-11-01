@@ -63,7 +63,7 @@ export function YouTubePlayer({
   const [isAPIReady, setIsAPIReady] = useState(false);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [apiLoadTimeout, setApiLoadTimeout] = useState<NodeJS.Timeout | null>(null);
+  const apiLoadTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // Load YouTube API
   useEffect(() => {
@@ -79,9 +79,9 @@ export function YouTubePlayer({
       const checkAPI = () => {
         if (window.YT && window.YT.Player) {
           setIsAPIReady(true);
-          if (apiLoadTimeout) {
-            clearTimeout(apiLoadTimeout);
-            setApiLoadTimeout(null);
+          if (apiLoadTimeout.current) {
+            clearTimeout(apiLoadTimeout.current);
+            apiLoadTimeout.current = null;
           }
         } else {
           setTimeout(checkAPI, 100);
@@ -96,7 +96,7 @@ export function YouTubePlayer({
       console.error('[YouTube Player] YouTube API failed to load within 10 seconds');
       setLoadError('YouTube API failed to load. Please check your internet connection and try refreshing the page.');
     }, 10000);
-    setApiLoadTimeout(timeout);
+    apiLoadTimeout.current = timeout;
 
     // Load YouTube API script
     const script = document.createElement('script');
@@ -108,7 +108,7 @@ export function YouTubePlayer({
         if (window.YT && window.YT.Player) {
           setIsAPIReady(true);
           if (timeout) clearTimeout(timeout);
-          setApiLoadTimeout(null);
+          apiLoadTimeout.current = null;
         } else {
           setTimeout(checkAPI, 100);
         }
@@ -119,7 +119,7 @@ export function YouTubePlayer({
       console.error('[YouTube Player] Failed to load YouTube API script');
       setLoadError('Failed to load YouTube API script. Please check your internet connection.');
       if (timeout) clearTimeout(timeout);
-      setApiLoadTimeout(null);
+      apiLoadTimeout.current = null;
       onError?.('Failed to load YouTube API');
     };
     document.head.appendChild(script);
@@ -128,7 +128,7 @@ export function YouTubePlayer({
     window.onYouTubeIframeAPIReady = () => {
       setIsAPIReady(true);
       if (timeout) clearTimeout(timeout);
-      setApiLoadTimeout(null);
+      apiLoadTimeout.current = null;
     };
 
     // Cleanup
@@ -213,9 +213,9 @@ export function YouTubePlayer({
       }
       player.current = null;
       setIsPlayerReady(false);
-      if (apiLoadTimeout) {
-        clearTimeout(apiLoadTimeout);
-        setApiLoadTimeout(null);
+      if (apiLoadTimeout.current) {
+        clearTimeout(apiLoadTimeout.current);
+        apiLoadTimeout.current = null;
       }
     };
   }, [isAPIReady, videoId, width, height, onReady, onStateChange, onError]);

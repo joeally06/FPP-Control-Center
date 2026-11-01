@@ -295,7 +295,7 @@ export default function UpdateChecker() {
         eventSourceRef.current = null;
       }
     };
-  }, [installing, getStatusMessage]);
+  }, [getStatusMessage]);
 
   // Fetch current update status
   const fetchStatus = async () => {

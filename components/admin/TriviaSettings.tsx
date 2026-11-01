@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { TriviaQuestionRow, TriviaScoreRow } from '@/types/trivia';
 import { X } from 'lucide-react';
 import { insetBox, button, accentButton, dangerButton, field, sizedField, textLink, notice, tabClass } from '@/components/admin/ui-classes';
@@ -38,16 +38,12 @@ export default function TriviaSettings() {
   const [scores, setScores] = useState<{ games: TriviaScoreRow[]; total: number } | null>(null);
   const [clearingScores, setClearingScores] = useState(false);
 
-  useEffect(() => {
-    void refreshAll();
-  }, []);
-
-  function flash(type: 'success' | 'error', text: string) {
+  const flash = useCallback((type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 5000);
-  }
+  }, []);
 
-  async function refreshAll() {
+  const refreshAll = useCallback(async () => {
     setLoading(true);
     try {
       const [qRes, sRes] = await Promise.all([fetch('/api/trivia/questions'), fetch('/api/settings')]);
@@ -60,7 +56,13 @@ export default function TriviaSettings() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [flash]);
+
+  useEffect(() => {
+    // Start after this render, not during the effect body (React flags state updates made synchronously in an effect)
+    const id = setTimeout(() => void refreshAll(), 0);
+    return () => clearTimeout(id);
+  }, [refreshAll]);
 
   // ─── Question bank ─────────────────────────────────────────────────────
 

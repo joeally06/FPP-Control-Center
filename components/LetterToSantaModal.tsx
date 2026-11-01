@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, useCallback, FormEvent } from 'react';
 import { X } from 'lucide-react';
 
 interface LetterToSantaModalProps {
@@ -48,7 +48,7 @@ export default function LetterToSantaModal({ isOpen, onClose }: LetterToSantaMod
     }
   }, [isOpen]);
 
-  const checkLetterCount = async () => {
+  const checkLetterCount = useCallback(async () => {
     if (!parentEmail || !parentEmail.includes('@')) return;
 
     try {
@@ -70,7 +70,7 @@ export default function LetterToSantaModal({ isOpen, onClose }: LetterToSantaMod
     } catch (error) {
       console.error('Failed to check letter count:', error);
     }
-  };
+  }, [parentEmail]);
 
   // Check letter count when email changes
   useEffect(() => {
@@ -79,7 +79,7 @@ export default function LetterToSantaModal({ isOpen, onClose }: LetterToSantaMod
       const id = setTimeout(checkLetterCount, 0);
       return () => clearTimeout(id);
     }
-  }, [isOpen, parentEmail]);
+  }, [isOpen, parentEmail, checkLetterCount]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
