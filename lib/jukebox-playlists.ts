@@ -2,8 +2,9 @@ import type Database from 'better-sqlite3';
 import { DateTime } from 'luxon';
 import { isThemeId, type ThemeId } from './themes/theme-config';
 import type { VisitorPlaylist } from './jukebox-display';
-import { activeSchedulePlaylists, type FppScheduleEntry } from './show-schedule';
+import { activeSchedulePlaylists, playlistSeason, type FppScheduleEntry, type PlaylistSeason } from './show-schedule';
 import { APP_TIMEZONE } from './time-utils';
+import { songArtIdFromUrl } from './song-art-url';
 
 // FPP playlists visitors can request. The list comes from FPP on every song-cache refresh;
 // the theme is set by the admin, and visitors only see playlists tagged with the active theme
@@ -79,8 +80,12 @@ export function syncJukeboxPlaylists(db: Database.Database, names: string[], det
   const insertName = db.prepare('INSERT OR IGNORE INTO jukebox_playlists (name) VALUES (?)');
   const existing = db.prepare('SELECT name FROM jukebox_playlists');
   const remove = db.prepare('DELETE FROM jukebox_playlists WHERE name = ?');
+  const ownDetails = db.prepare('SELECT sequence_name, title, artist, album, art_url, art_id FROM jukebox_playlist_songs WHERE playlist_name = ?');
   const clearSongs = db.prepare('DELETE FROM jukebox_playlist_songs WHERE playlist_name = ?');
-  const insertSong = db.prepare('INSERT INTO jukebox_playlist_songs (playlist_name, position, sequence_name) VALUES (?, ?, ?)');
+  const insertSong = db.prepare(`
+    INSERT INTO jukebox_playlist_songs (playlist_name, position, sequence_name, title, artist, album, art_url, art_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
 
   db.transaction(() => {
     const onFpp = new Set(names);
@@ -88,8 +93,13 @@ export function syncJukeboxPlaylists(db: Database.Database, names: string[], det
       const detail = details.get(name);
       if (detail) {
         upsert.run(name, detail.itemCount, detail.durationSeconds);
+        // The admin's own details for a song survive the re-sync: read them, replace the rows, put them back
+        const kept = new Map((ownDetails.all(name) as OwnDetailsRow[]).map((row) => [row.sequence_name, row]));
         clearSongs.run(name);
-        detail.songs.forEach((song, position) => insertSong.run(name, position, song));
+        detail.songs.forEach((song, position) => {
+          const own = kept.get(song);
+          insertSong.run(name, position, song, own?.title ?? null, own?.artist ?? null, own?.album ?? null, own?.art_url ?? null, own?.art_id ?? null);
+        });
       } else {
         insertName.run(name);
       }
@@ -100,7 +110,132 @@ export function syncJukeboxPlaylists(db: Database.Database, names: string[], det
         clearSongs.run(name);
       }
     }
+    deleteUnusedSongArt(db);
   })();
+}
+
+interface OwnDetailsRow {
+  sequence_name: string;
+  title: string | null;
+  artist: string | null;
+  album: string | null;
+  art_url: string | null;
+  art_id: number | null;
+}
+
+/** Remove uploaded pictures no playlist song points at any more. */
+export function deleteUnusedSongArt(db: Database.Database): number {
+  return db.prepare(`
+    DELETE FROM jukebox_song_art WHERE id NOT IN (SELECT art_id FROM jukebox_playlist_songs WHERE art_id IS NOT NULL)
+  `).run().changes;
+}
+
+/** What the admin set for one song in one playlist; a null field falls back to the song's default details. */
+export interface PlaylistSongDetails {
+  title: string | null;
+  artist: string | null;
+  album: string | null;
+  /** https address, or one of our own uploaded pictures (/api/jukebox/song-art/<id>) */
+  albumArt: string | null;
+}
+
+export const MAX_DETAIL_TEXT_LENGTH = 200;
+export const MAX_ART_URL_LENGTH = 500;
+
+function detailText(value: unknown, label: string): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'string') throw new Error(`${label} must be text`);
+  if (/[\u0000-\u001f\u007f]/.test(value)) throw new Error(`${label} contains invalid characters`);
+  const text = value.trim().replace(/\s+/g, ' ');
+  if (text.length > MAX_DETAIL_TEXT_LENGTH) throw new Error(`${label} must be at most ${MAX_DETAIL_TEXT_LENGTH} characters`);
+  return text || null;
+}
+
+/** Admin input → values to store. Throws (message safe to show) on anything else; art must be https or one of ours. */
+export function normalizePlaylistSongDetails(input: unknown): PlaylistSongDetails {
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) throw new Error('details must be an object');
+  const body = input as Record<string, unknown>;
+
+  const art = detailText(body.albumArt, 'Artwork address');
+  if (art !== null) {
+    if (art.length > MAX_ART_URL_LENGTH) throw new Error(`Artwork address must be at most ${MAX_ART_URL_LENGTH} characters`);
+    if (!art.startsWith('https://') && songArtIdFromUrl(art) === null) {
+      throw new Error('Artwork must be an https:// address or an uploaded picture');
+    }
+  }
+  return {
+    title: detailText(body.title, 'Title'),
+    artist: detailText(body.artist, 'Artist'),
+    album: detailText(body.album, 'Album'),
+    albumArt: art,
+  };
+}
+
+/**
+ * Save the details for one song in one playlist, or clear them (null = use the default again).
+ * Returns false when the playlist does not hold that song. Uploaded pictures left unused are deleted.
+ */
+export function setPlaylistSongDetails(db: Database.Database, playlist: string, sequence: string, details: PlaylistSongDetails | null): boolean {
+  const artId = details?.albumArt ? songArtIdFromUrl(details.albumArt) : null;
+  // Only a picture that exists can be pointed at
+  const knownArtId = artId !== null && db.prepare('SELECT 1 FROM jukebox_song_art WHERE id = ?').get(artId) ? artId : null;
+  if (artId !== null && knownArtId === null) throw new Error('That uploaded picture no longer exists');
+
+  return db.transaction(() => {
+    const result = db.prepare(`
+      UPDATE jukebox_playlist_songs SET title = ?, artist = ?, album = ?, art_url = ?, art_id = ?
+      WHERE playlist_name = ? AND sequence_name = ?
+    `).run(details?.title ?? null, details?.artist ?? null, details?.album ?? null, details?.albumArt ?? null, knownArtId, playlist, sequence);
+    deleteUnusedSongArt(db);
+    return result.changes > 0;
+  })();
+}
+
+/** One playlist in the admin's picker: its tag, how many songs it holds and where it stands in FPP's Scheduler. */
+export interface AdminPlaylist {
+  name: string;
+  theme: ThemeId | null;
+  songCount: number;
+  /** 'unknown' until a schedule has been stored */
+  season: PlaylistSeason['status'] | 'unknown';
+  startsOn: string | null;
+}
+
+/** Playlists whose songs are known (stored on each sync), for the picker on the Songs tab. */
+export function listAdminPlaylists(db: Database.Database, now = DateTime.now().setZone(APP_TIMEZONE)): AdminPlaylist[] {
+  const rows = db.prepare(`
+    SELECT p.name, p.theme, COUNT(s.sequence_name) AS song_count
+    FROM jukebox_playlists p
+    JOIN jukebox_playlist_songs s ON s.playlist_name = p.name
+    GROUP BY p.name
+    ORDER BY p.name COLLATE NOCASE
+  `).all() as { name: string; theme: ThemeId | null; song_count: number }[];
+  const schedule = readStoredSchedule(db);
+  const today = now.toISODate() ?? '';
+  return rows.map((row) => {
+    const season = schedule ? playlistSeason(schedule, row.name, today) : null;
+    return {
+      name: row.name,
+      theme: row.theme,
+      songCount: row.song_count,
+      season: season?.status ?? 'unknown',
+      startsOn: season?.startsOn ?? null,
+    };
+  });
+}
+
+/** Details set for songs in these playlists: playlist → sequence → own title and artist (only songs that have some). */
+export function listPlaylistSongOverrides(db: Database.Database, playlists: string[]): Map<string, Map<string, { title: string | null; artist: string | null }>> {
+  const result = new Map<string, Map<string, { title: string | null; artist: string | null }>>();
+  const query = db.prepare(`
+    SELECT sequence_name, title, artist FROM jukebox_playlist_songs
+    WHERE playlist_name = ? AND (title IS NOT NULL OR artist IS NOT NULL)
+  `);
+  for (const playlist of playlists) {
+    const rows = query.all(playlist) as { sequence_name: string; title: string | null; artist: string | null }[];
+    if (rows.length > 0) result.set(playlist, new Map(rows.map((row) => [row.sequence_name, { title: row.title, artist: row.artist }])));
+  }
+  return result;
 }
 
 const SCHEDULE_SETTING = 'fpp_schedule_json';

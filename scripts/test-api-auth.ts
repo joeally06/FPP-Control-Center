@@ -32,6 +32,7 @@ const PUBLIC_ROUTES: Record<string, string> = {
   'jukebox/request-status': 'visitor page: place in line',
   'jukebox/schedule-status': 'visitor page: show times',
   'jukebox/sequences': 'visitor page: song list',
+  'jukebox/song-art/[id]': 'visitor page and TV: a song picture (read-only; re-encoded WebP bytes)',
   'jukebox/settings': 'visitor page: public display settings',
   'jukebox/videos': 'visitor page: light show videos',
   'location-restrictions/check': 'visitor in/out of range; IP rate limit',

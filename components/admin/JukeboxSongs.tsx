@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { Download, Link2, Music, Pencil, RefreshCw, Search, Trash2, X } from 'lucide-react';
-import type { AdminSong, AudioStatus, SongFilter } from '@/lib/jukebox-songs';
+import { useEffect, useRef, useState } from 'react';
+import { Download, ImagePlus, Link2, Music, Pencil, RefreshCw, Search, Trash2, Undo2, X } from 'lucide-react';
+import type { AdminPlaylist } from '@/lib/jukebox-playlists';
+import type { AdminSong, AudioStatus, PlaylistAdminSong, SongFilter } from '@/lib/jukebox-songs';
 import { MAX_CATEGORY_LENGTH, SUGGESTED_CATEGORIES, formatClock } from '@/lib/jukebox-display';
 import { AdminH3, AdminLabel, AdminTextMuted } from '@/components/admin/Typography';
 import {
@@ -77,23 +78,93 @@ function SongArt({ song, large = false }: { song: AdminSong; large?: boolean }) 
   );
 }
 
+/** A song in the list: in a playlist it also says whether that playlist has its own details */
+type ListedSong = AdminSong & Partial<Pick<PlaylistAdminSong, 'ownDetails' | 'own'>>;
+
+const CHIP = (active: boolean) =>
+  `min-h-9 rounded-full border px-3.5 text-[13px] font-medium transition-colors ${
+    active ? 'border-adm-accent bg-adm-warn-bg text-adm-warn' : 'border-adm-control-line bg-adm-control text-adm-text hover:bg-adm-line'
+  }`;
+
+/** "Dec 11" from "2026-12-11", read as a plain calendar date (no time zone shift) */
+function formatShortDate(iso: string): string {
+  const [year, month, day] = iso.split('-').map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+/** Where a playlist stands in FPP's Scheduler, when that is worth a note */
+function seasonNote(playlist: AdminPlaylist): string | null {
+  if (playlist.season === 'upcoming') return playlist.startsOn ? `Starts ${formatShortDate(playlist.startsOn)}` : 'Starts later';
+  if (playlist.season === 'ended') return 'Ended';
+  if (playlist.season === 'not-scheduled') return 'Not scheduled';
+  return null;
+}
+
 interface JukeboxSongsProps {
   /** null while loading */
   songs: AdminSong[] | null;
+  /** Playlists whose songs are known, for the picker */
+  playlists: AdminPlaylist[];
+  /** Changes after a Sync from FPP so the open playlist's songs are read again */
+  reloadKey: number;
   filter: SongFilter;
   onFilterChange: (filter: SongFilter) => void;
   /** Reload the songs (and the checklist) after something changed */
   onChanged: () => Promise<void>;
 }
 
-/** Jukebox → Songs: every song visitors can request, with its title, category and phone audio. */
-export default function JukeboxSongs({ songs, filter, onFilterChange, onChanged }: JukeboxSongsProps) {
+/** Jukebox → Songs: every song visitors can request, with its title, category and phone audio. Pick a playlist to give its songs their own details. */
+export default function JukeboxSongs({ songs, playlists, reloadKey, filter, onFilterChange, onChanged }: JukeboxSongsProps) {
   const [search, setSearch] = useState('');
   const [selectedName, setSelectedName] = useState<string | null>(null);
   const [autoFill, setAutoFill] = useState<{ done: number; total: number } | null>(null);
   const [message, setMessage] = useState<Message>(null);
+  // null = "All songs (defaults)"; otherwise the playlist being edited and its songs (null while loading)
+  const [playlist, setPlaylist] = useState<string | null>(null);
+  const [playlistSongs, setPlaylistSongs] = useState<PlaylistAdminSong[] | null>(null);
 
-  const list = songs ?? [];
+  useEffect(() => {
+    if (!playlist) return;
+    let cancelled = false;
+    fetch(`/api/jukebox/playlist-songs?playlist=${encodeURIComponent(playlist)}`)
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`))))
+      .then((data) => {
+        if (!cancelled) setPlaylistSongs(data.songs ?? []);
+      })
+      .catch((error) => {
+        console.error('Failed to load the playlist songs:', error);
+        if (cancelled) return;
+        setPlaylistSongs([]);
+        setMessage({ ok: false, text: 'Could not load that playlist. Try again.' });
+      });
+    return () => {
+      cancelled = true;
+    };
+    // reloadKey changes after a Sync from FPP, which can change a playlist's songs
+  }, [playlist, reloadKey]);
+
+  // After a change: the song list and checklist, and the open playlist's own list
+  async function refresh() {
+    await onChanged();
+    if (!playlist) return;
+    try {
+      const response = await fetch(`/api/jukebox/playlist-songs?playlist=${encodeURIComponent(playlist)}`);
+      if (response.ok) setPlaylistSongs((await response.json()).songs ?? []);
+    } catch (error) {
+      console.error('Failed to reload the playlist songs:', error);
+    }
+  }
+
+  function choosePlaylist(name: string | null) {
+    // Tapping the playlist that is already open changes nothing (and must not blank a list that will not reload)
+    if (name === playlist) return;
+    setPlaylist(name);
+    setPlaylistSongs(null);
+    setSelectedName(null);
+    setMessage(null);
+  }
+
+  const list: ListedSong[] = playlist ? (playlistSongs ?? []) : (songs ?? []);
   const query = search.trim().toLowerCase();
   const visible = list.filter((song) =>
     matchesFilter(song, filter) && (!query || [song.name, song.title, song.artist].some((text) => text?.toLowerCase().includes(query)))
@@ -117,7 +188,7 @@ export default function JukeboxSongs({ songs, filter, onFilterChange, onChanged 
       }
       setAutoFill({ done: index + 1, total: untitled.length });
     }
-    await onChanged();
+    await refresh();
     setAutoFill(null);
     setMessage({
       ok: found > 0,
@@ -135,7 +206,7 @@ export default function JukeboxSongs({ songs, filter, onFilterChange, onChanged 
     );
   }
 
-  if (list.length === 0) {
+  if (songs.length === 0) {
     return (
       <div className={card}>
         <AdminH3 className="mb-0.5">No songs yet</AdminH3>
@@ -155,6 +226,36 @@ export default function JukeboxSongs({ songs, filter, onFilterChange, onChanged 
       </datalist>
 
       <div className="flex min-w-0 flex-1 flex-col gap-4">
+        {playlists.length > 0 && (
+          <div className="flex flex-col gap-2" role="group" aria-label="Choose a playlist to edit">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-adm-muted">Edit songs for</p>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => choosePlaylist(null)} aria-pressed={playlist === null} className={`${CHIP(playlist === null)} cursor-pointer`}>
+                All songs (defaults)
+              </button>
+              {playlists.map((item) => {
+                const note = seasonNote(item);
+                return (
+                  <button
+                    key={item.name}
+                    onClick={() => choosePlaylist(item.name)}
+                    aria-pressed={playlist === item.name}
+                    className={`${CHIP(playlist === item.name)} inline-flex cursor-pointer items-center gap-2`}
+                  >
+                    {item.name} <span className="opacity-75">{item.songCount}</span>
+                    {note && <span className="rounded-full bg-adm-line px-2 py-0.5 text-[11px] font-semibold text-adm-soft">{note}</span>}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-adm-muted">
+              {playlist
+                ? 'Changes here apply to this playlist only. Anything left empty shows the song’s default details.'
+                : 'Default details show in every playlist that has none of its own.'}
+            </p>
+          </div>
+        )}
+
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div className="flex flex-wrap gap-2">
             {FILTERS.map(({ id, label }) => {
@@ -165,9 +266,7 @@ export default function JukeboxSongs({ songs, filter, onFilterChange, onChanged 
                   key={id}
                   onClick={() => onFilterChange(id)}
                   aria-pressed={active}
-                  className={`min-h-9 rounded-full border px-3.5 text-[13px] font-medium transition-colors ${
-                    active ? 'border-adm-accent bg-adm-warn-bg text-adm-warn' : 'border-adm-control-line bg-adm-control text-adm-text hover:bg-adm-line'
-                  }`}
+                  className={CHIP(active)}
                 >
                   {label} <span className="opacity-75">{count}</span>
                 </button>
@@ -204,7 +303,7 @@ export default function JukeboxSongs({ songs, filter, onFilterChange, onChanged 
         <div className="overflow-hidden rounded-2xl border border-adm-line bg-adm-surface">
           {visible.length === 0 ? (
             <p className="px-4 py-10 text-center text-sm text-adm-muted">
-              {query ? 'No songs match your search.' : 'Nothing left to fix here.'}
+              {playlist && playlistSongs === null ? 'Loading playlist…' : query ? 'No songs match your search.' : 'Nothing left to fix here.'}
             </p>
           ) : (
             <ul className="divide-y divide-adm-line">
@@ -226,6 +325,7 @@ export default function JukeboxSongs({ songs, filter, onFilterChange, onChanged 
                         <span className="block truncate text-xs text-adm-muted">
                           {[
                             song.artist || (song.title ? 'Unknown artist' : 'No title yet'),
+                            song.ownDetails ? 'Own details' : null,
                             song.category,
                             song.durationSeconds != null ? formatClock(song.durationSeconds) : null,
                           ].filter(Boolean).join(' · ')}
@@ -253,20 +353,29 @@ export default function JukeboxSongs({ songs, filter, onFilterChange, onChanged 
       </div>
 
       {selected && (
-        <SongPanel key={selected.name} song={selected} onClose={() => setSelectedName(null)} onChanged={onChanged} />
+        <SongPanel
+          key={`${playlist ?? ''}\u0000${selected.name}`}
+          song={selected}
+          playlist={playlist}
+          onClose={() => setSelectedName(null)}
+          onChanged={refresh}
+        />
       )}
     </div>
   );
 }
 
 interface SongPanelProps {
-  song: AdminSong;
+  song: ListedSong;
+  /** The playlist being edited; null edits the song's default details */
+  playlist: string | null;
   onClose: () => void;
   onChanged: () => Promise<void>;
 }
 
 /** Everything about one song. A side column on wide screens, a full-screen sheet on phones. */
-function SongPanel({ song, onClose, onChanged }: SongPanelProps) {
+function SongPanel({ song, playlist, onClose, onChanged }: SongPanelProps) {
+  const pictureInput = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState(song.title ? `${song.title} ${song.artist ?? ''}`.trim() : song.name.replace(/[_-]+/g, ' '));
   const [results, setResults] = useState<SpotifySearchResult[] | null>(null);
   const [manual, setManual] = useState(false);
@@ -326,10 +435,46 @@ function SongPanel({ song, onClose, onChanged }: SongPanelProps) {
 
   const saveDetails = (body: Record<string, string | null>) =>
     run('details', async () => {
-      await postJson(`/api/spotify/metadata/${encodeURIComponent(song.name)}/override`, body);
+      if (playlist) {
+        await postJson('/api/jukebox/playlist-songs', {
+          playlist,
+          sequence: song.name,
+          details: { title: body.trackName ?? null, artist: body.artist ?? null, album: body.album ?? null, albumArt: body.albumArt ?? null },
+        }, 'PUT');
+      } else {
+        await postJson(`/api/spotify/metadata/${encodeURIComponent(song.name)}/override`, body);
+      }
       setResults(null);
       setManual(false);
-      return 'Song details saved.';
+      return playlist ? `Saved for ${playlist}.` : 'Song details saved.';
+    });
+
+  // In a playlist, a field left as it was keeps its own value (or stays on the default) instead of turning into a copy
+  const keepOwn = (typed: string, shown: string | null, own: string | null | undefined) =>
+    typed.trim() === (shown ?? '') ? (own ?? null) : typed;
+
+  async function uploadPicture(file: File) {
+    if (!playlist) return;
+    await run('upload', async () => {
+      const upload = new FormData();
+      upload.append('playlist', playlist);
+      upload.append('sequence', song.name);
+      upload.append('file', file);
+      const response = await fetch('/api/jukebox/song-art', { method: 'POST', body: upload });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.success === false) throw new Error(data.error || 'Upload failed');
+      // An open manual-entry form must not still hold the old artwork address, or its Save would put the old one back
+      if (typeof data.artUrl === 'string') setForm((prev) => ({ ...prev, albumArt: data.artUrl }));
+      return `Picture saved for ${playlist}.`;
+    });
+  }
+
+  const resetToDefault = () =>
+    run('reset', async () => {
+      await postJson('/api/jukebox/playlist-songs', { playlist, sequence: song.name, details: null }, 'PUT');
+      setResults(null);
+      setManual(false);
+      return 'This playlist now shows the default details for the song.';
     });
 
   const pickResult = (result: SpotifySearchResult) =>
@@ -344,7 +489,14 @@ function SongPanel({ song, onClose, onChanged }: SongPanelProps) {
     });
 
   const saveManual = () =>
-    saveDetails({ ...form, spotifyTrackId: null, spotifyUri: null, previewUrl: null });
+    saveDetails(playlist
+      ? {
+          trackName: keepOwn(form.trackName, song.title, song.own?.title),
+          artist: keepOwn(form.artist, song.artist, song.own?.artist),
+          album: keepOwn(form.album, song.album, song.own?.album),
+          albumArt: keepOwn(form.albumArt, song.albumArt, song.own?.albumArt),
+        }
+      : { ...form, spotifyTrackId: null, spotifyUri: null, previewUrl: null });
 
   const saveCategory = () =>
     run('category', async () => {
@@ -388,6 +540,13 @@ function SongPanel({ song, onClose, onChanged }: SongPanelProps) {
           <p className={`text-base font-semibold ${song.title ? 'text-adm-text' : 'italic text-adm-soft'}`}>{song.title || song.name}</p>
           {song.artist && <p className="truncate text-sm text-adm-soft">{song.artist}</p>}
           <p className="mt-1 font-mono text-xs break-all text-adm-muted">FPP sequence: {song.name}.fseq</p>
+          {playlist && (
+            <p className="mt-1.5">
+              <span className={song.ownDetails ? badge.ok : badge.warn}>
+                {song.ownDetails ? `Own details for ${playlist}` : 'Using the default details'}
+              </span>
+            </p>
+          )}
         </div>
         <button onClick={onClose} className={iconButton} aria-label="Close">
           <X className="h-4 w-4" aria-hidden="true" />
@@ -415,6 +574,36 @@ function SongPanel({ song, onClose, onChanged }: SongPanelProps) {
           </button>
         </div>
         <p className="text-xs text-adm-muted">Fills in the title, artist, album and artwork. Visitors see the title and artist in the song list.</p>
+
+        {playlist ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              ref={pictureInput}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              tabIndex={-1}
+              aria-label="Upload a picture"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = '';
+                if (file) uploadPicture(file);
+              }}
+            />
+            <button onClick={() => pictureInput.current?.click()} disabled={busy !== null} className={button}>
+              <ImagePlus className="h-4 w-4" aria-hidden="true" />
+              {busy === 'upload' ? 'Uploading…' : 'Upload a picture'}
+            </button>
+            {song.ownDetails && (
+              <button onClick={resetToDefault} disabled={busy !== null} className={button}>
+                <Undo2 className="h-4 w-4" aria-hidden="true" />
+                {busy === 'reset' ? 'Resetting…' : 'Reset to default'}
+              </button>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-adm-muted">To give a song its own picture, pick a playlist above first. JPEG, PNG or WebP, up to 5 MB.</p>
+        )}
 
         {results !== null && (
           results.length === 0 ? (

@@ -13,6 +13,7 @@ import {
   VisitorPageSettings,
 } from '@/components/admin/JukeboxSettings';
 import { accentButton, card, insetBox, notice, smallButton, tabClass } from '@/components/admin/ui-classes';
+import type { AdminPlaylist } from '@/lib/jukebox-playlists';
 import type { AdminSong, ChecklistItem, SongFilter } from '@/lib/jukebox-songs';
 import { formatDateTime } from '@/lib/time-utils';
 
@@ -43,7 +44,7 @@ export default function JukeboxSetup({ initialTab }: { initialTab?: string }) {
   const [cacheInfo, setCacheInfo] = useState<{ count: number; lastUpdated: string | null } | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
-  const [setup, setSetup] = useState<{ songs: AdminSong[]; checklist: ChecklistItem[] } | null>(null);
+  const [setup, setSetup] = useState<{ songs: AdminSong[]; checklist: ChecklistItem[]; playlists: AdminPlaylist[] } | null>(null);
   const [songFilter, setSongFilter] = useState<SongFilter>('all');
   const tabsRef = useRef<HTMLDivElement>(null);
   // Bumped after a save on the Visitor page tab so the preview frame reloads
@@ -216,6 +217,8 @@ export default function JukeboxSetup({ initialTab }: { initialTab?: string }) {
       <section aria-label="Songs" hidden={tab !== 'songs'}>
         <JukeboxSongs
           songs={setup?.songs ?? null}
+          playlists={setup?.playlists ?? []}
+          reloadKey={reloadKey}
           filter={songFilter}
           onFilterChange={setSongFilter}
           onChanged={fetchSetup}

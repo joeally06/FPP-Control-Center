@@ -6,9 +6,11 @@ import {
   buildSetupChecklist,
   findLocalAudio,
   listAdminSongs,
+  listPlaylistSongs,
   mediaNamesFromPlaylists,
   normalizeAudioName,
   readAudioState,
+  resolveSongDetails,
   songAudio,
   type AudioState,
   type SetupSummary,
@@ -38,6 +40,17 @@ const SCHEMA = `
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
     raw_data TEXT
+  );
+  CREATE TABLE jukebox_playlist_songs (
+    playlist_name TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    sequence_name TEXT NOT NULL,
+    title TEXT,
+    artist TEXT,
+    album TEXT,
+    art_url TEXT,
+    art_id INTEGER,
+    PRIMARY KEY (playlist_name, position)
   );
 `;
 
@@ -119,6 +132,46 @@ try {
   assert.strictEqual(songs[2].audioStatus, 'ready');
   assert.strictEqual(songs[2].audioFile, 'Wizards_In_Winter.mp3');
   print('Test 4 OK');
+
+  // Test 4b: a playlist's own details are laid over the song's defaults, field by field
+  print('Test 4b: resolveSongDetails / listPlaylistSongs');
+  const own = db.prepare('INSERT INTO jukebox_playlist_songs (playlist_name, position, sequence_name, title, artist, album, art_url) VALUES (?, ?, ?, ?, ?, ?, ?)');
+  own.run('Christmas 2026', 0, 'Song A', null, null, null, '/api/jukebox/song-art/5');            // only its own picture
+  own.run('Christmas 2026', 1, 'Brand New', 'Brand New (live)', 'The Band', null, null);          // not synced to the visitor cache yet
+  own.run('Christmas 2026', 2, 'Song B', null, null, null, null);                                 // nothing of its own
+  own.run('Classics', 0, 'Song A', 'Song A (classic cut)', null, null, null);
+
+  // Resolver: the playlist's value wins field by field, else the default, else nothing
+  assert.deepStrictEqual(resolveSongDetails(db, 'Christmas 2026', 'Song A'),
+    { title: 'Song A', artist: 'Artist', album: 'Album', albumArt: '/api/jukebox/song-art/5', hasOwn: true });
+  assert.deepStrictEqual(resolveSongDetails(db, 'Classics', 'Song A'),
+    { title: 'Song A (classic cut)', artist: 'Artist', album: 'Album', albumArt: 'https://i.scdn.co/a.jpg', hasOwn: true });
+  assert.deepStrictEqual(resolveSongDetails(db, null, 'Song A'),
+    { title: 'Song A', artist: 'Artist', album: 'Album', albumArt: 'https://i.scdn.co/a.jpg', hasOwn: false }, 'no playlist = the defaults');
+  assert.deepStrictEqual(resolveSongDetails(db, 'Christmas 2026', 'Song B'),
+    { title: null, artist: null, album: null, albumArt: null, hasOwn: false }, 'an empty default title is no title');
+  assert.deepStrictEqual(resolveSongDetails(db, 'Other', 'Song A').hasOwn, false, 'a playlist that does not hold the song has nothing of its own');
+  assert.deepStrictEqual(resolveSongDetails(db, 'Christmas 2026', 'Never Heard Of It'),
+    { title: null, artist: null, album: null, albumArt: null, hasOwn: false });
+
+  // The same song reads differently in two playlists
+  const christmas = listPlaylistSongs(db, 'Christmas 2026', audio);
+  assert.deepStrictEqual(christmas.map((song) => song.name), ['Song A', 'Brand New', 'Song B'], 'playlist order');
+  assert.deepStrictEqual([christmas[0].title, christmas[0].albumArt, christmas[0].ownDetails], ['Song A', '/api/jukebox/song-art/5', true]);
+  assert.deepStrictEqual(christmas[0].own, { title: null, artist: null, album: null, albumArt: '/api/jukebox/song-art/5' });
+  assert.deepStrictEqual(christmas[0].category, 'Rock', 'category and length still come from the song');
+  assert.deepStrictEqual([christmas[1].title, christmas[1].artist, christmas[1].audioStatus, christmas[1].ownDetails], ['Brand New (live)', 'The Band', 'needs-mapping', true], 'a song not in the visitor cache still lists');
+  assert.deepStrictEqual([christmas[2].title, christmas[2].ownDetails], [null, false]);
+  const classics = listPlaylistSongs(db, 'Classics', audio);
+  assert.deepStrictEqual([classics[0].title, classics[0].albumArt], ['Song A (classic cut)', 'https://i.scdn.co/a.jpg']);
+  assert.deepStrictEqual(listPlaylistSongs(db, 'Nothing', audio), []);
+  // A song matched on Spotify earlier but not in the visitor cache (an unscheduled playlist) still shows its default details
+  db.prepare("INSERT INTO spotify_metadata (sequence_name, track_name, artist_name, album_name, album_art_url) VALUES ('Last Season', 'Last Season Song', 'Old Band', 'Old Album', 'https://i.scdn.co/old.jpg')").run();
+  own.run('Archive', 0, 'Last Season', null, null, null, null);
+  const archive = listPlaylistSongs(db, 'Archive', audio);
+  assert.deepStrictEqual([archive[0].title, archive[0].artist, archive[0].albumArt, archive[0].ownDetails],
+    ['Last Season Song', 'Old Band', 'https://i.scdn.co/old.jpg', false]);
+  print('Test 4b OK');
 
   // Test 5: reading the mapping file and audio folder; missing ones are empty
   print('Test 5: readAudioState');

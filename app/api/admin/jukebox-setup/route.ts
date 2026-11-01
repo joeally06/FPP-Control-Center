@@ -3,15 +3,15 @@ import { requireAdminWithRateLimit } from '@/lib/auth-helpers';
 import { toErrorMessage } from '@/lib/api-errors';
 import db, { getActiveTheme, getCacheAge } from '@/lib/database';
 import { getSetting } from '@/lib/settings';
-import { activePlaylistNames, listVisitorPlaylists } from '@/lib/jukebox-playlists';
+import { activePlaylistNames, listAdminPlaylists, listVisitorPlaylists } from '@/lib/jukebox-playlists';
 import { buildSetupChecklist, listAdminSongs, readAudioState } from '@/lib/jukebox-songs';
 import { listThemeAssets } from '@/lib/theme-assets';
 import { THEME_PRESETS, normalizeThemeId } from '@/lib/themes/theme-config';
 
 /**
  * GET /api/admin/jukebox-setup
- * Every song visitors can request (details, category, phone audio) and the setup checklist
- * for Settings → Jukebox. Reads the database and the audio folder only. ADMIN ONLY.
+ * Every song visitors can request (details, category, phone audio), the playlists to pick from on the
+ * Songs tab, and the setup checklist for Settings → Jukebox. Reads the database and the audio folder only. ADMIN ONLY.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       rateLimit: parseInt(getSetting('jukebox_rate_limit') || '3', 10),
     });
 
-    return NextResponse.json({ songs, checklist });
+    return NextResponse.json({ songs, checklist, playlists: listAdminPlaylists(db) });
   } catch (error) {
     console.error('Error in GET /api/admin/jukebox-setup:', error);
     return NextResponse.json({ error: 'Failed to load the jukebox setup' }, { status: 500 });

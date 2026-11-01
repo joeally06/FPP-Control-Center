@@ -8,6 +8,7 @@ import {
   requestButtonState,
   songCategories,
   songDetailsLine,
+  songForPlaylist,
   sortByPlaylistOrder,
   type CatalogSong,
   type RequestButtonState,
@@ -82,9 +83,11 @@ export default function SongCatalog({
   const activePlaylist = playlists.length === 0
     ? null
     : chosenPlaylist && playlists.includes(chosenPlaylist) ? chosenPlaylist : defaultPlaylistChip(playlists, scheduledPlaylist);
+  // The active playlist's own title and artist, where the admin set them, replace the defaults (and are what search matches)
+  const shownSongs = useMemo(() => songs.map((song) => songForPlaylist(song, activePlaylist)), [songs, activePlaylist]);
   const filtered = useMemo(
-    () => sortByPlaylistOrder(filterSongs(songs, query, playlists.length > 0 ? null : activeCategory, activePlaylist), activePlaylist),
-    [songs, query, activeCategory, activePlaylist, playlists.length]
+    () => sortByPlaylistOrder(filterSongs(shownSongs, query, playlists.length > 0 ? null : activeCategory, activePlaylist), activePlaylist),
+    [shownSongs, query, activeCategory, activePlaylist, playlists.length]
   );
   const used = requestsRemaining === null ? 0 : Math.max(0, rateLimit - requestsRemaining);
 

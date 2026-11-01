@@ -33,7 +33,7 @@ const declaredIndexes = [...schemaSource.matchAll(/CREATE INDEX IF NOT EXISTS (\
 // Adding or removing a table or index on purpose means updating these.
 assert.deepStrictEqual([...declaredTables].sort(), [
   'cached_sequences', 'device_status', 'devices', 'display_profiles', 'display_schedule', 'fpp_models',
-  'jukebox_playlist_songs', 'jukebox_playlists', 'jukebox_queue', 'jukebox_rate_limit_resets', 'jukebox_song_details', 'location_restrictions',
+  'jukebox_playlist_songs', 'jukebox_playlists', 'jukebox_queue', 'jukebox_rate_limit_resets', 'jukebox_song_art', 'jukebox_song_details', 'location_restrictions',
   'model_photos', 'monitoring_schedule', 'page_views', 'queue_processor_state', 'santa_letter_confirmations',
   'santa_letters', 'sequence_metadata', 'sequence_requests', 'sessions', 'setup_checklist', 'theme_assets',
   'theme_settings', 'trivia_games', 'visitors', 'votes', 'youtube_videos',
@@ -74,6 +74,24 @@ const columns = (old.prepare('PRAGMA table_info(votes)').all() as Array<{ name: 
 for (const added of ['latitude', 'longitude', 'city', 'region', 'country_code', 'distance_from_show']) assert.ok(columns.includes(added), added);
 assert.strictEqual((old.prepare('SELECT COUNT(*) AS n FROM votes').get() as { n: number }).n, 1, 'existing votes are kept');
 old.close();
+
+// The show machine's database already has the migration 025 table, without the per-playlist detail columns
+print('Test 5b: a playlist-songs table from migration 025 gets the per-playlist detail columns, and keeps its rows');
+const afterMigration025 = databaseWithSettings();
+afterMigration025.exec(fs.readFileSync(path.join(migrationsDir, '025_jukebox_playlist_songs.sql'), 'utf-8'));
+afterMigration025.prepare("INSERT INTO jukebox_playlist_songs (playlist_name, position, sequence_name) VALUES ('Christmas', 0, 'Carol')").run();
+applySchema(afterMigration025);
+const songColumns = (afterMigration025.prepare('PRAGMA table_info(jukebox_playlist_songs)').all() as Array<{ name: string }>).map((c) => c.name);
+for (const added of ['title', 'artist', 'album', 'art_url', 'art_id']) assert.ok(songColumns.includes(added), added);
+assert.deepStrictEqual(afterMigration025.prepare('SELECT playlist_name, sequence_name, title, art_id FROM jukebox_playlist_songs').all(),
+  [{ playlist_name: 'Christmas', sequence_name: 'Carol', title: null, art_id: null }]);
+applySchema(afterMigration025); // a second start changes nothing and does not fail
+assert.strictEqual((afterMigration025.prepare('SELECT COUNT(*) AS n FROM jukebox_playlist_songs').get() as { n: number }).n, 1);
+// The migration files are idempotent too (the real runner applies them in order, then the app starts)
+afterMigration025.exec(fs.readFileSync(path.join(migrationsDir, '025_jukebox_playlist_songs.sql'), 'utf-8'));
+afterMigration025.exec(fs.readFileSync(path.join(migrationsDir, '026_jukebox_song_art.sql'), 'utf-8'));
+afterMigration025.exec(fs.readFileSync(path.join(migrationsDir, '026_jukebox_song_art.sql'), 'utf-8'));
+afterMigration025.close();
 
 print('Test 6: lib/database.ts opens the connection and calls applySchema; it holds no table definitions');
 const databaseSource = fs.readFileSync(path.join(root, 'lib', 'database.ts'), 'utf-8');

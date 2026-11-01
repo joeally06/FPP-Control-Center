@@ -9,6 +9,7 @@ import {
   findShowWindow,
   formatCountdown,
   isInDailyWindow,
+  playlistSeason,
   type FppScheduleEntry,
 } from '../lib/show-schedule';
 
@@ -211,6 +212,26 @@ try {
   assert.deepStrictEqual(names([entry('Holiday End', '18:00', '22:00', { startDate: '0000-12-11', endDate: 'Christmas' })], '2026-12-10'), ['Holiday End']);
   assert.deepStrictEqual(names([entry('Holiday Start', '18:00', '22:00', { startDate: 'Thanksgiving', endDate: '0000-01-06' })], '2026-12-10'), ['Holiday Start']);
   print('Test 10 OK');
+
+  // Test 11: where a playlist stands, for the admin's picker
+  print('Test 11: playlistSeason');
+  const calendar: FppScheduleEntry[] = [
+    entry('Now', '18:00', '22:00', { startDate: '2026-11-20', endDate: '2026-12-24' }),
+    entry('Soon', '18:00', '22:00', { startDate: '2026-12-11', endDate: '2026-12-24' }),
+    entry('Soon', '12:00', '14:00', { startDate: '2026-12-20', endDate: '2026-12-24' }),
+    entry('Over', '18:00', '22:00', { startDate: '2026-10-02', endDate: '2026-10-31' }),
+    entry('Off', '18:00', '22:00', { enabled: 0 }),
+    entry('Yearly', '18:00', '22:00', { startDate: '0000-12-20', endDate: '0000-12-31' }),
+  ];
+  const standing = (playlist: string) => playlistSeason(calendar, playlist, '2026-12-10');
+  assert.deepStrictEqual(standing('Now'), { status: 'in-season', startsOn: null });
+  assert.deepStrictEqual(standing('Soon'), { status: 'upcoming', startsOn: '2026-12-11' }, 'the earliest start ahead');
+  assert.deepStrictEqual(standing('Over'), { status: 'ended', startsOn: null });
+  assert.deepStrictEqual(standing('Off'), { status: 'not-scheduled', startsOn: null }, 'a disabled entry is not scheduled');
+  assert.deepStrictEqual(standing('Nowhere'), { status: 'not-scheduled', startsOn: null });
+  assert.deepStrictEqual(standing('Yearly'), { status: 'upcoming', startsOn: null }, 'a yearless start has no single date to show');
+  assert.deepStrictEqual(playlistSeason(calendar, 'Soon', '2026-12-11'), { status: 'in-season', startsOn: null }, 'from its start date on');
+  print('Test 11 OK');
 
   print('All tests passed');
 } catch (err) {

@@ -139,6 +139,80 @@ export function listAdminSongs(db: Database.Database, audio: AudioState): AdminS
   });
 }
 
+export interface ResolvedSongDetails {
+  title: string | null;
+  artist: string | null;
+  album: string | null;
+  albumArt: string | null;
+  /** True when the playlist has its own value for at least one of the fields */
+  hasOwn: boolean;
+}
+
+/**
+ * What to show for a song: the playlist's own value for each field, else the song's default details
+ * (Spotify match or hand edit, kept per sequence), else null. `playlist` null gives the defaults.
+ */
+export function resolveSongDetails(db: Database.Database, playlist: string | null, sequenceName: string): ResolvedSongDetails {
+  const own = playlist
+    ? db.prepare('SELECT title, artist, album, art_url FROM jukebox_playlist_songs WHERE playlist_name = ? AND sequence_name = ?')
+        .get(playlist, sequenceName) as { title: string | null; artist: string | null; album: string | null; art_url: string | null } | undefined
+    : undefined;
+  const base = db.prepare('SELECT track_name, artist_name, album_name, album_art_url FROM spotify_metadata WHERE sequence_name = ?')
+    .get(sequenceName) as { track_name: string | null; artist_name: string | null; album_name: string | null; album_art_url: string | null } | undefined;
+  return {
+    title: own?.title || base?.track_name || null,
+    artist: own?.artist || base?.artist_name || null,
+    album: own?.album || base?.album_name || null,
+    albumArt: own?.art_url || base?.album_art_url || null,
+    hasOwn: Boolean(own && (own.title || own.artist || own.album || own.art_url)),
+  };
+}
+
+/** A song as the admin sees it inside one playlist: the playlist's own details laid over the defaults. */
+export interface PlaylistAdminSong extends AdminSong {
+  /** True when this playlist has its own details for the song */
+  ownDetails: boolean;
+  /** Only what this playlist set itself (null = uses the default); the fields above show the result */
+  own: { title: string | null; artist: string | null; album: string | null; albumArt: string | null };
+}
+
+/** The songs of one playlist in play order, each with the playlist's own details laid over the song's defaults. */
+export function listPlaylistSongs(db: Database.Database, playlist: string, audio: AudioState): PlaylistAdminSong[] {
+  const known = new Map(listAdminSongs(db, audio).map((song) => [song.name, song]));
+  const playlists = db.prepare('SELECT raw_data FROM fpp_playlists WHERE raw_data IS NOT NULL').all() as { raw_data: string }[];
+  const mediaNames = mediaNamesFromPlaylists(playlists.map((row) => row.raw_data));
+  const rows = db.prepare(`
+    SELECT sequence_name, title, artist, album, art_url FROM jukebox_playlist_songs
+    WHERE playlist_name = ? ORDER BY position
+  `).all(playlist) as { sequence_name: string; title: string | null; artist: string | null; album: string | null; art_url: string | null }[];
+
+  return rows.map((row) => {
+    // A song FPP has not synced into the visitor cache yet still shows, with what is known about it
+    const mediaName = mediaNames.get(row.sequence_name) ?? null;
+    const defaults = resolveSongDetails(db, null, row.sequence_name);
+    const base: AdminSong = known.get(row.sequence_name) ?? {
+      name: row.sequence_name,
+      title: defaults.title,
+      artist: defaults.artist,
+      album: defaults.album,
+      albumArt: defaults.albumArt,
+      category: null,
+      durationSeconds: null,
+      mediaName,
+      ...songAudio(row.sequence_name, mediaName, audio),
+    };
+    return {
+      ...base,
+      title: row.title || base.title,
+      artist: row.artist || base.artist,
+      album: row.album || base.album,
+      albumArt: row.art_url || base.albumArt,
+      ownDetails: Boolean(row.title || row.artist || row.album || row.art_url),
+      own: { title: row.title || null, artist: row.artist || null, album: row.album || null, albumArt: row.art_url || null },
+    };
+  });
+}
+
 export type SetupTab = 'songs' | 'playlists' | 'rules' | 'visitor';
 export type SongFilter = 'all' | 'titles' | 'audio';
 

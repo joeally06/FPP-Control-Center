@@ -121,6 +121,13 @@ export function applySchema(db: Database.Database): void {
     // Jukebox queue - 'song' or 'playlist' (a playlist row keeps the playlist name in sequence_name)
     { table: 'jukebox_queue', column: 'request_kind', definition: "TEXT DEFAULT 'song'" },
 
+    // Playlist songs - details set for one playlist; empty = use the song's default details (also created below for new databases)
+    { table: 'jukebox_playlist_songs', column: 'title', definition: 'TEXT' },
+    { table: 'jukebox_playlist_songs', column: 'artist', definition: 'TEXT' },
+    { table: 'jukebox_playlist_songs', column: 'album', definition: 'TEXT' },
+    { table: 'jukebox_playlist_songs', column: 'art_url', definition: 'TEXT' },
+    { table: 'jukebox_playlist_songs', column: 'art_id', definition: 'INTEGER' },
+
     // Queue processor - when a request sent to FPP must have started by (epoch ms)
     { table: 'queue_processor_state', column: 'start_deadline', definition: 'INTEGER' },
     
@@ -200,13 +207,31 @@ export function applySchema(db: Database.Database): void {
     );
   `);
 
-  // Which songs each FPP playlist holds (also migration 025)
+  // Which songs each FPP playlist holds (also migration 025). title/artist/album/art_* are the details the admin set
+  // for that playlist only; the same columns are added to older databases by the loop above.
   db.exec(`
     CREATE TABLE IF NOT EXISTS jukebox_playlist_songs (
       playlist_name TEXT NOT NULL,
       position INTEGER NOT NULL,
       sequence_name TEXT NOT NULL,
+      title TEXT,
+      artist TEXT,
+      album TEXT,
+      art_url TEXT,
+      art_id INTEGER,
       PRIMARY KEY (playlist_name, position)
+    );
+  `);
+
+  // Pictures the admin uploaded for a song in a playlist, re-encoded to WebP (also migration 026)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS jukebox_song_art (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      mime_type TEXT NOT NULL,
+      width INTEGER NOT NULL,
+      height INTEGER NOT NULL,
+      data BLOB NOT NULL,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
 

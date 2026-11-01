@@ -5,16 +5,21 @@ import assert from 'assert';
 import { DateTime } from 'luxon';
 import {
   activePlaylistNames,
+  listAdminPlaylists,
   listJukeboxPlaylists,
+  listPlaylistSongOverrides,
   listThemeSongs,
   listVisitorPlaylists,
+  normalizePlaylistSongDetails,
   normalizePlaylistTheme,
   playlistDetails,
+  setPlaylistSongDetails,
   setPlaylistThemes,
   storeSchedule,
   syncJukeboxPlaylists,
   type PlaylistDetails,
 } from '../lib/jukebox-playlists';
+import { songArtIdFromUrl, songArtUrl } from '../lib/song-art-url';
 import { isRequestableSong } from '../lib/jukebox-catalog';
 import {
   addToQueueTransactional,
@@ -59,7 +64,20 @@ const SCHEMA = `
     playlist_name TEXT NOT NULL,
     position INTEGER NOT NULL,
     sequence_name TEXT NOT NULL,
+    title TEXT,
+    artist TEXT,
+    album TEXT,
+    art_url TEXT,
+    art_id INTEGER,
     PRIMARY KEY (playlist_name, position)
+  );
+  CREATE TABLE jukebox_song_art (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mime_type TEXT NOT NULL,
+    width INTEGER NOT NULL,
+    height INTEGER NOT NULL,
+    data BLOB NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
   CREATE TABLE settings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -311,6 +329,104 @@ try {
   db.prepare("UPDATE settings SET value = 'not json' WHERE key = 'fpp_schedule_json'").run();
   assert.strictEqual(activePlaylistNames(db, when), null, 'an unreadable copy filters nothing');
   print('Test 9 OK');
+
+  // Test 10: details set for one song in one playlist survive a sync, and reset goes back to the default
+  print('Test 10: per-playlist song details');
+  db.prepare('DELETE FROM jukebox_playlist_songs').run();
+  db.prepare('DELETE FROM jukebox_playlists').run();
+  syncJukeboxPlaylists(db, ['One', 'Two'], details([
+    ['One', { itemCount: 3, durationSeconds: null, songs: ['Carol', 'Wizards', 'Gone Soon'] }],
+    ['Two', { itemCount: 2, durationSeconds: null, songs: ['Wizards', 'Other'] }],
+  ]));
+  const addArt = () => Number(db.prepare("INSERT INTO jukebox_song_art (mime_type, width, height, data) VALUES ('image/webp', 512, 512, x'00')").run().lastInsertRowid);
+  const artRows = () => (db.prepare('SELECT id FROM jukebox_song_art ORDER BY id').all() as { id: number }[]).map((r) => r.id);
+  const rowOf = (playlist: string, sequence: string) =>
+    db.prepare('SELECT title, artist, album, art_url, art_id FROM jukebox_playlist_songs WHERE playlist_name = ? AND sequence_name = ?').get(playlist, sequence);
+
+  // The same song carries different details in two playlists
+  assert.strictEqual(setPlaylistSongDetails(db, 'One', 'Wizards', { title: 'Wizards (One)', artist: null, album: null, albumArt: 'https://i.scdn.co/one.jpg' }), true);
+  assert.strictEqual(setPlaylistSongDetails(db, 'Two', 'Wizards', { title: null, artist: 'Two Artist', album: null, albumArt: null }), true);
+  assert.deepStrictEqual(rowOf('One', 'Wizards'), { title: 'Wizards (One)', artist: null, album: null, art_url: 'https://i.scdn.co/one.jpg', art_id: null });
+  assert.deepStrictEqual(rowOf('Two', 'Wizards'), { title: null, artist: 'Two Artist', album: null, art_url: null, art_id: null });
+  assert.strictEqual(setPlaylistSongDetails(db, 'One', 'Not In It', { title: 'x', artist: null, album: null, albumArt: null }), false, 'a playlist cannot be given details for a song it does not hold');
+
+  // An uploaded picture is pointed at by its address; replacing it removes the old one; a picture that does not exist is refused
+  const artOne = addArt();
+  setPlaylistSongDetails(db, 'One', 'Carol', { title: null, artist: null, album: null, albumArt: songArtUrl(artOne) });
+  assert.deepStrictEqual(rowOf('One', 'Carol'), { title: null, artist: null, album: null, art_url: songArtUrl(artOne), art_id: artOne });
+  assert.deepStrictEqual(artRows(), [artOne]);
+  assert.throws(() => setPlaylistSongDetails(db, 'One', 'Carol', { title: null, artist: null, album: null, albumArt: songArtUrl(9999) }), /no longer exists/);
+  setPlaylistSongDetails(db, 'One', 'Carol', { title: null, artist: null, album: null, albumArt: 'https://i.scdn.co/c.jpg' });
+  assert.deepStrictEqual(artRows(), [], 'picking another picture drops the uploaded one');
+  const artTwo = addArt();
+  setPlaylistSongDetails(db, 'One', 'Carol', { title: 'Carol (One)', artist: null, album: null, albumArt: songArtUrl(artTwo) });
+  const artThree = addArt();
+  db.prepare("UPDATE jukebox_playlist_songs SET art_url = ?, art_id = ? WHERE playlist_name = 'One' AND sequence_name = 'Gone Soon'").run(songArtUrl(artThree), artThree);
+
+  // A sync keeps what was set, even when the playlist's order changes; songs that left lose theirs and their pictures
+  syncJukeboxPlaylists(db, ['One', 'Two'], details([
+    ['One', { itemCount: 3, durationSeconds: null, songs: ['Wizards', 'Carol', 'New Song'] }],
+  ]));
+  assert.deepStrictEqual(rowOf('One', 'Wizards'), { title: 'Wizards (One)', artist: null, album: null, art_url: 'https://i.scdn.co/one.jpg', art_id: null });
+  assert.deepStrictEqual(rowOf('One', 'Carol'), { title: 'Carol (One)', artist: null, album: null, art_url: songArtUrl(artTwo), art_id: artTwo });
+  assert.deepStrictEqual(rowOf('One', 'New Song'), { title: null, artist: null, album: null, art_url: null, art_id: null });
+  assert.strictEqual(rowOf('One', 'Gone Soon'), undefined);
+  assert.deepStrictEqual(artRows(), [artTwo], "the removed song's picture is deleted, the kept one stays");
+  assert.deepStrictEqual(rowOf('Two', 'Wizards'), { title: null, artist: 'Two Artist', album: null, art_url: null, art_id: null }, 'a playlist whose details failed is left alone');
+  // The order in the playlist is the new one
+  assert.deepStrictEqual((db.prepare("SELECT sequence_name FROM jukebox_playlist_songs WHERE playlist_name = 'One' ORDER BY position").all() as { sequence_name: string }[]).map((r) => r.sequence_name), ['Wizards', 'Carol', 'New Song']);
+
+  // The visitor list reads titles and artists per playlist
+  const overrides = listPlaylistSongOverrides(db, ['One', 'Two']);
+  assert.deepStrictEqual(overrides.get('One')?.get('Wizards'), { title: 'Wizards (One)', artist: null });
+  assert.deepStrictEqual(overrides.get('Two')?.get('Wizards'), { title: null, artist: 'Two Artist' });
+  assert.strictEqual(overrides.get('One')?.has('New Song'), false);
+
+  // Reset goes back to the default and frees the picture
+  assert.strictEqual(setPlaylistSongDetails(db, 'One', 'Carol', null), true);
+  assert.deepStrictEqual(rowOf('One', 'Carol'), { title: null, artist: null, album: null, art_url: null, art_id: null });
+  assert.deepStrictEqual(artRows(), []);
+
+  // A playlist that goes away from FPP takes its details with it
+  syncJukeboxPlaylists(db, ['One'], details([]));
+  assert.strictEqual(rowOf('Two', 'Wizards'), undefined);
+  print('Test 10 OK');
+
+  // Test 11: what the admin may type
+  print('Test 11: normalizePlaylistSongDetails');
+  assert.deepStrictEqual(normalizePlaylistSongDetails({ title: '  Carol   of the  Bells ', artist: '', album: null, albumArt: 'https://i.scdn.co/a.jpg' }),
+    { title: 'Carol of the Bells', artist: null, album: null, albumArt: 'https://i.scdn.co/a.jpg' });
+  assert.deepStrictEqual(normalizePlaylistSongDetails({ albumArt: songArtUrl(7) }).albumArt, songArtUrl(7));
+  assert.deepStrictEqual(normalizePlaylistSongDetails({}), { title: null, artist: null, album: null, albumArt: null });
+  for (const bad of [null, [], 'text', { title: 5 }, { title: 'x'.repeat(201) }, { artist: 'a\u0000b' },
+    { albumArt: 'http://insecure.example/a.jpg' }, { albumArt: 'javascript:alert(1)' }, { albumArt: '/some/other/path.png' },
+    { albumArt: '/api/jukebox/song-art/abc' }, { albumArt: `https://e.example/${'a'.repeat(500)}` }]) {
+    assert.throws(() => normalizePlaylistSongDetails(bad), `rejects ${JSON.stringify(bad)?.slice(0, 40)}`);
+  }
+  assert.strictEqual(songArtIdFromUrl('/api/jukebox/song-art/12'), 12);
+  for (const notOurs of ['/api/jukebox/song-art/0', '/api/jukebox/song-art/012', '/api/jukebox/song-art/1/2', '/api/jukebox/song-art/', 'https://x.example/api/jukebox/song-art/1', null, 5]) {
+    assert.strictEqual(songArtIdFromUrl(notOurs), null, `${String(notOurs)} is not ours`);
+  }
+  print('Test 11 OK');
+
+  // Test 12: the picker lists playlists with their songs and where they stand in the Scheduler
+  print('Test 12: listAdminPlaylists');
+  syncJukeboxPlaylists(db, ['One', 'Later', 'Empty'], details([
+    ['One', { itemCount: 3, durationSeconds: null, songs: ['A', 'B', 'C'] }],
+    ['Later', { itemCount: 1, durationSeconds: null, songs: ['D'] }],
+    ['Empty', { itemCount: 0, durationSeconds: null, songs: [] }],
+  ]));
+  setPlaylistThemes(db, [['One', 'christmas']]);
+  const today = DateTime.fromISO('2026-12-10T19:00:00', { zone: 'America/Chicago' });
+  assert.deepStrictEqual(listAdminPlaylists(db, today).map((p) => [p.name, p.songCount, p.season]), [['Later', 1, 'unknown'], ['One', 3, 'unknown']], 'no schedule stored yet; a playlist without songs is not listed');
+  db.prepare("DELETE FROM settings WHERE key = 'fpp_schedule_json'").run();
+  storeSchedule(db, [
+    { enabled: 1, day: 7, playlist: 'One', startTime: '18:00:00', endTime: '22:00:00', startDate: '2026-11-20', endDate: '2026-12-24' },
+    { enabled: 1, day: 7, playlist: 'Later', startTime: '18:00:00', endTime: '22:00:00', startDate: '2026-12-11', endDate: '2026-12-24' },
+  ]);
+  assert.deepStrictEqual(listAdminPlaylists(db, today).map((p) => [p.name, p.theme, p.season, p.startsOn]),
+    [['Later', null, 'upcoming', '2026-12-11'], ['One', 'christmas', 'in-season', null]]);
+  print('Test 12 OK');
 
   print('All tests passed');
 } catch (err) {

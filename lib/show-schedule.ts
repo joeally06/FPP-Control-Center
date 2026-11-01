@@ -108,6 +108,33 @@ export function activeSchedulePlaylists(entries: FppScheduleEntry[], today: stri
   return names;
 }
 
+export interface PlaylistSeason {
+  /** in-season: can run today · upcoming: starts later · ended: its dates are over · not-scheduled: no enabled entry */
+  status: 'in-season' | 'upcoming' | 'ended' | 'not-scheduled';
+  /** "YYYY-MM-DD" of the earliest start still ahead; null when it is not known (yearless start) or the playlist is not upcoming */
+  startsOn: string | null;
+}
+
+/** Where a playlist stands in FPP's Scheduler today, for the admin's playlist picker. `today` is "YYYY-MM-DD" in the show's timezone. */
+export function playlistSeason(entries: FppScheduleEntry[], playlist: string, today: string): PlaylistSeason {
+  const own = entries.filter((entry) => entry.enabled && entry.playlist === playlist);
+  if (own.length === 0) return { status: 'not-scheduled', startsOn: null };
+  if (own.some((entry) => inSeason(entry, today))) return { status: 'in-season', startsOn: null };
+
+  const starts = own
+    .map((entry) => parseScheduleDate(entry.startDate))
+    .filter((date): date is NonNullable<typeof date> => date !== null && !date.yearless && date.iso > today)
+    .map((date) => date.iso)
+    .sort();
+  if (starts.length > 0) return { status: 'upcoming', startsOn: starts[0] };
+
+  const yearlessAhead = own.some((entry) => {
+    const start = parseScheduleDate(entry.startDate);
+    return start !== null && start.yearless && today.slice(5) < start.monthDay;
+  });
+  return yearlessAhead ? { status: 'upcoming', startsOn: null } : { status: 'ended', startsOn: null };
+}
+
 /**
  * Is a scheduled show on now, and if not, when is the next one (within 14 days)?
  * `now` must be in the show's timezone (DateTime.now().setZone(APP_TIMEZONE)).

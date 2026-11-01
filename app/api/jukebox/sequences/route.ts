@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import db, { getActiveTheme, getCachedSongDetails, getCacheAge } from '@/lib/database';
 import type { CatalogSong } from '@/lib/jukebox-display';
-import { activePlaylistNames, listThemeSongs, type ThemeSongs } from '@/lib/jukebox-playlists';
+import { activePlaylistNames, listPlaylistSongOverrides, listThemeSongs, type ThemeSongs } from '@/lib/jukebox-playlists';
 import { normalizeThemeId } from '@/lib/themes/theme-config';
 
 interface CachedSongRow {
@@ -37,6 +37,15 @@ export async function GET() {
         category: row.category || null,
         ...(themeSongs.restricted ? songPlaylistFields(themeSongs, row.sequence_name) : {}),
       }));
+    // Titles and artists the admin set for a song in one playlist
+    const overrides = listPlaylistSongOverrides(db, themeSongs.playlists);
+    for (const song of songs) {
+      const byPlaylist = Object.fromEntries((song.playlists ?? []).flatMap((playlist) => {
+        const own = overrides.get(playlist)?.get(song.name);
+        return own ? [[playlist, own] as const] : [];
+      }));
+      if (Object.keys(byPlaylist).length > 0) song.byPlaylist = byPlaylist;
+    }
     const sequences = songs.map((song) => song.name);
     // A playlist just added to FPP's Scheduler has no synced songs until the admin syncs: no chip for it yet
     const playlists = themeSongs.playlists.filter((name) => songs.some((song) => song.playlists?.includes(name)));

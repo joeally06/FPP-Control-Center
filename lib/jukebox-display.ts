@@ -282,6 +282,15 @@ export interface CatalogSong {
   playlists?: string[];
   /** Where the song sits in each of `playlists` (same order, 0 = first) */
   playlistPositions?: number[];
+  /** Title and artist the admin set for this song in a playlist; only playlists that have some */
+  byPlaylist?: Record<string, { title: string | null; artist: string | null }>;
+}
+
+/** The song as one playlist shows it: that playlist's own title and artist where the admin set them. */
+export function songForPlaylist(song: CatalogSong, playlist: string | null): CatalogSong {
+  const own = playlist ? song.byPlaylist?.[playlist] : undefined;
+  if (!own) return song;
+  return { ...song, title: own.title || song.title, artist: own.artist || song.artist };
 }
 
 export const MAX_CATEGORY_LENGTH = 30;
