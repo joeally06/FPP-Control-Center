@@ -55,7 +55,9 @@ export default function ThemeSettings({ onSaved }: { onSaved?: () => void }) {
   }, []);
 
   useEffect(() => {
-    loadThemes();
+    // Start after this render, not during the effect body (React flags state updates made synchronously in an effect)
+    const id = setTimeout(loadThemes, 0);
+    return () => clearTimeout(id);
   }, [loadThemes]);
 
   const say = (themeId: ThemeId, type: Feedback['type'], text: string) =>

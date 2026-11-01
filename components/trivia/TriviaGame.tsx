@@ -76,7 +76,9 @@ export default function TriviaGame() {
 
   // Remember the visitor's name between games
   useEffect(() => {
-    setNameInput(localStorage.getItem(NAME_KEY) || '');
+    // The saved name needs the browser, so it is read after the first render
+    const id = setTimeout(() => setNameInput(localStorage.getItem(NAME_KEY) || ''), 0);
+    return () => clearTimeout(id);
   }, []);
 
   async function loadQuestion(gameToken: string) {

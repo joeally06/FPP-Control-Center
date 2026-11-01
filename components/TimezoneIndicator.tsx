@@ -1,32 +1,29 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useSyncExternalStore } from 'react';
+
+function formatNow(): string {
+  const now = new Date();
+  return now.toLocaleString('en-US', {
+    timeZone: process.env.NEXT_PUBLIC_TIMEZONE || 'America/Chicago',
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+    timeZoneName: 'short'
+  });
+}
+
+// Ticks once a second. The server renders no time (it would be the server's clock), so the first frame is "Loading..."
+function subscribeToClock(onTick: () => void) {
+  const interval = setInterval(onTick, 1000);
+  return () => clearInterval(interval);
+}
 
 export default function TimezoneIndicator() {
-  const [time, setTime] = useState<string>('');
-  const [mounted, setMounted] = useState(false);
+  const time = useSyncExternalStore(subscribeToClock, formatNow, () => '');
 
-  const updateTime = () => {
-    const now = new Date();
-    const timeStr = now.toLocaleString('en-US', {
-      timeZone: process.env.NEXT_PUBLIC_TIMEZONE || 'America/Chicago',
-      hour: 'numeric',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true,
-      timeZoneName: 'short'
-    });
-    setTime(timeStr);
-  };
-
-  useEffect(() => {
-    setMounted(true);
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  if (!mounted) {
+  if (!time) {
     return <div className="text-white/70 text-sm font-mono">Loading...</div>;
   }
 

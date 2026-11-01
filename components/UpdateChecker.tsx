@@ -421,8 +421,12 @@ export default function UpdateChecker() {
 
   // Initial fetch
   useEffect(() => {
-    fetchStatus();
-    checkForUpdates();
+    // Start after this render, not during the effect body (React flags state updates made synchronously in an effect)
+    const firstLoads = setTimeout(() => {
+      fetchStatus();
+      checkForUpdates();
+    }, 0);
+    return () => clearTimeout(firstLoads);
   }, []);
 
   // Get status display

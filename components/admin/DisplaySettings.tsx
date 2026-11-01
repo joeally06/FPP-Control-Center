@@ -67,7 +67,9 @@ export default function DisplaySettings({ initialTab }: { initialTab?: string })
         setLoadFailed(true);
         setLoading(false);
       });
-    fetchRules();
+    // Start after this render, not during the effect body (React flags state updates made synchronously in an effect)
+    const rulesLoad = setTimeout(fetchRules, 0);
+    return () => clearTimeout(rulesLoad);
   }, [fetchRules]);
 
   // Closing the page with unsaved edits would lose them

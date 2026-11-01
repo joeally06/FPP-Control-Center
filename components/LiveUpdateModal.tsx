@@ -25,6 +25,18 @@ export default function LiveUpdateModal({ isOpen, onClose }: LiveUpdateModalProp
   const eventSourceRef = useRef<EventSource | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Start each opening with a clean log. Resetting while rendering, when isOpen changes, avoids a second render after an effect
+  const [wasOpen, setWasOpen] = useState(false);
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen);
+    if (isOpen) {
+      setOutput(['🔄 Connecting to update stream...', '']);
+      setIsComplete(false);
+      setHasError(false);
+      setAutoCloseCountdown(null);
+    }
+  }
+
   // Start auto-reload countdown
   const startAutoReloadCountdown = () => {
     let countdown = 5;
@@ -129,12 +141,6 @@ export default function LiveUpdateModal({ isOpen, onClose }: LiveUpdateModalProp
   // Effect: Connect to stream when modal opens
   useEffect(() => {
     if (!isOpen) return;
-
-    // Reset state
-    setOutput(['🔄 Connecting to update stream...', '']);
-    setIsComplete(false);
-    setHasError(false);
-    setAutoCloseCountdown(null);
 
     // Connect to SSE stream
     connectToStream();

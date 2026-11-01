@@ -43,10 +43,14 @@ export default function AlertsPanel() {
   };
 
   useEffect(() => {
-    fetchAlerts();
+    // Start after this render, not during the effect body (React flags state updates made synchronously in an effect)
+    const firstLoad = setTimeout(fetchAlerts, 0);
     // Refresh alerts every 30 seconds
     const interval = setInterval(fetchAlerts, TIMING.POLL_INTERVAL_SLOW);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(firstLoad);
+      clearInterval(interval);
+    };
   }, []);
 
   if (loading) {

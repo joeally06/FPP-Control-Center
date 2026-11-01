@@ -169,9 +169,13 @@ export default function SantaLetterSettings() {
       }
     };
     
-    loadSettings();
-    // Also fetch available models on mount
-    fetchAvailableModels();
+    // Start after this render, not during the effect body (React flags state updates made synchronously in an effect)
+    const firstLoads = setTimeout(() => {
+      loadSettings();
+      // Also fetch available models on mount
+      fetchAvailableModels();
+    }, 0);
+    return () => clearTimeout(firstLoads);
   }, []);
 
   const handleSave = async () => {

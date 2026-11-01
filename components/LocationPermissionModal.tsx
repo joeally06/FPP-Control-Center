@@ -110,19 +110,23 @@ export default function LocationPermissionModal({
   const [rememberDevice, setRememberDevice] = useState(true);
   const [deviceType, setDeviceType] = useState<'ios' | 'android' | 'desktop'>('desktop');
 
-  // Detect device type on mount
+  // Detect device type on mount (it needs the browser, so it is read after the first render)
   useEffect(() => {
-    setDeviceType(getDeviceType());
+    const id = setTimeout(() => setDeviceType(getDeviceType()), 0);
+    return () => clearTimeout(id);
   }, []);
 
-  // Handle visibility based on isOpen prop (lazy trigger)
-  useEffect(() => {
+  // Show the modal each time isOpen turns on (lazy trigger). Resetting while rendering, when the prop changes,
+  // avoids a second render after an effect
+  const [wasOpen, setWasOpen] = useState(false);
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen);
     if (isOpen) {
       setIsVisible(true);
       setStage('explain');
       setErrorMessage(null);
     }
-  }, [isOpen]);
+  }
 
   const closeModal = useCallback(() => {
     setIsVisible(false);

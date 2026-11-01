@@ -110,9 +110,13 @@ export default function CircuitBreakerWidget() {
   // Auto-refresh every 5 seconds
   useEffect(() => {
     if (session?.user?.role === 'admin') {
-      fetchStats();
+      // Start after this render, not during the effect body (React flags state updates made synchronously in an effect)
+      const firstLoad = setTimeout(fetchStats, 0);
       const interval = setInterval(fetchStats, TIMING.POLL_INTERVAL_FAST);
-      return () => clearInterval(interval);
+      return () => {
+        clearTimeout(firstLoad);
+        clearInterval(interval);
+      };
     }
   }, [session]);
 

@@ -234,13 +234,19 @@ export default function DeviceStatusPage() {
   }
 
   useEffect(() => {
-    loadDeviceStatuses();
-    loadSchedule();
+    // Start after this render, not during the effect body (React flags state updates made synchronously in an effect)
+    const firstLoads = setTimeout(() => {
+      loadDeviceStatuses();
+      loadSchedule();
+    }, 0);
     
     // Auto-refresh every 30 seconds
     const interval = setInterval(loadDeviceStatuses, TIMING.POLL_INTERVAL_SLOW);
     
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(firstLoads);
+      clearInterval(interval);
+    };
   }, []);
 
   // Card border for a device: disabled or not checked yet, online, offline

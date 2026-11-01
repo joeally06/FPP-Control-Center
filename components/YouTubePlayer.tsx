@@ -69,8 +69,9 @@ export function YouTubePlayer({
   useEffect(() => {
     // Check if API is already loaded
     if (window.YT && window.YT.Player) {
-      setIsAPIReady(true);
-      return;
+      // Start after this render, not during the effect body (React flags state updates made synchronously in an effect)
+      const id = setTimeout(() => setIsAPIReady(true), 0);
+      return () => clearTimeout(id);
     }
 
     // Check if script is already loading

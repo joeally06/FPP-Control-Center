@@ -77,7 +77,9 @@ export default function DatabaseSettings() {
 
   // Load stats on component mount
   useEffect(() => {
-    fetchStats();
+    // Start after this render, not during the effect body (React flags state updates made synchronously in an effect)
+    const id = setTimeout(fetchStats, 0);
+    return () => clearTimeout(id);
   }, []);
 
   return (

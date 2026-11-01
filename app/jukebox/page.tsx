@@ -137,7 +137,7 @@ export default function JukeboxPage() {
   }, [userLocation, showLocation, distanceFromShow, withinRange, locationRestrictionsEnabled]);
 
   // Restore cached location from localStorage on mount
-  useEffect(() => {
+  const restoreCachedLocation = () => {
     // Try localStorage first (persistent)
     const cachedLocation = getCachedLocation();
     const storedStatus = getStoredPermissionStatus();
@@ -174,6 +174,12 @@ export default function JukeboxPage() {
         setLocationPermissionStatus(sessionPermission as 'granted' | 'denied' | 'skipped');
       }
     }
+  };
+
+  useEffect(() => {
+    // Start after this render, not during the effect body (React flags state updates made synchronously in an effect)
+    const id = setTimeout(restoreCachedLocation, 0);
+    return () => clearTimeout(id);
   }, []);
 
   // Check browser's actual geolocation permission on mount (when restrictions enabled)
@@ -394,9 +400,6 @@ export default function JukeboxPage() {
     if (!userLocation || !showLocation) return;
 
     let cancelled = false;
-    // Don't keep showing the old badge for a position that has changed
-    setDistanceFromShow(null);
-    setWithinRange(null);
     (async () => {
       try {
         const response = await fetch('/api/location-restrictions/check', {
@@ -415,7 +418,12 @@ export default function JukeboxPage() {
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      // Don't keep showing the old badge for a position that has changed
+      setDistanceFromShow(null);
+      setWithinRange(null);
+    };
   }, [userLocation, showLocation]);
 
   const fetchData = async () => {
@@ -756,14 +764,18 @@ export default function JukeboxPage() {
   };
 
   useEffect(() => {
-    if (currentlyPlaying?.media_name) {
-      fetchMetadata(currentlyPlaying.media_name);
-    } else if (currentlyPlaying?.sequence_name) {
-      // Fallback to sequence name if media name not available
-      fetchMetadata(currentlyPlaying.sequence_name);
-    } else {
-      setCurrentMetadata(null);
-    }
+    // Start after this render, not during the effect body (React flags state updates made synchronously in an effect)
+    const id = setTimeout(() => {
+      if (currentlyPlaying?.media_name) {
+        fetchMetadata(currentlyPlaying.media_name);
+      } else if (currentlyPlaying?.sequence_name) {
+        // Fallback to sequence name if media name not available
+        fetchMetadata(currentlyPlaying.sequence_name);
+      } else {
+        setCurrentMetadata(null);
+      }
+    }, 0);
+    return () => clearTimeout(id);
   }, [currentlyPlaying?.media_name, currentlyPlaying?.sequence_name]);
 
   // Determine if interactive features should be shown
