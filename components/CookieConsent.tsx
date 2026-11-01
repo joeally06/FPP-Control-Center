@@ -8,6 +8,15 @@ export default function CookieConsent() {
   const [showBanner, setShowBanner] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
+  const applyConsent = (consent: { analytics?: boolean }) => {
+    if (consent.analytics === false) {
+      // Disable analytics tracking
+      if (typeof window !== 'undefined') {
+        window.disableAnalytics = true;
+      }
+    }
+  };
+
   useEffect(() => {
     // Check if user has already made a choice
     const consent = localStorage.getItem('cookie-consent');
@@ -19,15 +28,6 @@ export default function CookieConsent() {
       applyConsent(JSON.parse(consent));
     }
   }, []);
-
-  const applyConsent = (consent: { analytics?: boolean }) => {
-    if (consent.analytics === false) {
-      // Disable analytics tracking
-      if (typeof window !== 'undefined') {
-        window.disableAnalytics = true;
-      }
-    }
-  };
 
   const handleAcceptAll = () => {
     const consent = {

@@ -42,22 +42,21 @@ export default function UserEngagementPanel() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const fetchEngagement = async () => {
+      try {
+        const response = await fetch('/api/analytics/engagement');
+        if (response.ok) {
+          const data = await response.json();
+          setEngagementData(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch engagement data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchEngagement();
   }, []);
-
-  const fetchEngagement = async () => {
-    try {
-      const response = await fetch('/api/analytics/engagement');
-      if (response.ok) {
-        const data = await response.json();
-        setEngagementData(data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch engagement data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const formatDuration = (seconds: number) => {
     if (seconds < 60) return `${seconds}s`;

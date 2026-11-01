@@ -25,6 +25,24 @@ export default function LiveUpdateModal({ isOpen, onClose }: LiveUpdateModalProp
   const eventSourceRef = useRef<EventSource | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Start auto-reload countdown
+  const startAutoReloadCountdown = () => {
+    let countdown = 5;
+    setAutoCloseCountdown(countdown);
+
+    countdownIntervalRef.current = setInterval(() => {
+      countdown--;
+      setAutoCloseCountdown(countdown);
+
+      if (countdown <= 0) {
+        if (countdownIntervalRef.current) {
+          clearInterval(countdownIntervalRef.current);
+        }
+        window.location.reload();
+      }
+    }, 1000);
+  };
+
   // Connect to SSE stream for live updates
   const connectToStream = useCallback(() => {
     if (eventSourceRef.current) {
@@ -107,24 +125,6 @@ export default function LiveUpdateModal({ isOpen, onClose }: LiveUpdateModalProp
       console.log('[LiveUpdateModal] Stream error - may be restarting');
     };
   }, []);
-
-  // Start auto-reload countdown
-  const startAutoReloadCountdown = () => {
-    let countdown = 5;
-    setAutoCloseCountdown(countdown);
-    
-    countdownIntervalRef.current = setInterval(() => {
-      countdown--;
-      setAutoCloseCountdown(countdown);
-      
-      if (countdown <= 0) {
-        if (countdownIntervalRef.current) {
-          clearInterval(countdownIntervalRef.current);
-        }
-        window.location.reload();
-      }
-    }, 1000);
-  };
 
   // Effect: Connect to stream when modal opens
   useEffect(() => {

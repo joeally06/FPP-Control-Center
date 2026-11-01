@@ -25,36 +25,28 @@ export default function LetterToSantaModal({ isOpen, onClose }: LetterToSantaMod
   // Fetch daily limit when modal opens
   useEffect(() => {
     if (isOpen) {
+      const fetchDailyLimit = async () => {
+        try {
+          // Use public endpoint instead of admin-only settings
+          const response = await fetch('/api/santa/settings');
+          if (response.ok) {
+            const data = await response.json();
+            setDailyLimit(data.limit || 1);
+            console.log('[Santa Modal] Daily limit fetched:', data.limit);
+          } else {
+            console.warn('[Santa Modal] Failed to fetch limit, using default');
+            setDailyLimit(1);
+          }
+        } catch (error) {
+          console.error('[Santa Modal] Failed to fetch daily limit:', error);
+          setDailyLimit(1);
+        } finally {
+          setLoadingLimit(false);
+        }
+      };
       fetchDailyLimit();
     }
   }, [isOpen]);
-
-  // Check letter count when email changes
-  useEffect(() => {
-    if (isOpen && parentEmail && parentEmail.includes('@')) {
-      checkLetterCount();
-    }
-  }, [isOpen, parentEmail]);
-
-  const fetchDailyLimit = async () => {
-    try {
-      // Use public endpoint instead of admin-only settings
-      const response = await fetch('/api/santa/settings');
-      if (response.ok) {
-        const data = await response.json();
-        setDailyLimit(data.limit || 1);
-        console.log('[Santa Modal] Daily limit fetched:', data.limit);
-      } else {
-        console.warn('[Santa Modal] Failed to fetch limit, using default');
-        setDailyLimit(1);
-      }
-    } catch (error) {
-      console.error('[Santa Modal] Failed to fetch daily limit:', error);
-      setDailyLimit(1);
-    } finally {
-      setLoadingLimit(false);
-    }
-  };
 
   const checkLetterCount = async () => {
     if (!parentEmail || !parentEmail.includes('@')) return;
@@ -79,6 +71,15 @@ export default function LetterToSantaModal({ isOpen, onClose }: LetterToSantaMod
       console.error('Failed to check letter count:', error);
     }
   };
+
+  // Check letter count when email changes
+  useEffect(() => {
+    if (isOpen && parentEmail && parentEmail.includes('@')) {
+      // Start after this render, not during the effect body (React flags state updates made synchronously in an effect)
+      const id = setTimeout(checkLetterCount, 0);
+      return () => clearTimeout(id);
+    }
+  }, [isOpen, parentEmail]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

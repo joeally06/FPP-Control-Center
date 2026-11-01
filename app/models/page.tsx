@@ -50,10 +50,6 @@ export default function ModelsPage() {
     });
   };
 
-  useEffect(() => {
-    fetchModels();
-  }, []);
-
   const fetchModels = async () => {
     try {
       const res = await fetch('/api/models');
@@ -66,6 +62,12 @@ export default function ModelsPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Start after this render, not during the effect body (React flags state updates made synchronously in an effect)
+    const id = setTimeout(fetchModels, 0);
+    return () => clearTimeout(id);
+  }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

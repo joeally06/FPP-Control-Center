@@ -6,13 +6,6 @@ export default function TimezoneIndicator() {
   const [time, setTime] = useState<string>('');
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
   const updateTime = () => {
     const now = new Date();
     const timeStr = now.toLocaleString('en-US', {
@@ -25,6 +18,13 @@ export default function TimezoneIndicator() {
     });
     setTime(timeStr);
   };
+
+  useEffect(() => {
+    setMounted(true);
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   if (!mounted) {
     return <div className="text-white/70 text-sm font-mono">Loading...</div>;

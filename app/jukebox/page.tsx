@@ -365,9 +365,28 @@ export default function JukeboxPage() {
     }
   }, [userLocation, locationPermissionStatus, locationRestrictionsEnabled]);
 
+  const fetchYouTubeVideos = async () => {
+    try {
+      setLoadingYouTubeVideos(true);
+      const response = await fetch('/api/jukebox/videos');
+      if (response.ok) {
+        const data = await response.json();
+        const videos = data.videos || [];
+        setYoutubeVideos(videos);
+        // Don't auto-select - let user choose which video to play
+      }
+    } catch (error) {
+      console.error('Failed to fetch YouTube videos:', error);
+    } finally {
+      setLoadingYouTubeVideos(false);
+    }
+  };
+
   // Re-fetch YouTube videos when theme changes
   useEffect(() => {
-    fetchYouTubeVideos();
+    // Start after this render, not during the effect body (React flags state updates made synchronously in an effect)
+    const id = setTimeout(fetchYouTubeVideos, 0);
+    return () => clearTimeout(id);
   }, [theme.id]);
 
   // Ask the server how far the visitor is from the show (it keeps the show's coordinates private)
@@ -399,74 +418,6 @@ export default function JukeboxPage() {
     return () => { cancelled = true; };
   }, [userLocation, showLocation]);
 
-  useEffect(() => {
-    fetchAvailableSequences();
-    fetchPlaylists();
-    fetchData();
-    fetchYouTubeVideos();
-    fetchScheduleStatus(); // Check schedule status
-    fetchJukeboxSettings(); // Fetch jukebox rate limit, insert mode, and visitor page settings
-    fetchLocationRestrictions(); // Fetch location settings for distance calculation
-
-    const interval = setInterval(fetchData, TIMING.POLL_INTERVAL_FAST);
-    const scheduleInterval = setInterval(fetchScheduleStatus, TIMING.POLL_INTERVAL_SLOW);
-
-    // Refresh request status to keep it up to date
-    const requestStatusInterval = setInterval(() => {
-      if (jukeboxRateLimit > 0) {
-        fetchRequestStatus();
-      }
-    }, TIMING.POLL_INTERVAL_MEDIUM);
-
-    // Admin-only background operations
-    let cacheRefreshInterval: NodeJS.Timeout | undefined;
-
-    if (isAdmin) {
-      // Background cache refresh every 10 minutes (admin only)
-      cacheRefreshInterval = setInterval(async () => {
-        try {
-          const response = await fetch('/api/jukebox/refresh-cache', { method: 'POST' });
-          const data = await response.json();
-
-          if (data.success) {
-            console.log(`[Jukebox] Background cache refresh: ${data.sequencesCached} sequences cached`);
-          } else {
-            // Only log if not offline (reduce console spam)
-            if (data.error !== 'FPP is offline') {
-              console.warn('[Jukebox] Background cache refresh failed:', data.error);
-            }
-          }
-        } catch (error) {
-          // Silently fail for background refreshes to avoid console spam
-          // Only log if it's not a timeout/abort error
-          if (error instanceof Error && error.name !== 'AbortError') {
-            console.error('Background cache refresh failed:', error);
-          }
-        }
-      }, 10 * 60 * 1000); // 10 minutes
-    }
-
-    // ✅ MEMORY LEAK FIX: Clear all intervals on unmount
-    return () => {
-      clearInterval(interval);
-      clearInterval(scheduleInterval);
-      clearInterval(requestStatusInterval);
-      if (cacheRefreshInterval) clearInterval(cacheRefreshInterval);
-    };
-  }, [isAdmin]);
-
-  // Latest fetchData for the song-change refresh above, which lives in a mount-once effect
-  useEffect(() => {
-    fetchDataRef.current = fetchData;
-  });
-
-  // Bring the player into view when it opens (it sits under Now Playing, which may be below the fold)
-  useEffect(() => {
-    if (!listening) return;
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    playerRef.current?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest' });
-  }, [listening]);
-
   const fetchData = async () => {
     try {
       const [queueRes, statusRes] = await Promise.all([
@@ -485,23 +436,6 @@ export default function JukeboxPage() {
       }
     } catch (error) {
       console.error('Error fetching data:', error);
-    }
-  };
-
-  const fetchYouTubeVideos = async () => {
-    try {
-      setLoadingYouTubeVideos(true);
-      const response = await fetch('/api/jukebox/videos');
-      if (response.ok) {
-        const data = await response.json();
-        const videos = data.videos || [];
-        setYoutubeVideos(videos);
-        // Don't auto-select - let user choose which video to play
-      }
-    } catch (error) {
-      console.error('Failed to fetch YouTube videos:', error);
-    } finally {
-      setLoadingYouTubeVideos(false);
     }
   };
 
@@ -626,6 +560,78 @@ export default function JukeboxPage() {
       console.error('[Jukebox] Error fetching playlists:', error);
     }
   };
+
+  useEffect(() => {
+    // Start after this render, not during the effect body (React flags state updates made synchronously in an effect)
+    const firstLoads = setTimeout(() => {
+      fetchAvailableSequences();
+      fetchPlaylists();
+      fetchData();
+      fetchYouTubeVideos();
+      fetchScheduleStatus(); // Check schedule status
+      fetchJukeboxSettings(); // Fetch jukebox rate limit, insert mode, and visitor page settings
+      fetchLocationRestrictions(); // Fetch location settings for distance calculation
+    }, 0);
+
+    const interval = setInterval(fetchData, TIMING.POLL_INTERVAL_FAST);
+    const scheduleInterval = setInterval(fetchScheduleStatus, TIMING.POLL_INTERVAL_SLOW);
+
+    // Refresh request status to keep it up to date
+    const requestStatusInterval = setInterval(() => {
+      if (jukeboxRateLimit > 0) {
+        fetchRequestStatus();
+      }
+    }, TIMING.POLL_INTERVAL_MEDIUM);
+
+    // Admin-only background operations
+    let cacheRefreshInterval: NodeJS.Timeout | undefined;
+
+    if (isAdmin) {
+      // Background cache refresh every 10 minutes (admin only)
+      cacheRefreshInterval = setInterval(async () => {
+        try {
+          const response = await fetch('/api/jukebox/refresh-cache', { method: 'POST' });
+          const data = await response.json();
+
+          if (data.success) {
+            console.log(`[Jukebox] Background cache refresh: ${data.sequencesCached} sequences cached`);
+          } else {
+            // Only log if not offline (reduce console spam)
+            if (data.error !== 'FPP is offline') {
+              console.warn('[Jukebox] Background cache refresh failed:', data.error);
+            }
+          }
+        } catch (error) {
+          // Silently fail for background refreshes to avoid console spam
+          // Only log if it's not a timeout/abort error
+          if (error instanceof Error && error.name !== 'AbortError') {
+            console.error('Background cache refresh failed:', error);
+          }
+        }
+      }, 10 * 60 * 1000); // 10 minutes
+    }
+
+    // ✅ MEMORY LEAK FIX: Clear all intervals on unmount
+    return () => {
+      clearTimeout(firstLoads);
+      clearInterval(interval);
+      clearInterval(scheduleInterval);
+      clearInterval(requestStatusInterval);
+      if (cacheRefreshInterval) clearInterval(cacheRefreshInterval);
+    };
+  }, [isAdmin]);
+
+  // Latest fetchData for the song-change refresh above, which lives in a mount-once effect
+  useEffect(() => {
+    fetchDataRef.current = fetchData;
+  });
+
+  // Bring the player into view when it opens (it sits under Now Playing, which may be below the fold)
+  useEffect(() => {
+    if (!listening) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    playerRef.current?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest' });
+  }, [listening]);
 
   // Helper function to submit a request (can be called directly or as pending action)
   // locationOverride is passed when called from handleLocationGranted (before state updates)

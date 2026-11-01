@@ -112,39 +112,37 @@ function SiteAnalytics() {
   const [activeTab, setActiveTab] = useState<'sequences' | 'playlists' | 'pages' | 'santa'>('sequences');
 
   useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        const response = await fetch(`/api/analytics?range=${timeRange}`);
+        const result = await response.json();
+        
+        console.log('[Analytics] Response status:', response.status);
+        console.log('[Analytics] Response data:', result);
+        
+        if (!response.ok) {
+          console.error('[Analytics] API error:', result.error || 'Unknown error');
+          alert(`Failed to load analytics: ${result.error || 'Unknown error'}`);
+          return;
+        }
+        
+        if (!result.data) {
+          console.error('[Analytics] No data in response:', result);
+          alert('No analytics data received from server');
+          return;
+        }
+        
+        console.log('[Analytics] Top sequences:', result.data.topContent.sequences);
+        setData(result.data);
+      } catch (error) {
+        console.error('[Analytics] Failed to fetch analytics:', error);
+        alert(`Error loading analytics: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchAnalytics();
   }, [timeRange]);
-
-  const fetchAnalytics = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/analytics?range=${timeRange}`);
-      const result = await response.json();
-      
-      console.log('[Analytics] Response status:', response.status);
-      console.log('[Analytics] Response data:', result);
-      
-      if (!response.ok) {
-        console.error('[Analytics] API error:', result.error || 'Unknown error');
-        alert(`Failed to load analytics: ${result.error || 'Unknown error'}`);
-        return;
-      }
-      
-      if (!result.data) {
-        console.error('[Analytics] No data in response:', result);
-        alert('No analytics data received from server');
-        return;
-      }
-      
-      console.log('[Analytics] Top sequences:', result.data.topContent.sequences);
-      setData(result.data);
-    } catch (error) {
-      console.error('[Analytics] Failed to fetch analytics:', error);
-      alert(`Error loading analytics: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const exportData = async (format: 'csv' | 'json' | 'pdf') => {
     try {
@@ -351,7 +349,12 @@ function SiteAnalytics() {
             {([['7d', 'Last 7 Days'], ['30d', 'Last 30 Days']] as const).map(([range, label]) => (
               <button
                 key={range}
-                onClick={() => setTimeRange(range)}
+                onClick={() => {
+                  if (range !== timeRange) {
+                    setTimeRange(range);
+                    setLoading(true);
+                  }
+                }}
                 aria-pressed={timeRange === range}
                 className={`min-h-9 rounded-lg px-3.5 text-sm font-medium transition-colors ${
                   timeRange === range

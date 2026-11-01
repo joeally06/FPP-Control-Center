@@ -130,20 +130,6 @@ export default function AudioSyncPlayer({ onClose }: AudioSyncPlayerProps) {
     return () => clearInterval(interval);
   }, [syncState?.isPlaying, isManuallyPaused, syncAudio]);
 
-  // EventSource (SSE) connection
-  useEffect(() => {
-    connectEventSource();
-
-    return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-    };
-  }, []);
-
   const connectEventSource = () => {
     try {
       const eventSource = new EventSource('/api/audio/sync');
@@ -176,6 +162,20 @@ export default function AudioSyncPlayer({ onClose }: AudioSyncPlayerProps) {
       console.error('[Audio Sync] Connection failed:', err);
     }
   };
+
+  // EventSource (SSE) connection
+  useEffect(() => {
+    connectEventSource();
+
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleSyncUpdate = (data: SyncState) => {
     setSyncState(data);

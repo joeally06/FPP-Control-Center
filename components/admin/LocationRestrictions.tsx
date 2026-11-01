@@ -22,28 +22,26 @@ export default function LocationRestrictions() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    async function fetchSettings() {
+      try {
+        const response = await fetch('/api/location-restrictions');
+        if (!response.ok) throw new Error('Failed to fetch location restrictions');
+        
+        const data = await response.json();
+        setEnabled(data.enabled);
+        setMaxDistance(data.max_distance_miles || 1);
+        setShowLat(data.show_latitude?.toString() || '');
+        setShowLng(data.show_longitude?.toString() || '');
+        setLocationName(data.location_name || '');
+      } catch (err) {
+        console.error('Error fetching location restrictions:', err);
+        setError('Failed to load location settings');
+      } finally {
+        setLoading(false);
+      }
+    }
     fetchSettings();
   }, []);
-
-  async function fetchSettings() {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/location-restrictions');
-      if (!response.ok) throw new Error('Failed to fetch location restrictions');
-      
-      const data = await response.json();
-      setEnabled(data.enabled);
-      setMaxDistance(data.max_distance_miles || 1);
-      setShowLat(data.show_latitude?.toString() || '');
-      setShowLng(data.show_longitude?.toString() || '');
-      setLocationName(data.location_name || '');
-    } catch (err) {
-      console.error('Error fetching location restrictions:', err);
-      setError('Failed to load location settings');
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function handleSave() {
     setSuccess('');

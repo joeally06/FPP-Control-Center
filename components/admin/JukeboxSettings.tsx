@@ -333,29 +333,28 @@ export function VisitorPageSettings({ onSaved }: { onSaved?: () => void }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    async function fetchSettings() {
+      try {
+        const response = await fetch('/api/settings');
+        if (response.ok) {
+          const data = await response.json();
+          setSiteName(data.settings.site_name || '');
+          setFmFrequency(data.settings.jukebox_fm_frequency || '');
+          setCourtesyEnabled(data.settings.jukebox_courtesy_enabled === 'true');
+          setCourtesyText(data.settings.jukebox_courtesy_text || '');
+          setSpecsEnabled(data.settings.jukebox_specs_enabled === 'true');
+          setSpecValues(Object.fromEntries(SHOW_SPEC_FIELDS.map((field) => [field.key, data.settings[field.key] || ''])));
+          setAudienceEnabled(data.settings.jukebox_audience_enabled === 'true');
+        }
+      } catch (err) {
+        console.error('Error fetching visitor page settings:', err);
+        setError('Failed to load settings');
+      } finally {
+        setLoading(false);
+      }
+    }
     fetchSettings();
   }, []);
-
-  async function fetchSettings() {
-    try {
-      const response = await fetch('/api/settings');
-      if (response.ok) {
-        const data = await response.json();
-        setSiteName(data.settings.site_name || '');
-        setFmFrequency(data.settings.jukebox_fm_frequency || '');
-        setCourtesyEnabled(data.settings.jukebox_courtesy_enabled === 'true');
-        setCourtesyText(data.settings.jukebox_courtesy_text || '');
-        setSpecsEnabled(data.settings.jukebox_specs_enabled === 'true');
-        setSpecValues(Object.fromEntries(SHOW_SPEC_FIELDS.map((field) => [field.key, data.settings[field.key] || ''])));
-        setAudienceEnabled(data.settings.jukebox_audience_enabled === 'true');
-      }
-    } catch (err) {
-      console.error('Error fetching visitor page settings:', err);
-      setError('Failed to load settings');
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function handleSave() {
     setSaving(true);

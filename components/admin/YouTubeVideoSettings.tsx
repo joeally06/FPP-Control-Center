@@ -38,11 +38,6 @@ export default function YouTubeVideoSettings() {
     theme: 'christmas' as 'christmas' | 'halloween'
   });
 
-  // Load videos on mount
-  useEffect(() => {
-    loadVideos();
-  }, []);
-
   const loadVideos = async () => {
     try {
       setLoading(true);
@@ -61,6 +56,13 @@ export default function YouTubeVideoSettings() {
       setLoading(false);
     }
   };
+
+  // Load videos on mount
+  useEffect(() => {
+    // Start after this render, not during the effect body (React flags state updates made synchronously in an effect)
+    const id = setTimeout(loadVideos, 0);
+    return () => clearTimeout(id);
+  }, []);
 
   const resetForm = () => {
     setFormData({ title: '', youtubeUrl: '', description: '', theme: 'christmas' });

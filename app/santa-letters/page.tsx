@@ -55,16 +55,6 @@ export default function SantaLettersPage() {
   const [updating, setUpdating] = useState(false);
   const [tab, setTab] = useState<'letters' | 'settings'>('letters');
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin');
-    } else if (status === 'authenticated' && session?.user?.role !== 'admin') {
-      router.push('/');
-    } else if (status === 'authenticated') {
-      fetchLetters();
-    }
-  }, [status, session, router]);
-
   const fetchLetters = async () => {
     try {
       setLoading(true);
@@ -79,6 +69,18 @@ export default function SantaLettersPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin');
+    } else if (status === 'authenticated' && session?.user?.role !== 'admin') {
+      router.push('/');
+    } else if (status === 'authenticated') {
+      // Start after this render, not during the effect body (React flags state updates made synchronously in an effect)
+      const id = setTimeout(fetchLetters, 0);
+      return () => clearTimeout(id);
+    }
+  }, [status, session, router]);
 
   const updateLetterStatus = async (letterId: number, newStatus: string, notes?: string) => {
     try {

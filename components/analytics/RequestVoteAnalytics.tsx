@@ -90,31 +90,30 @@ export default function RequestVoteAnalytics() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        const [requestsRes, votesRes] = await Promise.all([
+          fetch('/api/analytics/requests'),
+          fetch('/api/analytics/votes')
+        ]);
+
+        if (requestsRes.ok) {
+          const data = await requestsRes.json();
+          setRequestData(data);
+        }
+
+        if (votesRes.ok) {
+          const data = await votesRes.json();
+          setVoteData(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch analytics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchAnalytics();
   }, []);
-
-  const fetchAnalytics = async () => {
-    try {
-      const [requestsRes, votesRes] = await Promise.all([
-        fetch('/api/analytics/requests'),
-        fetch('/api/analytics/votes')
-      ]);
-
-      if (requestsRes.ok) {
-        const data = await requestsRes.json();
-        setRequestData(data);
-      }
-
-      if (votesRes.ok) {
-        const data = await votesRes.json();
-        setVoteData(data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch analytics:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const formatWaitTime = (seconds: number | null) => {
     if (!seconds) return 'N/A';
