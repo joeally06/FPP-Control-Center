@@ -25,7 +25,7 @@ FPP Control Center is a **complete web-based control panel** for your Falcon Pla
 
 ### 🎵 **Interactive Jukebox**
 - **Song Requests** - Visitors can request their favorite sequences
-- **Playlist Requests** - Visitors can pick a whole FPP playlist; it starts when the current song ends and the scheduled show carries on afterwards. Tag each playlist Christmas or Halloween in Settings → Jukebox → Playlists; only playlists for the active theme are offered, one in line at a time
+- **Playlist Requests** - Visitors can pick a whole FPP playlist; it starts when the current song ends and the scheduled show carries on afterwards. Tag each playlist Christmas or Halloween in Settings → Jukebox → Playlists; only playlists for the active theme that FPP's Scheduler can still start (enabled entry, end date not passed) are offered, one in line at a time. The song list follows the same rule: songs come from those playlists, with tonight's scheduled playlist shown first and the others one tap away (a theme with no tagged playlists offers every song)
 - **Live Queue Display** - See what's playing now and what's coming up
 - **Vote on Sequences** - Community voting for popular songs
 - **Automatic Queue Management** - First-come, first-served with fair play

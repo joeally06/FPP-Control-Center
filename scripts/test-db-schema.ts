@@ -33,7 +33,7 @@ const declaredIndexes = [...schemaSource.matchAll(/CREATE INDEX IF NOT EXISTS (\
 // Adding or removing a table or index on purpose means updating these.
 assert.deepStrictEqual([...declaredTables].sort(), [
   'cached_sequences', 'device_status', 'devices', 'display_profiles', 'display_schedule', 'fpp_models',
-  'jukebox_playlists', 'jukebox_queue', 'jukebox_rate_limit_resets', 'jukebox_song_details', 'location_restrictions',
+  'jukebox_playlist_songs', 'jukebox_playlists', 'jukebox_queue', 'jukebox_rate_limit_resets', 'jukebox_song_details', 'location_restrictions',
   'model_photos', 'monitoring_schedule', 'page_views', 'queue_processor_state', 'santa_letter_confirmations',
   'santa_letters', 'sequence_metadata', 'sequence_requests', 'sessions', 'setup_checklist', 'theme_assets',
   'theme_settings', 'trivia_games', 'visitors', 'votes', 'youtube_videos',

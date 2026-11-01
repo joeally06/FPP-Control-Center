@@ -1,11 +1,14 @@
 import type Database from 'better-sqlite3';
 import { mediaNamesFromPlaylists } from './jukebox-songs';
+import type { ThemeSongs } from './jukebox-playlists';
 
-// What visitors may request: the songs the admin synced from FPP (cached_sequences).
+// What visitors may request: the songs the admin synced from FPP (cached_sequences), and, while the
+// active theme has tagged playlists, only the songs of those playlists.
 // Reads SQLite only, so a public request never has to call the FPP player.
 
-/** True when the bare sequence name (no .fseq) is one of the synced songs. */
-export function isRequestableSong(db: Database.Database, sequenceName: string): boolean {
+/** True when the bare sequence name (no .fseq) is one of the synced songs the active theme offers. */
+export function isRequestableSong(db: Database.Database, sequenceName: string, themeSongs?: ThemeSongs): boolean {
+  if (themeSongs?.restricted && !themeSongs.songs.has(sequenceName)) return false;
   return db.prepare('SELECT 1 FROM cached_sequences WHERE sequence_name = ? LIMIT 1').get(sequenceName) !== undefined;
 }
 

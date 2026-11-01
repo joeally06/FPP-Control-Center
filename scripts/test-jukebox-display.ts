@@ -11,6 +11,8 @@ import {
   songCategories,
   songDetailsLine,
   filterSongs,
+  defaultPlaylistChip,
+  sortByPlaylistOrder,
   estimateWaits,
   buildShowSpecs,
   showStatus,
@@ -180,6 +182,29 @@ const SONGS: CatalogSong[] = [
   assert.deepStrictEqual(names(filterSongs(SONGS, 'wizards', 'Classics')), [], 'search and category combine');
   assert.deepStrictEqual(names(filterSongs(SONGS, '  carol  ', null)), ['Carol'], 'query is trimmed');
   print('Test 10 OK');
+
+  // The playlist chips: songs carry the offered playlists that hold them
+  const withPlaylists: CatalogSong[] = SONGS.map((song, i) => ({ ...song, playlists: i % 2 === 0 ? ['Eve Show'] : ['Eve Show', 'Classic'] }));
+  assert.deepStrictEqual(names(filterSongs(withPlaylists, '', null, 'Classic')), withPlaylists.filter((s) => s.playlists?.includes('Classic')).map((s) => s.name));
+  assert.deepStrictEqual(names(filterSongs(withPlaylists, '', null, 'Eve Show')), names(withPlaylists));
+  assert.deepStrictEqual(names(filterSongs(withPlaylists, 'carol', null, 'Classic')), names(withPlaylists.filter((s) => s.playlists?.includes('Classic') && s.name === 'Carol')), 'search stays inside the playlist');
+  assert.deepStrictEqual(names(filterSongs(SONGS, '', null, 'Eve Show')), [], 'songs without playlists never match one');
+
+  // Each playlist's own order, even when a song is shared with an earlier playlist
+  const shared: CatalogSong[] = [
+    { name: 'Shared', title: null, artist: null, durationSeconds: null, category: null, playlists: ['Classic', 'Eve Show'], playlistPositions: [0, 2] },
+    { name: 'Only Eve 1', title: null, artist: null, durationSeconds: null, category: null, playlists: ['Eve Show'], playlistPositions: [0] },
+    { name: 'Only Eve 2', title: null, artist: null, durationSeconds: null, category: null, playlists: ['Eve Show'], playlistPositions: [1] },
+  ];
+  assert.deepStrictEqual(names(sortByPlaylistOrder(filterSongs(shared, '', null, 'Eve Show'), 'Eve Show')), ['Only Eve 1', 'Only Eve 2', 'Shared']);
+  assert.deepStrictEqual(names(sortByPlaylistOrder(filterSongs(shared, '', null, 'Classic'), 'Classic')), ['Shared']);
+  assert.deepStrictEqual(names(sortByPlaylistOrder(shared, null)), names(shared), 'no playlist leaves the order alone');
+
+  assert.strictEqual(defaultPlaylistChip(['Classic', 'Eve Show'], 'Eve Show'), 'Eve Show', "tonight's playlist first");
+  assert.strictEqual(defaultPlaylistChip(['Classic', 'Eve Show'], 'Halloween 2026'), 'Classic', 'an unoffered scheduled playlist falls back to the first');
+  assert.strictEqual(defaultPlaylistChip(['Classic', 'Eve Show'], null), 'Classic');
+  assert.strictEqual(defaultPlaylistChip([], 'Eve Show'), null);
+  print('Test 10b OK');
 })();
 
 // Test 11: estimateWaits

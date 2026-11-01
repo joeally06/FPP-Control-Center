@@ -3,16 +3,22 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Search } from 'lucide-react';
 import {
+  defaultPlaylistChip,
   filterSongs,
   requestButtonState,
   songCategories,
   songDetailsLine,
+  sortByPlaylistOrder,
   type CatalogSong,
   type RequestButtonState,
 } from '@/lib/jukebox-display';
 
 interface SongCatalogProps {
   songs: CatalogSong[];
+  /** Playlists the active theme offers; when set, they replace the category chips */
+  playlists?: string[];
+  /** Playlist of tonight's show, selected first when it is among `playlists` */
+  scheduledPlaylist?: string | null;
   loading: boolean;
   message: string;
   currentSequence: string | null;
@@ -52,6 +58,8 @@ function limitText(requestsRemaining: number | null, rateLimit: number): ReactNo
 
 export default function SongCatalog({
   songs,
+  playlists = [],
+  scheduledPlaylist = null,
   loading,
   message,
   currentSequence,
@@ -65,10 +73,19 @@ export default function SongCatalog({
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string | null>(null);
 
+  const [chosenPlaylist, setChosenPlaylist] = useState<string | null>(null);
+
   const categories = useMemo(() => songCategories(songs), [songs]);
   // A category can disappear when the admin edits the list; fall back to "All"
   const activeCategory = category && categories.includes(category) ? category : null;
-  const filtered = useMemo(() => filterSongs(songs, query, activeCategory), [songs, query, activeCategory]);
+  // With playlists, the visitor browses one playlist at a time, starting with tonight's
+  const activePlaylist = playlists.length === 0
+    ? null
+    : chosenPlaylist && playlists.includes(chosenPlaylist) ? chosenPlaylist : defaultPlaylistChip(playlists, scheduledPlaylist);
+  const filtered = useMemo(
+    () => sortByPlaylistOrder(filterSongs(songs, query, playlists.length > 0 ? null : activeCategory, activePlaylist), activePlaylist),
+    [songs, query, activeCategory, activePlaylist, playlists.length]
+  );
   const used = requestsRemaining === null ? 0 : Math.max(0, rateLimit - requestsRemaining);
 
   return (
@@ -104,7 +121,21 @@ export default function SongCatalog({
             className="sp-input min-h-11 w-full rounded-xl py-2 pl-10 pr-3"
           />
         </label>
-        {categories.length > 0 && (
+        {playlists.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Choose a playlist">
+            {playlists.map((name) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => setChosenPlaylist(name)}
+                aria-pressed={name === activePlaylist}
+                className="sp-chip min-h-11 rounded-full px-3.5 text-[13px] font-bold transition"
+              >
+                {name}{name === scheduledPlaylist ? ' · Tonight' : ''}
+              </button>
+            ))}
+          </div>
+        ) : categories.length > 0 && (
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by category">
             {[null, ...categories].map((option) => (
               <button
@@ -129,7 +160,7 @@ export default function SongCatalog({
         <p className="sp-muted py-6 text-center text-sm">No songs are available right now.</p>
       ) : filtered.length === 0 ? (
         <p className="sp-muted py-6 text-center text-sm">
-          {query.trim() ? `No songs match “${query.trim()}”${activeCategory ? ` in ${activeCategory}` : ''}.` : `No songs in ${activeCategory}.`}
+          {query.trim() ? `No songs match “${query.trim()}”${activePlaylist ?? activeCategory ? ` in ${activePlaylist ?? activeCategory}` : ''}.` : `No songs in ${activePlaylist ?? activeCategory}.`}
         </p>
       ) : (
         <ul className="mt-3.5 max-h-[28rem] space-y-1 overflow-y-auto pr-1">

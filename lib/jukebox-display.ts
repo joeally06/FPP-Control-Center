@@ -278,6 +278,10 @@ export interface CatalogSong {
   artist: string | null;
   durationSeconds: number | null;
   category: string | null;
+  /** Offered playlists holding this song; only set while the active theme limits the songs to playlists */
+  playlists?: string[];
+  /** Where the song sits in each of `playlists` (same order, 0 = first) */
+  playlistPositions?: number[];
 }
 
 export const MAX_CATEGORY_LENGTH = 30;
@@ -320,11 +324,28 @@ export function songCategories(songs: CatalogSong[]): string[] {
   return [...categories].sort((a, b) => a.localeCompare(b));
 }
 
-/** Search (name, title, artist; case-insensitive) combined with an optional category filter. */
-export function filterSongs(songs: CatalogSong[], query: string, category: string | null): CatalogSong[] {
+/** The playlist chip selected on arrival: tonight's scheduled playlist when it is offered, else the first. */
+export function defaultPlaylistChip(playlists: string[], scheduledPlaylist: string | null): string | null {
+  if (scheduledPlaylist && playlists.includes(scheduledPlaylist)) return scheduledPlaylist;
+  return playlists[0] ?? null;
+}
+
+/** Songs of one playlist in that playlist's own play order. */
+export function sortByPlaylistOrder(songs: CatalogSong[], playlist: string | null): CatalogSong[] {
+  if (!playlist) return songs;
+  const position = (song: CatalogSong) => {
+    const index = song.playlists?.indexOf(playlist) ?? -1;
+    return index >= 0 ? (song.playlistPositions?.[index] ?? 0) : 0;
+  };
+  return [...songs].sort((a, b) => position(a) - position(b));
+}
+
+/** Search (name, title, artist; case-insensitive) combined with optional category and playlist filters. */
+export function filterSongs(songs: CatalogSong[], query: string, category: string | null, playlist: string | null = null): CatalogSong[] {
   const q = query.trim().toLowerCase();
   return songs.filter((song) => {
     if (category && song.category !== category) return false;
+    if (playlist && !song.playlists?.includes(playlist)) return false;
     if (!q) return true;
     return [song.name, song.title, song.artist].some((text) => text?.toLowerCase().includes(q));
   });

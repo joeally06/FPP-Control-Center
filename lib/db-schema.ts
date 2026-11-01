@@ -200,6 +200,16 @@ export function applySchema(db: Database.Database): void {
     );
   `);
 
+  // Which songs each FPP playlist holds (also migration 025)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS jukebox_playlist_songs (
+      playlist_name TEXT NOT NULL,
+      position INTEGER NOT NULL,
+      sequence_name TEXT NOT NULL,
+      PRIMARY KEY (playlist_name, position)
+    );
+  `);
+
   // When an admin last cleared a visitor's song-request limit (also migration 020)
   db.exec(`
     CREATE TABLE IF NOT EXISTS jukebox_rate_limit_resets (

@@ -606,7 +606,7 @@ export function PlaylistSettings({ reloadKey }: { reloadKey: number }) {
     <div className={card}>
       <AdminH3 className="mb-0.5">Playlists</AdminH3>
       <AdminTextMuted>
-        Visitors can request a whole playlist; it starts when the current song ends, and the scheduled show carries on afterwards. Only playlists tagged with the active theme are offered, one in line at a time. New FPP playlists appear here after you sync from FPP and start out hidden.
+        Visitors can request a whole playlist; it starts when the current song ends, and the scheduled show carries on afterwards. Only playlists tagged with the active theme are offered, one in line at a time, and only while FPP&apos;s Scheduler can still start them (an enabled entry whose end date has not passed). The song list follows the same rule: visitors pick songs from those playlists, starting with tonight&apos;s. New FPP playlists appear here after you sync from FPP and start out hidden; sync again after changing a playlist&apos;s songs or adding a playlist to FPP&apos;s Scheduler.
       </AdminTextMuted>
 
       {success && <p className={`${notice.ok} mt-4`}>{success}</p>}

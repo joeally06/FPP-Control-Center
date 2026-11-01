@@ -36,6 +36,62 @@ export function dayIndex(date: DateTime): number {
   return date.weekday % 7;
 }
 
+// FPP's day codes above 6 (ScheduleEntry.h): 7 every day, 8 weekdays, 9 weekend, 10 Mon/Wed/Fri, 11 Tue/Thu,
+// 12 Sun-Thu, 13 Fri/Sat, 14 odd days of the month, 15 even days. Other values (day-mask form) match nothing.
+const WEEKDAY_CODES: Record<number, number[]> = {
+  8: [1, 2, 3, 4, 5],
+  9: [0, 6],
+  10: [1, 3, 5],
+  11: [2, 4],
+  12: [0, 1, 2, 3, 4],
+  13: [5, 6],
+};
+
+/** Does a schedule entry's `day` code include this date? */
+export function dayMatches(code: number | undefined, date: DateTime): boolean {
+  if (code === undefined) return false;
+  if (code >= 0 && code <= 6) return code === dayIndex(date);
+  if (code === 7) return true;
+  if (code === 14) return date.day % 2 === 1;
+  if (code === 15) return date.day % 2 === 0;
+  return WEEKDAY_CODES[code]?.includes(dayIndex(date)) ?? false;
+}
+
+const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/**
+ * Has a schedule entry's end date gone by? `today` is "YYYY-MM-DD" in the show's timezone.
+ * FPP also allows yearless dates ("0000-12-25", every year) and holiday names; a holiday name or a missing
+ * date cannot be resolved here, so those count as not ended.
+ */
+function endDatePassed(entry: FppScheduleEntry, today: string): boolean {
+  const end = ISO_DATE.exec(entry.endDate ?? '');
+  if (!end) return false;
+  if (end[1] !== '0000') return today > entry.endDate!;
+
+  const todayMonthDay = today.slice(5);
+  const endMonthDay = (entry.endDate as string).slice(5);
+  const start = ISO_DATE.exec(entry.startDate ?? '');
+  const startMonthDay = start && start[1] === '0000' ? (entry.startDate as string).slice(5) : null;
+  // A range that runs over New Year (start after end) is out of season only between the two
+  if (startMonthDay && startMonthDay > endMonthDay) return todayMonthDay > endMonthDay && todayMonthDay < startMonthDay;
+  return todayMonthDay > endMonthDay;
+}
+
+/**
+ * Playlists FPP's Scheduler can still start: an enabled entry whose end date has not passed.
+ * `today` is "YYYY-MM-DD" in the show's timezone. Start dates are not checked.
+ */
+export function activeSchedulePlaylists(entries: FppScheduleEntry[], today: string): Set<string> {
+  const names = new Set<string>();
+  for (const entry of entries) {
+    if (!entry.enabled || !entry.playlist || entry.playlist.trim() === '') continue;
+    if (endDatePassed(entry, today)) continue;
+    names.add(entry.playlist);
+  }
+  return names;
+}
+
 /**
  * Is a scheduled show on now, and if not, when is the next one (within 14 days)?
  * `now` must be in the show's timezone (DateTime.now().setZone(APP_TIMEZONE)).
@@ -54,7 +110,7 @@ export function findShowWindow(entries: FppScheduleEntry[], now: DateTime): Show
     const day = now.plus({ days: daysAhead }).startOf('day');
     const date = day.toISODate() ?? '';
     for (const entry of shows) {
-      if (entry.day !== 7 && entry.day !== dayIndex(day)) continue;
+      if (!dayMatches(entry.day, day)) continue;
       if (entry.startDate && entry.endDate && (date < entry.startDate || date > entry.endDate)) continue;
 
       const startMinutes = minutesOf(entry.startTime);
@@ -70,6 +126,42 @@ export function findShowWindow(entries: FppScheduleEntry[], now: DateTime): Show
     }
   }
   return { isActiveBySchedule: false, currentShowEndTime: null, nextShow };
+}
+
+/**
+ * The playlist for tonight's show: the one on now, else the next one today (even when its start is a sun time
+ * such as "SunSet", which findShowWindow cannot read), else the first show in the next 14 days. Null when none.
+ * `now` must be in the show's timezone.
+ */
+export function findScheduledPlaylist(entries: FppScheduleEntry[], now: DateTime): string | null {
+  const currentMinutes = now.hour * 60 + now.minute;
+  const shows = entries.filter((entry) => entry.enabled && entry.playlist && entry.playlist.trim() !== '');
+
+  for (let daysAhead = 0; daysAhead < LOOK_AHEAD_DAYS; daysAhead++) {
+    const day = now.plus({ days: daysAhead }).startOf('day');
+    const date = day.toISODate() ?? '';
+    let best: { start: number; playlist: string } | null = null;
+    for (const entry of shows) {
+      if (!dayMatches(entry.day, day)) continue;
+      if (entry.startDate && entry.endDate && (date < entry.startDate || date > entry.endDate)) continue;
+
+      const endMinutes = minutesOf(entry.endTime);
+      const startMinutes = minutesOf(entry.startTime);
+      // Today's shows that are already over do not count; one that runs past midnight (17:00-00:30) is not over yet.
+      // A sun-time start has no clock minute, so an end before noon is taken to be after midnight.
+      const sunStart = Number.isNaN(startMinutes);
+      const runsPastMidnight = sunStart ? endMinutes < 12 * 60 : endMinutes < startMinutes;
+      if (daysAhead === 0 && endMinutes <= currentMinutes && !runsPastMidnight) continue;
+
+      // A sun-time start ("SunSet") cannot be placed on the clock: order that show just before the minute it ends,
+      // so it comes before a show that starts when it ends, but after one that starts well before
+      // (a show that ends after midnight goes last in the day)
+      const start = !sunStart ? startMinutes : Number.isNaN(endMinutes) ? Infinity : runsPastMidnight ? 24 * 60 - 1 : endMinutes - 1;
+      if (!best || start < best.start) best = { start, playlist: entry.playlist as string };
+    }
+    if (best) return best.playlist;
+  }
+  return null;
 }
 
 /**

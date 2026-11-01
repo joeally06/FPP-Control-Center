@@ -3,7 +3,7 @@ import { requireAdmin } from '@/lib/auth-helpers';
 import db, { clearCachedSequences, insertCachedSequence, upsertSongDuration } from '@/lib/database';
 import { getFppUrl } from '@/lib/fpp-config';
 import { toSongDuration } from '@/lib/jukebox-display';
-import { playlistDetails, syncJukeboxPlaylists, type FppPlaylistJson, type PlaylistDetails } from '@/lib/jukebox-playlists';
+import { playlistDetails, storeSchedule, syncJukeboxPlaylists, type FppPlaylistJson, type PlaylistDetails } from '@/lib/jukebox-playlists';
 
 // GET with a 5 second timeout; null when FPP doesn't answer or answers with an error
 async function fetchFppJson(path: string): Promise<unknown> {
@@ -117,6 +117,8 @@ export async function POST() {
     }
     
     const schedule = await scheduleResponse.json();
+    // Keep a copy: the jukebox offers only playlists the Scheduler can still start
+    if (Array.isArray(schedule)) storeSchedule(db, schedule);
 
     const playlistNames = new Set<string>();
     schedule.forEach((entry: { playlist?: string }) => {

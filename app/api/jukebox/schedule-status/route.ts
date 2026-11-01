@@ -13,9 +13,10 @@
 
 import { NextResponse } from 'next/server';
 import { DateTime } from 'luxon';
-import { getFPPState } from '@/lib/database';
+import db, { getFPPState } from '@/lib/database';
 import type { FppStateRow } from '@/lib/fpp-state';
-import { DAY_NAMES, dayIndex, findShowWindow, formatCountdown } from '@/lib/show-schedule';
+import { storeSchedule } from '@/lib/jukebox-playlists';
+import { DAY_NAMES, dayIndex, findScheduledPlaylist, findShowWindow, formatCountdown, type FppScheduleEntry } from '@/lib/show-schedule';
 import { APP_TIMEZONE } from '@/lib/time-utils';
 
 export async function GET() {
@@ -49,7 +50,8 @@ export async function GET() {
     let countdown = null;
     let isActiveBySchedule = false;
     let currentShowEndTime = null; // end of the scheduled show that is on right now
-    
+    let scheduledPlaylist: string | null = null; // playlist for tonight's show (on now, or the next one)
+
     try {
       const fppUrl = process.env.FPP_URL || process.env.NEXT_PUBLIC_FPP_URL;
       
@@ -69,9 +71,13 @@ export async function GET() {
 
           // FPP schedule times are show-local, so compare them with the show's clock, not the server's
           const now = DateTime.now().setZone(APP_TIMEZONE);
-          const window = findShowWindow(scheduleData.value || scheduleData, now);
+          const entries: FppScheduleEntry[] = scheduleData.value || scheduleData;
+          const window = findShowWindow(entries, now);
           isActiveBySchedule = window.isActiveBySchedule;
           currentShowEndTime = window.currentShowEndTime;
+          scheduledPlaylist = findScheduledPlaylist(entries, now);
+          // Keep a copy so the jukebox can offer only playlists the Scheduler still runs, without asking FPP again
+          if (Array.isArray(entries)) storeSchedule(db, entries);
 
           if (window.nextShow) {
             const { start, entry } = window.nextShow;
@@ -114,6 +120,7 @@ export async function GET() {
       nextShowStartTime,
       nextShowEndTime,
       currentShowEndTime,
+      scheduledPlaylist,
       countdown,
       lastChecked: state.last_updated || new Date().toISOString()
     });

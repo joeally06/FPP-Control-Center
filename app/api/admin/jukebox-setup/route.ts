@@ -3,7 +3,7 @@ import { requireAdminWithRateLimit } from '@/lib/auth-helpers';
 import { toErrorMessage } from '@/lib/api-errors';
 import db, { getActiveTheme, getCacheAge } from '@/lib/database';
 import { getSetting } from '@/lib/settings';
-import { listVisitorPlaylists } from '@/lib/jukebox-playlists';
+import { activePlaylistNames, listVisitorPlaylists } from '@/lib/jukebox-playlists';
 import { buildSetupChecklist, listAdminSongs, readAudioState } from '@/lib/jukebox-songs';
 import { listThemeAssets } from '@/lib/theme-assets';
 import { THEME_PRESETS, normalizeThemeId } from '@/lib/themes/theme-config';
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       songs,
       lastSynced: cache?.last_updated || null,
       themeName: THEME_PRESETS[themeId].name,
-      offeredPlaylists: listVisitorPlaylists(db, themeId).length,
+      offeredPlaylists: listVisitorPlaylists(db, themeId, activePlaylistNames(db)).length,
       hasLogo: listThemeAssets(db)[themeId].logo !== null,
       siteName: getSetting('site_name') || '',
       rateLimit: parseInt(getSetting('jukebox_rate_limit') || '3', 10),

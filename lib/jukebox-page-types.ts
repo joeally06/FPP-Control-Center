@@ -47,6 +47,8 @@ export interface ScheduleStatus {
   nextShowStartTime: string | null;
   nextShowEndTime: string | null;
   currentShowEndTime?: string | null;
+  /** Playlist of tonight's show (the one on now, else the next scheduled) */
+  scheduledPlaylist?: string | null;
   countdown: string | null;
   lastChecked: string;
 }

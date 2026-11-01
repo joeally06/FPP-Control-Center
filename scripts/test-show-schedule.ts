@@ -1,6 +1,16 @@
 import assert from 'assert';
 import { DateTime } from 'luxon';
-import { DAY_NAMES, dayIndex, findShowWindow, formatCountdown, isInDailyWindow, type FppScheduleEntry } from '../lib/show-schedule';
+import {
+  DAY_NAMES,
+  activeSchedulePlaylists,
+  dayIndex,
+  dayMatches,
+  findScheduledPlaylist,
+  findShowWindow,
+  formatCountdown,
+  isInDailyWindow,
+  type FppScheduleEntry,
+} from '../lib/show-schedule';
 
 function print(msg: string) {
   console.log('[test-show-schedule] ' + msg);
@@ -94,6 +104,80 @@ try {
   // Saturday 7:30 PM Central is already Sunday 00:30 in UTC; still Saturday for the sign
   assert.strictEqual(isInDailyWindow({ days: '6', startTime: '19:00', endTime: '21:00' }, at('2026-10-17T19:30:00').toUTC().setZone(ZONE)), true);
   print('Test 7 OK');
+
+  // Test 8: FPP's day codes above 6 (2026-12-10 is a Thursday)
+  print('Test 8: dayMatches');
+  const thursday = at('2026-12-10T12:00:00');
+  const friday = thursday.plus({ days: 1 });
+  const saturday = thursday.plus({ days: 2 });
+  const sunday = thursday.plus({ days: 3 });
+  const monday = thursday.plus({ days: 4 });
+  assert.deepStrictEqual([4, 5, 7].map((code) => dayMatches(code, thursday)), [true, false, true], 'Thursday is 4; 7 is every day');
+  assert.deepStrictEqual([4, 5].map((code) => dayMatches(code, friday)), [false, true]);
+  assert.deepStrictEqual([8, 9].map((code) => dayMatches(code, saturday)), [false, true], 'weekdays / weekend on Saturday');
+  assert.deepStrictEqual([8, 9].map((code) => dayMatches(code, thursday)), [true, false]);
+  assert.deepStrictEqual([10, 11].map((code) => dayMatches(code, monday)), [true, false], 'Mon/Wed/Fri vs Tue/Thu');
+  assert.deepStrictEqual([10, 11].map((code) => dayMatches(code, thursday)), [false, true]);
+  assert.deepStrictEqual([12, 13].map((code) => dayMatches(code, sunday)), [true, false], 'Sun-Thu vs Fri/Sat');
+  assert.deepStrictEqual([12, 13].map((code) => dayMatches(code, friday)), [false, true]);
+  assert.deepStrictEqual([14, 15].map((code) => dayMatches(code, thursday)), [false, true], 'the 10th is an even day');
+  assert.deepStrictEqual([14, 15].map((code) => dayMatches(code, friday)), [true, false]);
+  assert.strictEqual(dayMatches(undefined, thursday), false);
+  assert.strictEqual(dayMatches(0x10000 | 6, thursday), false, 'the day-mask form is not understood');
+  // The next show now finds an entry on "Fri/Sat"
+  const weekendShow: FppScheduleEntry[] = [{ enabled: 1, day: 13, playlist: 'Christmas', startTime: '18:00', endTime: '22:00' }];
+  assert.deepStrictEqual(summary(weekendShow, thursday).next, 'Friday 2026-12-11 18:00');
+  print('Test 8 OK');
+
+  // Test 9: tonight's playlist
+  print('Test 9: findScheduledPlaylist');
+  const entry = (playlist: string, startTime: string, endTime: string, rest: Partial<FppScheduleEntry> = {}): FppScheduleEntry =>
+    ({ enabled: 1, day: 7, playlist, startTime, endTime, ...rest });
+  const twoShows = [entry('Late', '20:00', '22:00'), entry('Early', '17:00', '19:00')];
+  assert.strictEqual(findScheduledPlaylist(twoShows, at('2026-12-10T12:00:00')), 'Early', 'the first show tonight');
+  assert.strictEqual(findScheduledPlaylist(twoShows, at('2026-12-10T18:00:00')), 'Early', 'on now');
+  assert.strictEqual(findScheduledPlaylist(twoShows, at('2026-12-10T19:30:00')), 'Late', 'the early show is over');
+  assert.strictEqual(findScheduledPlaylist(twoShows, at('2026-12-10T22:30:00')), 'Early', 'tomorrow\'s first show');
+  assert.strictEqual(findScheduledPlaylist([entry('Dusk Show', 'SunSet', '22:00')], at('2026-12-10T12:00:00')), 'Dusk Show', 'a sun-time start still counts for today');
+  // A sun-time start comes before a show that starts when it ends, and after one that starts well before
+  const sunThenLate = [entry('Late', '21:00', '22:30'), entry('Main', 'SunSet', '21:00')];
+  assert.strictEqual(findScheduledPlaylist(sunThenLate, at('2026-12-10T19:00:00')), 'Main', 'on now, whatever the order in the file');
+  assert.strictEqual(findScheduledPlaylist(sunThenLate, at('2026-12-10T21:30:00')), 'Late', 'the sun-time show is over');
+  assert.strictEqual(findScheduledPlaylist([entry('Main', 'SunSet', '21:00'), entry('Afternoon', '15:00', '16:00')], at('2026-12-10T12:00:00')), 'Afternoon');
+  // A show that runs past midnight is not over at 11 PM
+  assert.strictEqual(findScheduledPlaylist([entry('Late Night', '17:00', '00:30')], at('2026-12-10T23:00:00')), 'Late Night');
+  const sunPastMidnight = [entry('Dusk to late', 'SunSet', '00:30'), entry('Afternoon', '15:00', '16:00')];
+  assert.strictEqual(findScheduledPlaylist(sunPastMidnight, at('2026-12-10T12:00:00')), 'Afternoon', 'a sun-time show that ends after midnight goes last');
+  assert.strictEqual(findScheduledPlaylist(sunPastMidnight, at('2026-12-10T20:00:00')), 'Dusk to late', 'still on at 8 PM');
+  assert.strictEqual(findScheduledPlaylist(sunPastMidnight, at('2026-12-10T23:30:00')), 'Dusk to late', 'not over before midnight');
+  assert.strictEqual(findScheduledPlaylist(weekendShow, thursday), 'Christmas', 'the next show, not only today');
+  assert.strictEqual(findScheduledPlaylist([entry('Off', '17:00', '19:00', { enabled: 0 }), entry('  ', '17:00', '19:00')], thursday), null);
+  assert.strictEqual(findScheduledPlaylist([entry('Over', '17:00', '19:00', { startDate: '2026-11-01', endDate: '2026-12-01' })], thursday), null, 'season over');
+  assert.strictEqual(findScheduledPlaylist([], thursday), null);
+  print('Test 9 OK');
+
+  // Test 10: playlists the Scheduler can still start
+  print('Test 10: activeSchedulePlaylists');
+  const names = (entries: FppScheduleEntry[], today: string) => [...activeSchedulePlaylists(entries, today)].sort();
+  const season = [
+    entry('Open', '18:00', '22:00', { endDate: '2026-12-24' }),
+    entry('Over', '18:00', '22:00', { endDate: '2026-12-09' }),
+    entry('Off', '18:00', '22:00', { endDate: '2026-12-31', enabled: 0 }),
+    entry('Blank', '18:00', '22:00', { playlist: ' ' }),
+    entry('Holiday', '18:00', '22:00', { endDate: 'Christmas' }),
+    entry('Always', '18:00', '22:00'),
+  ];
+  assert.deepStrictEqual(names(season, '2026-12-10'), ['Always', 'Holiday', 'Open']);
+  assert.deepStrictEqual(names([entry('Last Day', '18:00', '22:00', { endDate: '2026-12-10' })], '2026-12-10'), ['Last Day'], 'the end date itself is still on');
+  assert.deepStrictEqual(names([entry('Last Day', '18:00', '22:00', { endDate: '2026-12-10' })], '2026-12-11'), []);
+  // A yearless end date repeats every year; one that runs over New Year is out of season only in between
+  assert.deepStrictEqual(names([entry('Yearly', '18:00', '22:00', { startDate: '0000-11-20', endDate: '0000-12-24' })], '2026-12-10'), ['Yearly']);
+  assert.deepStrictEqual(names([entry('Yearly', '18:00', '22:00', { startDate: '0000-11-20', endDate: '0000-12-24' })], '2026-12-30'), []);
+  const overNewYear = [entry('Winter', '18:00', '22:00', { startDate: '0000-12-01', endDate: '0000-01-04' })];
+  assert.deepStrictEqual(names(overNewYear, '2026-12-30'), ['Winter']);
+  assert.deepStrictEqual(names(overNewYear, '2026-01-03'), ['Winter']);
+  assert.deepStrictEqual(names(overNewYear, '2026-06-15'), []);
+  print('Test 10 OK');
 
   print('All tests passed');
 } catch (err) {

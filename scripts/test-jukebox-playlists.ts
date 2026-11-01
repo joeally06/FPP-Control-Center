@@ -2,15 +2,20 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import assert from 'assert';
+import { DateTime } from 'luxon';
 import {
+  activePlaylistNames,
   listJukeboxPlaylists,
+  listThemeSongs,
   listVisitorPlaylists,
   normalizePlaylistTheme,
   playlistDetails,
   setPlaylistThemes,
+  storeSchedule,
   syncJukeboxPlaylists,
   type PlaylistDetails,
 } from '../lib/jukebox-playlists';
+import { isRequestableSong } from '../lib/jukebox-catalog';
 import {
   addToQueueTransactional,
   insertStartDeadline,
@@ -50,6 +55,25 @@ const SCHEMA = `
     duration_seconds REAL,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+  CREATE TABLE jukebox_playlist_songs (
+    playlist_name TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    sequence_name TEXT NOT NULL,
+    PRIMARY KEY (playlist_name, position)
+  );
+  CREATE TABLE settings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key TEXT NOT NULL UNIQUE,
+    value TEXT NOT NULL,
+    description TEXT,
+    category TEXT DEFAULT 'general',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE cached_sequences (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sequence_name TEXT NOT NULL UNIQUE,
+    playlist_order INTEGER DEFAULT 0
+  );
 `;
 
 function print(msg: string) {
@@ -86,8 +110,10 @@ try {
     ],
     leadOut: [{ type: 'sequence', sequenceName: '' }],
     playlistInfo: { total_duration: 612.5 },
-  }), { itemCount: 3, durationSeconds: 612.5 });
-  assert.deepStrictEqual(playlistDetails({}), { itemCount: 0, durationSeconds: null });
+  }), { itemCount: 3, durationSeconds: 612.5, songs: ['Intro', 'A'] });
+  assert.deepStrictEqual(playlistDetails({}), { itemCount: 0, durationSeconds: null, songs: [] });
+  // A song listed twice counts once, and a name written without .fseq still matches
+  assert.deepStrictEqual(playlistDetails({ mainPlaylist: [{ sequenceName: 'A.fseq' }, { sequenceName: 'B' }, { sequenceName: 'a.FSEQ' }, { sequenceName: 'A.fseq' }] }).songs, ['A', 'B', 'a']);
   assert.strictEqual(playlistDetails({ playlistInfo: { total_duration: '600' } }).durationSeconds, null);
   print('Test 1 OK');
 
@@ -95,21 +121,26 @@ try {
   print('Test 2: syncJukeboxPlaylists');
   const details = (entries: [string, PlaylistDetails][]) => new Map(entries);
   syncJukeboxPlaylists(db, ['Christmas Classics', 'Spooky', 'Old'], details([
-    ['Christmas Classics', { itemCount: 12, durationSeconds: 2400 }],
-    ['Spooky', { itemCount: 8, durationSeconds: 1500 }],
-    ['Old', { itemCount: 3, durationSeconds: null }],
+    ['Christmas Classics', { itemCount: 12, durationSeconds: 2400, songs: ['Carol', 'Wizards'] }],
+    ['Spooky', { itemCount: 8, durationSeconds: 1500, songs: ['Dragula'] }],
+    ['Old', { itemCount: 3, durationSeconds: null, songs: ['Gone'] }],
   ]));
   setPlaylistThemes(db, [['Christmas Classics', 'christmas'], ['Spooky', 'halloween'], ['Not on FPP', 'christmas']]);
   // Spooky's details fail this time; Old is gone from FPP; New arrives
   syncJukeboxPlaylists(db, ['Christmas Classics', 'Spooky', 'New'], details([
-    ['Christmas Classics', { itemCount: 13, durationSeconds: 2600 }],
-    ['New', { itemCount: 0, durationSeconds: null }],
+    ['Christmas Classics', { itemCount: 13, durationSeconds: 2600, songs: ['Carol', 'Wizards', 'Silent Night'] }],
+    ['New', { itemCount: 0, durationSeconds: null, songs: [] }],
   ]));
   assert.deepStrictEqual(listJukeboxPlaylists(db), [
     { name: 'Christmas Classics', theme: 'christmas', item_count: 13, duration_seconds: 2600 },
     { name: 'New', theme: null, item_count: 0, duration_seconds: null },
     { name: 'Spooky', theme: 'halloween', item_count: 8, duration_seconds: 1500 },
   ]);
+  // Songs follow the same rules: replaced when loaded, kept when the details failed, dropped with the playlist
+  const songsOf = (name: string) => (db.prepare('SELECT sequence_name FROM jukebox_playlist_songs WHERE playlist_name = ? ORDER BY position').all(name) as { sequence_name: string }[]).map((r) => r.sequence_name);
+  assert.deepStrictEqual(songsOf('Christmas Classics'), ['Carol', 'Wizards', 'Silent Night']);
+  assert.deepStrictEqual(songsOf('Spooky'), ['Dragula']);
+  assert.deepStrictEqual(songsOf('Old'), []);
   print('Test 2 OK');
 
   // Test 3: visitors see only playlists of the active theme that have songs
@@ -213,6 +244,73 @@ try {
   assert.strictEqual(playlistDetailsLine({ itemCount: 12, durationSeconds: 2490 }), '12 songs · 41:30');
   assert.strictEqual(playlistDetailsLine({ itemCount: 1, durationSeconds: null }), '1 song');
   print('Test 8 OK');
+
+  // Test 9: the songs a theme offers come from its tagged playlists that the Scheduler can still start
+  print('Test 9: listThemeSongs / listVisitorPlaylists with the schedule / isRequestableSong');
+  syncJukeboxPlaylists(db, ['Christmas Classics', 'Spooky', 'New', 'Eve Show'], details([
+    ['Eve Show', { itemCount: 2, durationSeconds: 600, songs: ['Wizards', 'Eve Song'] }],
+  ]));
+  setPlaylistThemes(db, [['Eve Show', 'christmas'], ['Spooky', 'halloween']]);
+  for (const [i, name] of ['Carol', 'Wizards', 'Silent Night', 'Eve Song', 'Dragula'].entries()) {
+    db.prepare('INSERT INTO cached_sequences (sequence_name, playlist_order) VALUES (?, ?)').run(name, i);
+  }
+
+  const christmas = listThemeSongs(db, 'christmas');
+  assert.strictEqual(christmas.restricted, true);
+  assert.deepStrictEqual(christmas.playlists, ['Christmas Classics', 'Eve Show']);
+  assert.deepStrictEqual([...christmas.songs.keys()], ['Carol', 'Wizards', 'Silent Night', 'Eve Song']);
+  assert.deepStrictEqual(christmas.order.get('Eve Show'), ['Wizards', 'Eve Song'], "each playlist keeps its own order");
+  assert.deepStrictEqual(christmas.order.get('Christmas Classics'), ['Carol', 'Wizards', 'Silent Night']);
+  assert.deepStrictEqual(christmas.songs.get('Wizards'), ['Christmas Classics', 'Eve Show'], 'a song in two playlists lists both');
+  assert.strictEqual(christmas.songs.has('Dragula'), false, 'Halloween songs stay out of Christmas');
+  assert.deepStrictEqual([...listThemeSongs(db, 'halloween').songs.keys()], ['Dragula']);
+
+  // Only playlists the Scheduler can still start
+  const onlyEve = listThemeSongs(db, 'christmas', new Set(['Eve Show']));
+  assert.deepStrictEqual(onlyEve.playlists, ['Eve Show']);
+  assert.deepStrictEqual([...onlyEve.songs.keys()], ['Wizards', 'Eve Song']);
+  const nothingScheduled = listThemeSongs(db, 'christmas', new Set());
+  assert.strictEqual(nothingScheduled.restricted, true, 'tagged but unscheduled does not fall back to every song');
+  assert.deepStrictEqual(nothingScheduled.playlists, []);
+  assert.strictEqual(nothingScheduled.songs.size, 0);
+  assert.deepStrictEqual(listVisitorPlaylists(db, 'christmas', new Set(['Eve Show'])).map((p) => p.name), ['Eve Show']);
+  assert.deepStrictEqual(listVisitorPlaylists(db, 'christmas', new Set()), []);
+  assert.deepStrictEqual(listVisitorPlaylists(db, 'christmas', null).map((p) => p.name), ['Christmas Classics', 'Eve Show']);
+
+  // The server check: a Halloween song is refused under Christmas; a song must also be in the synced cache
+  assert.strictEqual(isRequestableSong(db, 'Wizards', onlyEve), true);
+  assert.strictEqual(isRequestableSong(db, 'Carol', onlyEve), false, 'its playlist is not scheduled');
+  assert.strictEqual(isRequestableSong(db, 'Dragula', christmas), false, 'not in a Christmas playlist');
+  assert.strictEqual(isRequestableSong(db, 'Not Synced', christmas), false, 'not in a Christmas playlist and not cached');
+  const unsyncedSong = { restricted: true, playlists: ['Eve Show'], songs: new Map([['Not Synced', ['Eve Show']]]), order: new Map() };
+  assert.strictEqual(isRequestableSong(db, 'Not Synced', unsyncedSong), false, 'in an offered playlist but missing from the synced cache');
+  assert.strictEqual(isRequestableSong(db, 'Dragula'), true, 'no theme limit given');
+
+  // A theme with no tagged playlist, or tagged ones whose songs are not known yet, offers every song
+  setPlaylistThemes(db, [['Spooky', null]]);
+  const unlimited = listThemeSongs(db, 'halloween');
+  assert.strictEqual(unlimited.restricted, false);
+  assert.strictEqual(isRequestableSong(db, 'Dragula', unlimited), true);
+  db.prepare('DELETE FROM jukebox_playlist_songs').run();
+  assert.strictEqual(listThemeSongs(db, 'christmas').restricted, false, 'before the first sync stores songs');
+
+  // The stored copy of FPP's schedule
+  const when = DateTime.fromISO('2026-12-10T19:00:00', { zone: 'America/Chicago' });
+  assert.strictEqual(activePlaylistNames(db, when), null, 'no schedule stored yet');
+  const schedule = [
+    { enabled: 1, day: 7, playlist: 'Eve Show', startTime: '18:00:00', endTime: '22:00:00', startDate: '2026-11-20', endDate: '2026-12-24' },
+    { enabled: 1, day: 7, playlist: 'Christmas Classics', startTime: '18:00:00', endTime: '22:00:00', startDate: '2026-11-20', endDate: '2026-12-05' },
+    { enabled: 0, day: 7, playlist: 'Spooky', startTime: '18:00:00', endTime: '22:00:00', endDate: '2026-12-31' },
+  ];
+  storeSchedule(db, schedule);
+  storeSchedule(db, schedule);
+  assert.strictEqual((db.prepare("SELECT COUNT(*) AS n FROM settings WHERE key = 'fpp_schedule_json'").get() as { n: number }).n, 1);
+  assert.deepStrictEqual([...(activePlaylistNames(db, when) ?? [])], ['Eve Show']);
+  storeSchedule(db, [{ ...schedule[1], endDate: '2026-12-31' }]);
+  assert.deepStrictEqual([...(activePlaylistNames(db, when) ?? [])], ['Christmas Classics'], 'a changed schedule replaces the copy');
+  db.prepare("UPDATE settings SET value = 'not json' WHERE key = 'fpp_schedule_json'").run();
+  assert.strictEqual(activePlaylistNames(db, when), null, 'an unreadable copy filters nothing');
+  print('Test 9 OK');
 
   print('All tests passed');
 } catch (err) {

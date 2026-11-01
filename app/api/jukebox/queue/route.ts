@@ -9,7 +9,7 @@ import { isRequestableSong, lookupMediaName } from '@/lib/jukebox-catalog';
 import { getDistanceInMiles } from '@/lib/location-utils';
 import { roundMiles } from '@/lib/location-check';
 import { toPublicQueueItem } from '@/lib/jukebox-display';
-import { listVisitorPlaylists } from '@/lib/jukebox-playlists';
+import { activePlaylistNames, listThemeSongs, listVisitorPlaylists } from '@/lib/jukebox-playlists';
 import { normalizeThemeId } from '@/lib/themes/theme-config';
 
 export async function GET() {
@@ -49,6 +49,10 @@ export async function POST(request: NextRequest) {
     // Get current rate limit from settings
     const rateLimit = getSongRequestRateLimit();
 
+    const themeId = normalizeThemeId((getActiveTheme.get() as { active_theme_id?: string } | undefined)?.active_theme_id);
+    // Only playlists FPP's Scheduler can still start are offered (null until a schedule has been stored)
+    const activePlaylists = activePlaylistNames(db);
+
     // A playlist request names an FPP playlist the admin tagged for the active theme instead of a song
     const isPlaylist = playlist_name !== undefined && playlist_name !== null;
     if (isPlaylist) {
@@ -58,8 +62,7 @@ export async function POST(request: NextRequest) {
       if (typeof playlist_name !== 'string' || playlist_name.length < 1 || playlist_name.length > 200) {
         return NextResponse.json({ error: 'Playlist name must be 1-200 characters' }, { status: 400 });
       }
-      const themeId = normalizeThemeId((getActiveTheme.get() as { active_theme_id?: string } | undefined)?.active_theme_id);
-      if (!listVisitorPlaylists(db, themeId).some((playlist) => playlist.name === playlist_name)) {
+      if (!listVisitorPlaylists(db, themeId, activePlaylists).some((playlist) => playlist.name === playlist_name)) {
         return NextResponse.json({ error: "That playlist isn't available right now" }, { status: 404 });
       }
       const fppState = getFPPState.get() as { current_playlist?: string | null } | undefined;
@@ -91,8 +94,8 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Songs must be ones the admin synced from FPP; hidden sequences can't be queued
-    if (!isPlaylist && !isRequestableSong(db, sequence_name)) {
+    // Songs must be ones the admin synced from FPP and the active theme offers; hidden sequences can't be queued
+    if (!isPlaylist && !isRequestableSong(db, sequence_name, listThemeSongs(db, themeId, activePlaylists))) {
       return NextResponse.json({ error: "That song isn't available right now" }, { status: 404 });
     }
 

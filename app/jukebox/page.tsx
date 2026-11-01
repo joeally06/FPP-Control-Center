@@ -62,6 +62,8 @@ export default function JukeboxPage() {
   const [currentlyPlaying, setCurrentlyPlaying] = useState<CurrentlyPlaying | null>(null);
   const [currentMetadata, setCurrentMetadata] = useState<SequenceMetadata | null>(null);
   const [availableSongs, setAvailableSongs] = useState<CatalogSong[]>([]);
+  // Playlists the songs are grouped by (empty when every song is offered)
+  const [songPlaylists, setSongPlaylists] = useState<string[]>([]);
   const [requesterName, setRequesterName] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -536,8 +538,11 @@ export default function JukeboxPage() {
       if (response.ok) {
         const data = await response.json();
         setAvailableSongs(Array.isArray(data.songs) ? data.songs : []);
+        setSongPlaylists(Array.isArray(data.playlists) ? data.playlists : []);
 
-        if (data.sequences.length === 0) {
+        if (data.closed) {
+          setMessage("ℹ️ Song requests open when the show's playlists are scheduled.");
+        } else if (data.sequences.length === 0) {
           setMessage('⚠️ No songs available. Admin needs to refresh the cache.');
         } else {
           console.log(`[Jukebox] Loaded ${data.sequences.length} sequences from cache`);
@@ -954,6 +959,8 @@ export default function JukeboxPage() {
             {showInteractiveFeatures && (
               <SongCatalog
                 songs={availableSongs}
+                playlists={songPlaylists}
+                scheduledPlaylist={scheduleStatus?.scheduledPlaylist ?? null}
                 loading={loadingSequences}
                 message={checkingLocation ? '📍 Getting your location…' : message}
                 currentSequence={currentSequenceName}

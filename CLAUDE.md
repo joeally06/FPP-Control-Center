@@ -22,7 +22,7 @@ Fast verify (also run by the Stop hook): `npx tsc --noEmit && npm run test:ci`
 - Key directories:
   - `app/` — pages and `app/api/**/route.ts` handlers; `components/` — React components
   - `lib/` — all server logic (`database.ts`, `auth-helpers.ts`, `rate-limit.ts`, `fpp-config.ts`, `jukebox-queue.ts`, `fpp-poller.ts`, …); `types/` — shared TS types
-  - `migrations/` — numbered `NNN_name.sql` (highest is `024`, next is `025`); `scripts/` — ops scripts and `test-*.ts`
+  - `migrations/` — numbered `NNN_name.sql` (highest is `025`, next is `026`); `scripts/` — ops scripts and `test-*.ts`
   - `proxy.ts` (Next 16 middleware), `instrumentation.ts` (background services), `server.js`, `ecosystem.config.js` (PM2)
 - Architecture: route handler → `lib/` function → better-sqlite3. Handlers stay thin; do not add a controller/service/ORM layer. Production runs two PM2 processes: `fpp-control` (`server.js`) and `fpp-poller` (`lib/fpp-poller.ts`, polls FPP every 10 s into SQLite).
 - CI environment: GitHub Actions `ubuntu-latest`, Node 24, on push/PR to `main`/`master`: `check-security.js`, lint, `init-database.js` (throwaway DB), build, `npm run test:ci`
