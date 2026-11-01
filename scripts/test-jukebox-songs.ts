@@ -236,6 +236,7 @@ try {
   assert.strictEqual(byId('titles').detail, '1 of 3 show their file name to visitors');
   assert.strictEqual(byId('audio').detail, "2 songs can't play on visitors' phones yet");
   assert.strictEqual(byId('playlists').detail, '1 playlist offered for Christmas');
+  assert.strictEqual(byId('playlists').tab, 'songs', 'playlists are chosen on the Playlists & songs tab');
   assert.strictEqual(byId('visitor').detail, 'Christmas theme, showing "Lewis Lights"');
   assert.deepStrictEqual([byId('titles').tab, byId('titles').filter, byId('audio').filter], ['songs', 'titles', 'audio']);
 

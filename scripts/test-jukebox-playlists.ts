@@ -420,14 +420,14 @@ try {
   ]));
   setPlaylistThemes(db, [['One', 'christmas']]);
   const today = DateTime.fromISO('2026-12-10T19:00:00', { zone: 'America/Chicago' });
-  assert.deepStrictEqual(listAdminPlaylists(db, today).map((p) => [p.name, p.songCount, p.season]), [['Later', 1, 'unknown'], ['One', 3, 'unknown']], 'no schedule stored yet; a playlist without songs is not listed');
+  assert.deepStrictEqual(listAdminPlaylists(db, today).map((p) => [p.name, p.songCount, p.season]), [['Empty', 0, 'unknown'], ['Later', 1, 'unknown'], ['One', 3, 'unknown']], 'no schedule stored yet; a playlist without songs is listed with 0 so it can still be tagged');
   db.prepare("DELETE FROM settings WHERE key = 'fpp_schedule_json'").run();
   storeSchedule(db, [
     { enabled: 1, day: 7, playlist: 'One', startTime: '18:00:00', endTime: '22:00:00', startDate: '2026-11-20', endDate: '2026-12-24' },
     { enabled: 1, day: 7, playlist: 'Later', startTime: '18:00:00', endTime: '22:00:00', startDate: '2026-12-11', endDate: '2026-12-24' },
   ]);
   assert.deepStrictEqual(listAdminPlaylists(db, today).map((p) => [p.name, p.theme, p.season, p.startsOn]),
-    [['Later', null, 'upcoming', '2026-12-11'], ['One', 'christmas', 'in-season', null]]);
+    [['Empty', null, 'not-scheduled', null], ['Later', null, 'upcoming', '2026-12-11'], ['One', 'christmas', 'in-season', null]]);
   print('Test 12 OK');
 
   // Test 13: the playlist a song was picked from is kept on the queue row, and only when it is a real one

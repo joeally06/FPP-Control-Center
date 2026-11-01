@@ -7,19 +7,14 @@ import JukeboxSongs from '@/components/admin/JukeboxSongs';
 import LocationRestrictions from '@/components/admin/LocationRestrictions';
 import ThemeSettings from '@/components/admin/ThemeSettings';
 import YouTubeVideoSettings from '@/components/admin/YouTubeVideoSettings';
-import {
-  PlaylistSettings,
-  RequestRulesSettings,
-  VisitorPageSettings,
-} from '@/components/admin/JukeboxSettings';
+import { RequestRulesSettings, VisitorPageSettings } from '@/components/admin/JukeboxSettings';
 import { accentButton, card, insetBox, notice, smallButton, tabClass } from '@/components/admin/ui-classes';
 import type { AdminPlaylist } from '@/lib/jukebox-playlists';
 import type { AdminSong, ChecklistItem, SongFilter } from '@/lib/jukebox-songs';
 import { formatDateTime } from '@/lib/time-utils';
 
 const TABS = [
-  { id: 'songs', label: 'Songs' },
-  { id: 'playlists', label: 'Playlists' },
+  { id: 'songs', label: 'Playlists & songs' },
   { id: 'rules', label: 'Request rules' },
   { id: 'visitor', label: 'Visitor page' },
 ] as const;
@@ -27,6 +22,8 @@ const TABS = [
 type TabId = (typeof TABS)[number]['id'];
 
 function toTab(value: string | undefined): TabId {
+  // The Playlists tab was merged into this one; keep old links working
+  if (value === 'playlists') return 'songs';
   return TABS.find((tab) => tab.id === value)?.id ?? 'songs';
 }
 
@@ -46,6 +43,8 @@ export default function JukeboxSetup({ initialTab }: { initialTab?: string }) {
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [setup, setSetup] = useState<{ songs: AdminSong[]; checklist: ChecklistItem[]; playlists: AdminPlaylist[] } | null>(null);
   const [songFilter, setSongFilter] = useState<SongFilter>('all');
+  // Changing it switches the Playlists & songs tab back to "All songs", which is the list the checklist counts
+  const [songsKey, setSongsKey] = useState(0);
   const tabsRef = useRef<HTMLDivElement>(null);
   // Bumped after a save on the Visitor page tab so the preview frame reloads
   const [previewKey, setPreviewKey] = useState(0);
@@ -91,7 +90,10 @@ export default function JukeboxSetup({ initialTab }: { initialTab?: string }) {
   }
 
   function openChecklistItem(item: ChecklistItem) {
-    if (item.filter) setSongFilter(item.filter);
+    if (item.filter) {
+      setSongFilter(item.filter);
+      setSongsKey((n) => n + 1);
+    }
     selectTab(item.tab);
     tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -214,8 +216,9 @@ export default function JukeboxSetup({ initialTab }: { initialTab?: string }) {
       </div>
 
       {/* Every tab stays mounted so unsaved edits survive switching tabs */}
-      <section aria-label="Songs" hidden={tab !== 'songs'}>
+      <section aria-label="Playlists and songs" hidden={tab !== 'songs'}>
         <JukeboxSongs
+          allSongsKey={songsKey}
           songs={setup?.songs ?? null}
           playlists={setup?.playlists ?? []}
           reloadKey={reloadKey}
@@ -223,10 +226,6 @@ export default function JukeboxSetup({ initialTab }: { initialTab?: string }) {
           onFilterChange={setSongFilter}
           onChanged={fetchSetup}
         />
-      </section>
-
-      <section aria-label="Playlists" hidden={tab !== 'playlists'} className="max-w-3xl">
-        <PlaylistSettings reloadKey={reloadKey} />
       </section>
 
       <section aria-label="Request rules" hidden={tab !== 'rules'} className="flex flex-col gap-4">

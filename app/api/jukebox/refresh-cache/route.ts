@@ -16,7 +16,7 @@ async function fetchFppJson(path: string): Promise<unknown> {
 }
 
 /**
- * Update the list of playlists visitors can be offered (Settings → Jukebox → Playlists).
+ * Update the list of playlists visitors can be offered (Settings → Jukebox → Playlists & songs).
  * `loaded` holds playlists already fetched for the song cache. Returns how many FPP has,
  * or null when FPP's playlist list couldn't be read (the stored list is then left alone).
  */

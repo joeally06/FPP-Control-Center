@@ -267,7 +267,7 @@ export function listPlaylistSongs(db: Database.Database, playlist: string, audio
   });
 }
 
-export type SetupTab = 'songs' | 'playlists' | 'rules' | 'visitor';
+export type SetupTab = 'songs' | 'rules' | 'visitor';
 export type SongFilter = 'all' | 'titles' | 'audio';
 
 export interface ChecklistItem {
@@ -332,7 +332,7 @@ export function buildSetupChecklist(summary: SetupSummary): ChecklistItem[] {
       detail: summary.offeredPlaylists
         ? `${plural(summary.offeredPlaylists, 'playlist')} offered for ${summary.themeName}`
         : `None offered for ${summary.themeName} (optional)`,
-      tab: 'playlists',
+      tab: 'songs',
     },
     {
       id: 'rules',

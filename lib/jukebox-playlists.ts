@@ -210,12 +210,12 @@ export interface AdminPlaylist {
   startsOn: string | null;
 }
 
-/** Playlists whose songs are known (stored on each sync), for the picker on the Songs tab. */
+/** Every synced FPP playlist with the songs stored for it on the last sync (0 when none), for the picker on the Playlists & songs tab. */
 export function listAdminPlaylists(db: Database.Database, now = DateTime.now().setZone(APP_TIMEZONE)): AdminPlaylist[] {
   const rows = db.prepare(`
     SELECT p.name, p.theme, COUNT(s.sequence_name) AS song_count
     FROM jukebox_playlists p
-    JOIN jukebox_playlist_songs s ON s.playlist_name = p.name
+    LEFT JOIN jukebox_playlist_songs s ON s.playlist_name = p.name
     GROUP BY p.name
     ORDER BY p.name COLLATE NOCASE
   `).all() as { name: string; theme: ThemeId | null; song_count: number }[];

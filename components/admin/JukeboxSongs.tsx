@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Download, ImagePlus, Link2, Music, Pencil, RefreshCw, Search, Trash2, Undo2, X } from 'lucide-react';
 import type { AdminPlaylist } from '@/lib/jukebox-playlists';
 import type { AdminSong, AudioStatus, PlaylistAdminSong, SongFilter } from '@/lib/jukebox-songs';
+import { THEME_PRESETS, type ThemeId } from '@/lib/themes/theme-config';
 import { MAX_CATEGORY_LENGTH, SUGGESTED_CATEGORIES, formatClock } from '@/lib/jukebox-display';
 import { AdminH3, AdminLabel, AdminTextMuted } from '@/components/admin/Typography';
 import {
@@ -109,12 +110,14 @@ interface JukeboxSongsProps {
   reloadKey: number;
   filter: SongFilter;
   onFilterChange: (filter: SongFilter) => void;
+  /** Changes when the checklist sends the admin back to the full song list */
+  allSongsKey: number;
   /** Reload the songs (and the checklist) after something changed */
   onChanged: () => Promise<void>;
 }
 
-/** Jukebox → Songs: every song visitors can request, with its title, category and phone audio. Pick a playlist to give its songs their own details. */
-export default function JukeboxSongs({ songs, playlists, reloadKey, filter, onFilterChange, onChanged }: JukeboxSongsProps) {
+/** Jukebox → Playlists & songs: every song visitors can request, with its title, category and phone audio. Pick a playlist to give its songs their own details. */
+export default function JukeboxSongs({ songs, playlists, reloadKey, filter, onFilterChange, allSongsKey, onChanged }: JukeboxSongsProps) {
   const [search, setSearch] = useState('');
   const [selectedName, setSelectedName] = useState<string | null>(null);
   const [autoFill, setAutoFill] = useState<{ done: number; total: number } | null>(null);
@@ -122,6 +125,11 @@ export default function JukeboxSongs({ songs, playlists, reloadKey, filter, onFi
   // null = "All songs (defaults)"; otherwise the playlist being edited and its songs (null while loading)
   const [playlist, setPlaylist] = useState<string | null>(null);
   const [playlistSongs, setPlaylistSongs] = useState<PlaylistAdminSong[] | null>(null);
+  const [savingTheme, setSavingTheme] = useState(false);
+  // The theme just picked for a playlist, shown until the playlist list reloads (the server's value is what is saved)
+  const [pickedTheme, setPickedTheme] = useState<{ playlist: string; theme: string } | null>(null);
+  const [seenAllSongsKey, setSeenAllSongsKey] = useState(allSongsKey);
+  const [downloadProgress, setDownloadProgress] = useState<{ done: number; total: number } | null>(null);
 
   useEffect(() => {
     if (!playlist) return;
@@ -162,6 +170,15 @@ export default function JukeboxSongs({ songs, playlists, reloadKey, filter, onFi
     setPlaylistSongs(null);
     setSelectedName(null);
     setMessage(null);
+    setPickedTheme(null);
+  }
+
+  // Back to "All songs" when the checklist asks for it, or when a Sync removed the open playlist (adjusted while rendering, not in an effect)
+  if (seenAllSongsKey !== allSongsKey) {
+    setSeenAllSongsKey(allSongsKey);
+    choosePlaylist(null);
+  } else if (playlist && songs !== null && !playlists.some((item) => item.name === playlist)) {
+    choosePlaylist(null);
   }
 
   const list: ListedSong[] = playlist ? (playlistSongs ?? []) : (songs ?? []);
@@ -171,6 +188,60 @@ export default function JukeboxSongs({ songs, playlists, reloadKey, filter, onFi
   );
   const selected = list.find((song) => song.name === selectedName) ?? null;
   const untitled = list.filter((song) => !song.title);
+  const selectedPlaylist = playlists.find((item) => item.name === playlist) ?? null;
+  const needsDownload = list.filter((song) => song.audioStatus === 'needs-download');
+
+  // Which theme shows this playlist to visitors; saved as soon as it changes
+  async function saveTheme(name: string, theme: string) {
+    setSavingTheme(true);
+    setMessage(null);
+    setPickedTheme({ playlist: name, theme });
+    try {
+      const response = await fetch('/api/jukebox/playlist-themes', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ themes: { [name]: theme } }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
+      await onChanged();
+      setMessage({ ok: true, text: theme ? `${name} will show during ${THEME_PRESETS[theme as ThemeId]?.name ?? theme}.` : `${name} is hidden from visitors.` });
+    } catch (error) {
+      console.error('Failed to save the playlist theme:', error);
+      setPickedTheme(null);
+      setMessage({ ok: false, text: 'Could not save that change. Try again.' });
+    } finally {
+      setSavingTheme(false);
+    }
+  }
+
+  // The phone audio FPP has for this playlist's songs, copied one song at a time
+  async function downloadMissingAudio() {
+    setMessage(null);
+    setDownloadProgress({ done: 0, total: needsDownload.length });
+    let copied = 0;
+    for (const [index, song] of needsDownload.entries()) {
+      try {
+        const response = await fetch('/api/audio/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sequenceName: song.name, mediaName: song.mediaName }),
+        });
+        if (response.ok) copied++;
+      } catch (error) {
+        console.error('Audio download failed for', song.name, error);
+      }
+      setDownloadProgress({ done: index + 1, total: needsDownload.length });
+    }
+    await refresh();
+    setDownloadProgress(null);
+    setMessage({
+      ok: copied === needsDownload.length,
+      text: copied === needsDownload.length ? `Downloaded audio for ${copied} ${copied === 1 ? 'song' : 'songs'}.` : `Downloaded ${copied} of ${needsDownload.length}. Open the rest to see why.`,
+    });
+  }
   const categories = [...new Set([...SUGGESTED_CATEGORIES, ...list.map((song) => song.category).filter((c): c is string => !!c)])];
 
   // Spotify lookups for songs with no title, one at a time (the same lookup the Media library ran on every song)
@@ -227,32 +298,64 @@ export default function JukeboxSongs({ songs, playlists, reloadKey, filter, onFi
 
       <div className="flex min-w-0 flex-1 flex-col gap-4">
         {playlists.length > 0 && (
-          <div className="flex flex-col gap-2" role="group" aria-label="Choose a playlist to edit">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-adm-muted">Edit songs for</p>
-            <div className="flex flex-wrap gap-2">
-              <button onClick={() => choosePlaylist(null)} aria-pressed={playlist === null} className={`${CHIP(playlist === null)} cursor-pointer`}>
-                All songs (defaults)
-              </button>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="jukebox-playlist" className="text-xs font-semibold uppercase tracking-[0.08em] text-adm-muted">Playlist</label>
+            <select
+              id="jukebox-playlist"
+              value={playlist ?? ''}
+              onChange={(e) => choosePlaylist(e.target.value || null)}
+              disabled={autoFill !== null || downloadProgress !== null}
+              className={`${field} cursor-pointer sm:max-w-md`}
+            >
+              <option value="">All songs (default details)</option>
               {playlists.map((item) => {
-                const note = seasonNote(item);
+                const note = item.theme ? seasonNote(item) : 'Hidden';
                 return (
-                  <button
-                    key={item.name}
-                    onClick={() => choosePlaylist(item.name)}
-                    aria-pressed={playlist === item.name}
-                    className={`${CHIP(playlist === item.name)} inline-flex cursor-pointer items-center gap-2`}
-                  >
-                    {item.name} <span className="opacity-75">{item.songCount}</span>
-                    {note && <span className="rounded-full bg-adm-line px-2 py-0.5 text-[11px] font-semibold text-adm-soft">{note}</span>}
-                  </button>
+                  <option key={item.name} value={item.name}>
+                    {item.name} · {item.songCount} {item.songCount === 1 ? 'song' : 'songs'}{note ? ` · ${note}` : ''}
+                  </option>
                 );
               })}
-            </div>
+            </select>
             <p className="text-xs text-adm-muted">
               {playlist
                 ? 'Changes here apply to this playlist only. Anything left empty shows the song’s default details.'
                 : 'Default details show in every playlist that has none of its own.'}
             </p>
+          </div>
+        )}
+
+        {playlist && selectedPlaylist && (
+          <div className={`${card} flex flex-col gap-4`}>
+            <div className="flex flex-col gap-1.5 sm:max-w-md">
+              <label htmlFor="jukebox-playlist-theme" className="text-sm font-semibold text-adm-text">Show it during</label>
+              <select
+                id="jukebox-playlist-theme"
+                value={pickedTheme?.playlist === selectedPlaylist.name ? pickedTheme.theme : (selectedPlaylist.theme ?? '')}
+                onChange={(e) => saveTheme(selectedPlaylist.name, e.target.value)}
+                disabled={savingTheme}
+                className={`${field} cursor-pointer`}
+              >
+                <option value="">Hidden from visitors</option>
+                {Object.values(THEME_PRESETS).map((theme) => (
+                  <option key={theme.id} value={theme.id}>{theme.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-adm-muted">
+                Visitors see this playlist while that theme is on and FPP’s schedule runs it today. Sync from FPP after changing a playlist in FPP.
+              </p>
+            </div>
+            {needsDownload.length > 0 && (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <span className="text-sm text-adm-muted">
+                  {needsDownload.length} {needsDownload.length === 1 ? 'song needs' : 'songs need'} audio for visitors’ phones.
+                </span>
+                <button onClick={downloadMissingAudio} disabled={downloadProgress !== null} className={`${smallButton} shrink-0`}>
+                  <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                  {downloadProgress ? `Downloading ${downloadProgress.done} of ${downloadProgress.total}…` : 'Download phone audio'}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
