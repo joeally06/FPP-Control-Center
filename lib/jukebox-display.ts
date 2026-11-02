@@ -76,6 +76,14 @@ export function formatShowTime(time: string | null | undefined): string {
   return `${hours12}:${match[2]} ${period}`;
 }
 
+/** "Sat, Nov 28" from "2026-11-28", read as a plain calendar date (no time zone shift); empty if it is not one */
+export function formatShowDate(isoDate: string | null | undefined): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate ?? '');
+  if (!match) return '';
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
 /** "88.1" → "88.1 FM"; anything the admin typed with letters ("88.1FM", "88.1 MHz") is kept as typed */
 export function formatFmFrequency(value: string): string {
   const trimmed = value.trim();
@@ -134,12 +142,17 @@ export function showStatus(input: {
   nextShowDay: string | null;
   nextShowStartTime: string | null;
   countdown: string | null;
+  /** "YYYY-MM-DD" of the next show; with `countdownCard` the pill names the date, since the card shows the time left */
+  nextShowDate?: string | null;
+  countdownCard?: boolean;
 }): ShowStatus {
   if (input.isActive) {
     const until = formatShowTime(input.currentShowEndTime);
     return { live: true, label: until ? `Live now · until ${until}` : 'Live now' };
   }
   const start = formatShowTime(input.nextShowStartTime);
+  const date = input.countdownCard ? formatShowDate(input.nextShowDate) : '';
+  if (date && start) return { live: false, label: `Next show ${date} · ${start}` };
   if (input.nextShowDay && start) {
     return { live: false, label: `Next show ${input.nextShowDay} ${start}${input.countdown ? ` · in ${input.countdown}` : ''}` };
   }
@@ -214,6 +227,7 @@ export const VISITOR_SETTING_LIMITS = {
   site_name: 60,
   jukebox_fm_frequency: 40,
   jukebox_courtesy_text: 600,
+  jukebox_countdown_heading: 60,
   jukebox_spec_pixels: 40,
   jukebox_spec_universes: 40,
   jukebox_spec_wiring: 40,
@@ -221,7 +235,41 @@ export const VISITOR_SETTING_LIMITS = {
 } as const;
 
 /** Visitor-page on/off switches (stored as 'true' / 'false'). */
-export const VISITOR_BOOLEAN_SETTINGS = ['jukebox_courtesy_enabled', 'jukebox_specs_enabled', 'jukebox_audience_enabled'] as const;
+export const VISITOR_BOOLEAN_SETTINGS = ['jukebox_courtesy_enabled', 'jukebox_specs_enabled', 'jukebox_audience_enabled', 'jukebox_countdown_enabled'] as const;
+
+/** The countdown to the next show, shown while no show is running (on until the admin switches it off) */
+export interface CountdownSettings {
+  enabled: boolean;
+  heading: string;
+}
+
+export const DEFAULT_COUNTDOWN_HEADING = 'The next show starts in';
+
+/** What the countdown card needs to show */
+export interface NextShowInfo {
+  /** ISO timestamp of the next show's start */
+  at: string;
+  /** The show's own calendar date and start time, so a visitor in another time zone sees the show's clock */
+  date: string | null;
+  startTime: string | null;
+  heading: string;
+}
+
+/** The countdown card for the next show; null while a show is on, when it is switched off or when no show is ahead. */
+export function nextShowCard(
+  schedule: { isActive: boolean; nextShowTime?: string | null; nextShowDate?: string | null; nextShowStartTime?: string | null } | null,
+  countdown: CountdownSettings,
+): NextShowInfo | null {
+  if (!schedule || schedule.isActive || !countdown.enabled || !schedule.nextShowTime) return null;
+  return { at: schedule.nextShowTime, date: schedule.nextShowDate ?? null, startTime: schedule.nextShowStartTime ?? null, heading: countdown.heading };
+}
+
+export function readCountdownSettings(getValue: (key: string) => string | null | undefined): CountdownSettings {
+  return {
+    enabled: getValue('jukebox_countdown_enabled') !== 'false',
+    heading: (getValue('jukebox_countdown_heading') ?? '').trim() || DEFAULT_COUNTDOWN_HEADING,
+  };
+}
 
 /** The off-season message under the logo (Settings → Jukebox). Show times and live/offline status are automatic. */
 export interface OffSeasonBanner {

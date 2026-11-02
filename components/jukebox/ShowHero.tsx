@@ -2,7 +2,8 @@
 
 import { Users } from 'lucide-react';
 import { useTheme } from '@/lib/themes/theme-context';
-import { formatFmFrequency, type ShowStatus } from '@/lib/jukebox-display';
+import { formatFmFrequency, type NextShowInfo, type ShowStatus } from '@/lib/jukebox-display';
+import NextShowCountdown from '@/components/jukebox/NextShowCountdown';
 
 interface ShowHeroProps {
   siteName: string;
@@ -14,10 +15,12 @@ interface ShowHeroProps {
   onToggleListen: () => void;
   /** Visitors with the page open right now; null hides the counter */
   audienceCount: number | null;
+  /** The countdown card for the next show, shown only while no show is running; null hides it */
+  nextShow?: NextShowInfo | null;
 }
 
 /** Top of the page: the season's logo (or the show name), live status, FM frequency and the two main actions. */
-export default function ShowHero({ siteName, fmFrequency, status, showActions, listening, onToggleListen, audienceCount }: ShowHeroProps) {
+export default function ShowHero({ siteName, fmFrequency, status, showActions, listening, onToggleListen, audienceCount, nextShow }: ShowHeroProps) {
   const { assets } = useTheme();
   const logo = assets.logo;
 
@@ -46,6 +49,8 @@ export default function ShowHero({ siteName, fmFrequency, status, showActions, l
           {status.live && <span className="sp-live-dot h-2.5 w-2.5 rounded-full" aria-hidden="true" />}
           {status.label}
         </p>
+
+        {!status.live && nextShow && <NextShowCountdown nextShow={nextShow} />}
 
         {fmFrequency && (
           <p className="sp-display sp-title sp-glow-text sp-fm">

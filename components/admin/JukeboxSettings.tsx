@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { formatDateTime } from '@/lib/time-utils';
 import {
+  DEFAULT_COUNTDOWN_HEADING,
   DEFAULT_COURTESY_TEXT,
   SHOW_SPEC_FIELDS,
   VISITOR_SETTING_LIMITS,
@@ -325,6 +326,8 @@ export function VisitorPageSettings({ onSaved }: { onSaved?: () => void }) {
   const [specsEnabled, setSpecsEnabled] = useState(false);
   const [specValues, setSpecValues] = useState<Record<string, string>>({});
   const [audienceEnabled, setAudienceEnabled] = useState(false);
+  const [countdownEnabled, setCountdownEnabled] = useState(true);
+  const [countdownHeading, setCountdownHeading] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
@@ -343,6 +346,8 @@ export function VisitorPageSettings({ onSaved }: { onSaved?: () => void }) {
           setSpecsEnabled(data.settings.jukebox_specs_enabled === 'true');
           setSpecValues(Object.fromEntries(SHOW_SPEC_FIELDS.map((field) => [field.key, data.settings[field.key] || ''])));
           setAudienceEnabled(data.settings.jukebox_audience_enabled === 'true');
+          setCountdownEnabled(data.settings.jukebox_countdown_enabled !== 'false');
+          setCountdownHeading(data.settings.jukebox_countdown_heading || '');
         }
       } catch (err) {
         console.error('Error fetching visitor page settings:', err);
@@ -371,7 +376,9 @@ export function VisitorPageSettings({ onSaved }: { onSaved?: () => void }) {
             jukebox_courtesy_text: courtesyText.trim(),
             jukebox_specs_enabled: specsEnabled ? 'true' : 'false',
             ...Object.fromEntries(SHOW_SPEC_FIELDS.map((field) => [field.key, (specValues[field.key] || '').trim()])),
-            jukebox_audience_enabled: audienceEnabled ? 'true' : 'false'
+            jukebox_audience_enabled: audienceEnabled ? 'true' : 'false',
+            jukebox_countdown_enabled: countdownEnabled ? 'true' : 'false',
+            jukebox_countdown_heading: countdownHeading.trim(),
           }
         })
       });
@@ -444,6 +451,39 @@ export function VisitorPageSettings({ onSaved }: { onSaved?: () => void }) {
           </p>
         </div>
       </div>
+
+      <label className={choiceCard}>
+        <input
+          type="checkbox"
+          checked={countdownEnabled}
+          onChange={(e) => setCountdownEnabled(e.target.checked)}
+          className={checkInput}
+        />
+        <div className="flex-1">
+          <p className="text-sm font-medium text-adm-text">Show a countdown to the next show</p>
+          <p className="mt-0.5 text-[13px] text-adm-muted">
+            Shown while no show is running, counting down to the next start in FPP&apos;s Scheduler, even weeks away between seasons.
+          </p>
+        </div>
+      </label>
+
+      {countdownEnabled && (
+        <div>
+          <AdminLabel htmlFor="jukebox-countdown-heading">Countdown heading</AdminLabel>
+          <input
+            id="jukebox-countdown-heading"
+            type="text"
+            value={countdownHeading}
+            onChange={(e) => setCountdownHeading(e.target.value)}
+            maxLength={VISITOR_SETTING_LIMITS.jukebox_countdown_heading}
+            placeholder={DEFAULT_COUNTDOWN_HEADING}
+            className={field}
+          />
+          <p className="mt-1 text-xs text-adm-muted">
+            For example &ldquo;Christmas lights return in&rdquo;. Leave empty to use the default shown above.
+          </p>
+        </div>
+      )}
 
       <label className={choiceCard}>
         <input

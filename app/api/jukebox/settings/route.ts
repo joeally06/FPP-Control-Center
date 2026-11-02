@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSetting } from '@/lib/settings';
-import { DEFAULT_COURTESY_TEXT, buildShowSpecs, parseCourtesyLines } from '@/lib/jukebox-display';
+import { DEFAULT_COUNTDOWN_HEADING, DEFAULT_COURTESY_TEXT, buildShowSpecs, parseCourtesyLines, readCountdownSettings } from '@/lib/jukebox-display';
 
 /**
  * GET /api/jukebox/settings
@@ -24,6 +24,7 @@ export async function GET() {
       },
       specs: buildShowSpecs(getSetting('jukebox_specs_enabled') === 'true', getSetting),
       audienceEnabled: getSetting('jukebox_audience_enabled') === 'true',
+      countdown: readCountdownSettings(getSetting),
     });
   } catch (error) {
     console.error('Error fetching jukebox settings:', error);
@@ -37,6 +38,7 @@ export async function GET() {
       courtesy: { enabled: false, lines: [] },
       specs: [],
       audienceEnabled: false,
+      countdown: { enabled: true, heading: DEFAULT_COUNTDOWN_HEADING },
     });
   }
 }

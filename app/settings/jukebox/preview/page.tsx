@@ -8,18 +8,21 @@ import JukeboxBanner from '@/components/JukeboxBanner';
 import CourtesyCard from '@/components/jukebox/CourtesyCard';
 import ShowSpecsCard from '@/components/jukebox/ShowSpecsCard';
 import Footer from '@/components/Footer';
-import { showStatus, type ShowSpec } from '@/lib/jukebox-display';
+import { DEFAULT_COUNTDOWN_HEADING, nextShowCard, showStatus, type CountdownSettings, type ShowSpec } from '@/lib/jukebox-display';
 
 interface PreviewSettings {
   siteName: string;
   fmFrequency: string;
   courtesyLines: string[];
   specs: ShowSpec[];
+  countdown: CountdownSettings;
 }
 
 interface ScheduleStatus {
   isActive: boolean;
   currentShowEndTime?: string | null;
+  nextShowTime?: string | null;
+  nextShowDate?: string | null;
   nextShowDay: string | null;
   nextShowStartTime: string | null;
   countdown?: string | null;
@@ -43,6 +46,7 @@ export default function VisitorPagePreview() {
           fmFrequency: data.fmFrequency || '',
           courtesyLines: data.courtesy?.enabled && Array.isArray(data.courtesy.lines) ? data.courtesy.lines : [],
           specs: Array.isArray(data.specs) ? data.specs : [],
+          countdown: { enabled: data.countdown?.enabled !== false, heading: data.countdown?.heading || DEFAULT_COUNTDOWN_HEADING },
         })
       )
       .catch((error) => console.error('Failed to load jukebox settings:', error));
@@ -57,6 +61,7 @@ export default function VisitorPagePreview() {
 
   const siteName = settings.siteName || 'Light Show Jukebox';
   const isActive = Boolean(schedule?.isActive);
+  const nextShow = schedule ? nextShowCard(schedule, settings.countdown) : null;
 
   return (
     <ThemedJukeboxWrapper>
@@ -73,7 +78,10 @@ export default function VisitorPagePreview() {
             nextShowDay: schedule?.nextShowDay ?? null,
             nextShowStartTime: schedule?.nextShowStartTime ?? null,
             countdown: schedule?.countdown ?? null,
+            nextShowDate: schedule?.nextShowDate ?? null,
+            countdownCard: nextShow !== null,
           })}
+          nextShow={nextShow}
           showActions={isActive}
           listening={false}
           onToggleListen={() => {}}

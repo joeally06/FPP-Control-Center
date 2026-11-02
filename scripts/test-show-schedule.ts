@@ -238,6 +238,41 @@ try {
   assert.deepStrictEqual(playlistSeason(calendar, 'Soon', '2026-12-11'), { status: 'in-season', startsOn: null }, 'from its start date on');
   print('Test 11 OK');
 
+  // Test 12: the next show can be weeks away, in the next season (Halloween over on 1 Nov, Christmas from 28 Nov)
+  print('Test 12: next show across seasons');
+  const twoSeasons: FppScheduleEntry[] = [
+    { enabled: 1, day: 7, playlist: 'Halloween 2026', startTime: '18:45:00', endTime: '22:30:00', startDate: '2026-10-02', endDate: '2026-10-31' },
+    { enabled: 1, day: 7, playlist: 'Christmas', startTime: '17:30:00', endTime: '22:00:00', startDate: '2026-11-28', endDate: '2027-01-03' },
+  ];
+  assert.deepStrictEqual(summary(twoSeasons, at('2026-11-01T16:41:00')).next, 'Saturday 2026-11-28 17:30', 'weeks ahead, past the old 14-day limit');
+  assert.strictEqual(summary(twoSeasons, at('2026-11-01T16:41:00')).live, false);
+  assert.strictEqual(summary(twoSeasons, at('2026-11-28T18:00:00')).live, true, 'live on the first night');
+  assert.strictEqual(summary(twoSeasons, at('2026-11-27T22:00:00')).next, 'Saturday 2026-11-28 17:30', 'the night before');
+  // A yearless season (every year) and one that runs over New Year
+  const yearly: FppScheduleEntry[] = [{ enabled: 1, day: 7, playlist: 'Christmas', startTime: '18:00', endTime: '22:00', startDate: '0000-11-28', endDate: '0000-12-31' }];
+  assert.strictEqual(summary(yearly, at('2026-11-01T12:00:00')).next, 'Saturday 2026-11-28 18:00', 'a yearless start is found');
+  assert.strictEqual(summary(yearly, at('2026-12-31T23:00:00')).next, 'Sunday 2027-11-28 18:00', 'after the season, next year');
+  const winterSeason: FppScheduleEntry[] = [{ enabled: 1, day: 7, playlist: 'Winter', startTime: '18:00', endTime: '22:00', startDate: '0000-12-20', endDate: '0000-01-05' }];
+  assert.strictEqual(summary(winterSeason, at('2026-11-01T12:00:00')).next, 'Sunday 2026-12-20 18:00');
+  assert.strictEqual(summary(winterSeason, at('2027-01-02T19:00:00')).live, true, 'inside the wrapped season');
+  // Weekday entries and ended seasons
+  assert.strictEqual(summary([{ ...twoSeasons[1], day: 5 }], at('2026-11-01T12:00:00')).next, 'Friday 2026-12-04 17:30', 'the first Friday in the season');
+  assert.strictEqual(summary([twoSeasons[0]], at('2026-11-01T12:00:00')).next, null, 'nothing scheduled after the only season ended');
+  // Entries that cannot be placed are skipped, never thrown on or counted as live all year
+  const sunSet: FppScheduleEntry = { enabled: 1, day: 7, playlist: 'Christmas', startTime: 'SunSet', endTime: '22:00:00', startDate: '2026-11-28', endDate: '2027-01-03' };
+  assert.deepStrictEqual(summary([sunSet], at('2026-11-01T12:00:00')), { live: false, until: null, next: null, countdown: null }, 'a sun-time start is not counted');
+  assert.strictEqual(summary([{ ...sunSet, startDate: '0000-11-28', endDate: '0000-12-31' }], at('2026-12-05T19:00:00')).live, false, 'a yearless sun-time season');
+  const byHoliday: FppScheduleEntry = { enabled: 1, day: 7, playlist: 'Christmas', startTime: '18:00:00', endTime: '22:00:00', startDate: 'Thanksgiving', endDate: 'Christmas' };
+  assert.strictEqual(summary([byHoliday], at('2026-07-04T19:00:00')).live, false, 'a holiday-name season is not live in July');
+  assert.strictEqual(summary([{ ...byHoliday, endDate: '2027-01-03' }], at('2026-07-04T19:00:00')).live, false, 'a holiday-name start next to a real date');
+  // A holiday-name end after a real start date is open-ended from that date; next to a yearless start it is skipped
+  assert.strictEqual(summary([{ ...byHoliday, startDate: '2026-11-01', endDate: 'Christmas' }], at('2026-11-01T12:00:00')).next, 'Sunday 2026-11-01 18:00');
+  assert.strictEqual(summary([{ ...byHoliday, startDate: '0000-11-28', endDate: 'Christmas' }], at('2026-07-04T19:00:00')).live, false);
+  assert.strictEqual(summary([], at('2026-11-01T12:00:00')).next, null, 'an empty schedule');
+  // An end time that is a sun time still lets the next show be found
+  assert.strictEqual(summary([{ ...twoSeasons[1], endTime: 'SunRise' }], at('2026-11-01T12:00:00')).next, 'Saturday 2026-11-28 17:30');
+  print('Test 12 OK');
+
   print('All tests passed');
 } catch (err) {
   console.error('[test-show-schedule] FAILED:', err);

@@ -25,6 +25,8 @@ export interface ShowWindow {
 export const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const LOOK_AHEAD_DAYS = 14;
+/** How far ahead the next show is searched: far enough to cross from one holiday season to the next */
+const NEXT_SHOW_LOOK_AHEAD_DAYS = 366;
 
 function minutesOf(time: string | undefined): number {
   const [hours, minutes] = (time ?? '').split(':');
@@ -140,25 +142,34 @@ export function playlistSeason(entries: FppScheduleEntry[], playlist: string, to
 }
 
 /**
- * Is a scheduled show on now, and if not, when is the next one (within 14 days)?
+ * Is a scheduled show on now, and if not, when is the next one (within a year, so the start of the next season counts)?
  * `now` must be in the show's timezone (DateTime.now().setZone(APP_TIMEZONE)).
  */
 export function findShowWindow(entries: FppScheduleEntry[], now: DateTime): ShowWindow {
-  const today = now.toISODate() ?? '';
   const currentMinutes = now.hour * 60 + now.minute;
-  const shows = entries.filter((entry) =>
-    entry.enabled &&
-    entry.playlist && entry.playlist.trim() !== '' &&
-    !(entry.startDate && entry.endDate && today > entry.endDate)
-  );
+  const today = now.toISODate() ?? '';
+  // Only entries that can be placed on the calendar and the clock: a sun-time start ("SunSet") or a holiday-name date
+  // cannot be resolved here, and a season whose end date has passed is skipped up front so a bare calendar is cheap to scan
+  const shows = entries.filter((entry) => {
+    if (!entry.enabled || !entry.playlist || entry.playlist.trim() === '') return false;
+    if (Number.isNaN(minutesOf(entry.startTime))) return false;
+    const start = parseScheduleDate(entry.startDate);
+    const end = parseScheduleDate(entry.endDate);
+    // A holiday-name end next to a real start date just leaves the season open-ended (as inSeason reads it); next to a
+    // yearless start, or alone, it would count every day of the year
+    if ((entry.startDate && !start) || (entry.endDate && !end && (!start || start.yearless))) return false;
+    return !(end && !end.yearless && end.iso < today && (!start || !start.yearless));
+  });
+  if (shows.length === 0) return { isActiveBySchedule: false, currentShowEndTime: null, nextShow: null };
 
   let nextShow: ShowWindow['nextShow'] = null;
-  for (let daysAhead = 0; daysAhead < LOOK_AHEAD_DAYS; daysAhead++) {
+  // Stops at the first day with a show, so a season weeks away (Halloween over, Christmas not started) is found too
+  for (let daysAhead = 0; daysAhead < NEXT_SHOW_LOOK_AHEAD_DAYS && !nextShow; daysAhead++) {
     const day = now.plus({ days: daysAhead }).startOf('day');
     const date = day.toISODate() ?? '';
     for (const entry of shows) {
       if (!dayMatches(entry.day, day)) continue;
-      if (entry.startDate && entry.endDate && (date < entry.startDate || date > entry.endDate)) continue;
+      if (!inSeason(entry, date)) continue;
 
       const startMinutes = minutesOf(entry.startTime);
       const endMinutes = minutesOf(entry.endTime);

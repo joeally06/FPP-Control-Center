@@ -36,12 +36,15 @@ import ShowSpecsCard from '@/components/jukebox/ShowSpecsCard';
 import { formatDateTime } from '@/lib/time-utils';
 import { getBrowserLocation, type UserLocation } from '@/lib/location-utils';
 import {
+  DEFAULT_COUNTDOWN_HEADING,
   buildQueueView,
   currentSongName,
+  nextShowCard,
   playbackProgress,
   playlistDetailsLine,
   showStatus,
   type CatalogSong,
+  type CountdownSettings,
   type PublicQueueItem,
   type ShowSpec,
   type VisitorPlaylist,
@@ -82,6 +85,7 @@ export default function JukeboxPage() {
   const [courtesyLines, setCourtesyLines] = useState<string[]>([]);
   const [showSpecs, setShowSpecs] = useState<ShowSpec[]>([]);
   const [audienceEnabled, setAudienceEnabled] = useState(false);
+  const [countdownSettings, setCountdownSettings] = useState<CountdownSettings>({ enabled: true, heading: DEFAULT_COUNTDOWN_HEADING });
   const audienceCount = useAudienceCount(audienceEnabled);
   const [listening, setListening] = useState(false);
   const playerRef = useRef<HTMLDivElement>(null);
@@ -477,6 +481,7 @@ export default function JukeboxPage() {
         setCourtesyLines(data.courtesy?.enabled && Array.isArray(data.courtesy.lines) ? data.courtesy.lines : []);
         setShowSpecs(Array.isArray(data.specs) ? data.specs : []);
         setAudienceEnabled(data.audienceEnabled === true);
+        if (data.countdown) setCountdownSettings({ enabled: data.countdown.enabled !== false, heading: data.countdown.heading || DEFAULT_COUNTDOWN_HEADING });
 
         // After getting rate limit, fetch current request status
         await fetchRequestStatus();
@@ -802,6 +807,7 @@ export default function JukeboxPage() {
 
   // Determine if interactive features should be shown
   const showInteractiveFeatures = scheduleStatus?.isActive || isAdmin;
+  const nextShow = nextShowCard(scheduleStatus, countdownSettings);
 
   // ── Derived display state ──────────────────────────────────────────────────
   // Progress applies only when FPP is playing the song the card shows
@@ -910,7 +916,10 @@ export default function JukeboxPage() {
             nextShowDay: scheduleStatus?.nextShowDay ?? null,
             nextShowStartTime: scheduleStatus?.nextShowStartTime ?? null,
             countdown: scheduleStatus?.countdown ?? null,
+            nextShowDate: scheduleStatus?.nextShowDate ?? null,
+            countdownCard: nextShow !== null,
           })}
+          nextShow={nextShow}
           showActions={Boolean(showInteractiveFeatures)}
           listening={listening}
           onToggleListen={() => setListening((v) => !v)}

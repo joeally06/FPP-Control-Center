@@ -16,6 +16,12 @@ import {
   estimateWaits,
   buildShowSpecs,
   showStatus,
+  readCountdownSettings,
+  nextShowCard,
+  formatShowDate,
+  DEFAULT_COUNTDOWN_HEADING,
+  VISITOR_BOOLEAN_SETTINGS,
+  VISITOR_SETTING_LIMITS,
   formatFmFrequency,
   readOffSeasonBanner,
   parseOffSeasonBanner,
@@ -257,7 +263,42 @@ const SONGS: CatalogSong[] = [
     label: 'No show running right now',
   }, 'unparseable start time → nothing scheduled');
   assert.deepStrictEqual(showStatus({ ...none, isActive: false }), { live: false, label: 'No show running right now' });
+  // With the countdown card the pill names the date and leaves the time left to the card
+  assert.deepStrictEqual(
+    showStatus({ ...none, isActive: false, nextShowDay: 'Saturday', nextShowStartTime: '17:30', countdown: '27d 1h', nextShowDate: '2026-11-28', countdownCard: true }),
+    { live: false, label: 'Next show Sat, Nov 28 · 5:30 PM' }
+  );
+  assert.deepStrictEqual(
+    showStatus({ ...none, isActive: false, nextShowDay: 'Saturday', nextShowStartTime: '17:30', countdown: '27d 1h', nextShowDate: '2026-11-28' }),
+    { live: false, label: 'Next show Saturday 5:30 PM · in 27d 1h' },
+    'no card → unchanged'
+  );
   print('Test 13 OK');
+})();
+
+// Test 13b: the countdown to the next show
+(() => {
+  print('Test 13b: countdown settings and card');
+  assert.deepStrictEqual(readCountdownSettings(() => null), { enabled: true, heading: DEFAULT_COUNTDOWN_HEADING }, 'on until switched off');
+  assert.deepStrictEqual(readCountdownSettings((key) => ({ jukebox_countdown_enabled: 'false', jukebox_countdown_heading: ' Christmas lights return in ' })[key]), {
+    enabled: false,
+    heading: 'Christmas lights return in',
+  });
+  assert.strictEqual(readCountdownSettings((key) => (key === 'jukebox_countdown_heading' ? '   ' : null)).heading, DEFAULT_COUNTDOWN_HEADING, 'a blank heading falls back');
+  assert.strictEqual(formatShowDate('2026-11-28'), 'Sat, Nov 28');
+  assert.strictEqual(formatShowDate('soon'), '');
+  assert.strictEqual(formatShowDate(null), '');
+
+  const on = { enabled: true, heading: 'Next up' };
+  const ahead = { isActive: false, nextShowTime: '2026-11-28T23:30:00.000Z', nextShowDate: '2026-11-28', nextShowStartTime: '17:30:00' };
+  assert.deepStrictEqual(nextShowCard(ahead, on), { at: '2026-11-28T23:30:00.000Z', date: '2026-11-28', startTime: '17:30:00', heading: 'Next up' });
+  assert.strictEqual(nextShowCard({ ...ahead, isActive: true }, on), null, 'a show is on');
+  assert.strictEqual(nextShowCard(ahead, { ...on, enabled: false }), null, 'switched off');
+  assert.strictEqual(nextShowCard({ ...ahead, nextShowTime: null }, on), null, 'no show ahead');
+  assert.strictEqual(nextShowCard(null, on), null, 'status not loaded yet');
+  assert.ok((VISITOR_BOOLEAN_SETTINGS as readonly string[]).includes('jukebox_countdown_enabled'), 'validated as true/false by PUT /api/settings');
+  assert.strictEqual(VISITOR_SETTING_LIMITS.jukebox_countdown_heading, 60);
+  print('Test 13b OK');
 })();
 
 // Test 14: formatFmFrequency
