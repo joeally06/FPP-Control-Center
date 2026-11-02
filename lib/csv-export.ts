@@ -1,5 +1,18 @@
 // CSV Export Utilities
 
+import { localDateStamp, utcSqlToLocal } from './analytics-time';
+
+// Stored times are UTC; the downloads show the show's clock
+function withLocalTimes(rows: object[], keys: string[]): object[] {
+  return rows.map((row) => {
+    const copy: Record<string, unknown> = { ...row };
+    for (const key of keys) {
+      if (typeof copy[key] === 'string') copy[key] = utcSqlToLocal(copy[key] as string);
+    }
+    return copy;
+  });
+}
+
 export function convertToCSV<T extends object>(data: T[], headers: string[]): string {
   if (!data || data.length === 0) return '';
 
@@ -44,14 +57,14 @@ export function exportRequestAnalytics(data: { mostRequested: object[]; recentAc
 
   // Export Most Requested Songs
   const requestedHeaders = ['sequence_name', 'request_count', 'completed_count', 'skipped_count', 'first_requested', 'last_requested'];
-  const requestedCSV = convertToCSV(mostRequested, requestedHeaders);
-  downloadCSV(`most-requested-${new Date().toISOString().split('T')[0]}.csv`, requestedCSV);
+  const requestedCSV = convertToCSV(withLocalTimes(mostRequested, ['first_requested', 'last_requested']), requestedHeaders);
+  downloadCSV(`most-requested-${localDateStamp()}.csv`, requestedCSV);
 
   // Export Recent Activity
   setTimeout(() => {
     const activityHeaders = ['id', 'sequence_name', 'requester_name', 'status', 'created_at', 'played_at'];
-    const activityCSV = convertToCSV(recentActivity, activityHeaders);
-    downloadCSV(`recent-activity-${new Date().toISOString().split('T')[0]}.csv`, activityCSV);
+    const activityCSV = convertToCSV(withLocalTimes(recentActivity, ['created_at', 'played_at']), activityHeaders);
+    downloadCSV(`recent-activity-${localDateStamp()}.csv`, activityCSV);
   }, 500);
 }
 
@@ -61,19 +74,19 @@ export function exportVoteAnalytics(data: { topVoted: object[]; controversial: o
   // Export Top Voted Songs
   const votedHeaders = ['sequence_name', 'upvotes', 'downvotes', 'net_votes', 'total_votes', 'approval_rating'];
   const votedCSV = convertToCSV(topVoted, votedHeaders);
-  downloadCSV(`top-voted-${new Date().toISOString().split('T')[0]}.csv`, votedCSV);
+  downloadCSV(`top-voted-${localDateStamp()}.csv`, votedCSV);
 
   // Export Controversial Songs
   setTimeout(() => {
     const controversialHeaders = ['sequence_name', 'upvotes', 'downvotes', 'total_votes', 'vote_difference', 'approval_rating'];
     const controversialCSV = convertToCSV(controversial, controversialHeaders);
-    downloadCSV(`controversial-songs-${new Date().toISOString().split('T')[0]}.csv`, controversialCSV);
+    downloadCSV(`controversial-songs-${localDateStamp()}.csv`, controversialCSV);
   }, 500);
 
   // Export Voting Trend
   setTimeout(() => {
     const trendHeaders = ['date', 'vote_count', 'upvotes', 'downvotes'];
     const trendCSV = convertToCSV(votingTrend, trendHeaders);
-    downloadCSV(`voting-trend-${new Date().toISOString().split('T')[0]}.csv`, trendCSV);
+    downloadCSV(`voting-trend-${localDateStamp()}.csv`, trendCSV);
   }, 1000);
 }

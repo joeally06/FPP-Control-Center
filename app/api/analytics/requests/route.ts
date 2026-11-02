@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-helpers';
 import { getDb } from '@/lib/database';
+import { requestTimeStats } from '@/lib/analytics-time';
 
 export async function GET() {
   try {
@@ -24,25 +25,8 @@ export async function GET() {
       LIMIT 20
     `).all();
 
-    // Requests by hour of day
-    const requestsByHour = db.prepare(`
-      SELECT 
-        CAST(strftime('%H', created_at) AS INTEGER) as hour,
-        COUNT(*) as request_count
-      FROM jukebox_queue
-      GROUP BY hour
-      ORDER BY hour
-    `).all();
-
-    // Requests by day of week (0=Sunday, 6=Saturday)
-    const requestsByDay = db.prepare(`
-      SELECT 
-        CAST(strftime('%w', created_at) AS INTEGER) as day,
-        COUNT(*) as request_count
-      FROM jukebox_queue
-      GROUP BY day
-      ORDER BY day
-    `).all();
+    // Requests by hour of day and by day of week (0=Sunday, 6=Saturday), on the show's clock
+    const { requestsByHour, requestsByDay } = requestTimeStats(db);
 
     // Request success rate
     const successRate = db.prepare(`

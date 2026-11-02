@@ -1458,7 +1458,8 @@ ADMIN_EMAILS=admin@example.com
 # FPP device
 FPP_URL=http://192.168.1.100
 
-# Timezone (IANA format)
+# Timezone (IANA format). Times shown in the app, including the Analytics pages, use this
+# zone, not the server's operating-system clock
 NEXT_PUBLIC_TIMEZONE=America/Chicago
 
 # NextAuth (generate with: openssl rand -base64 32)

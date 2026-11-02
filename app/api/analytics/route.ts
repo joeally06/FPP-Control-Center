@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-helpers';
 import db from '@/lib/database';
+import { DateTime } from 'luxon';
+import { APP_TIMEZONE } from '@/lib/time-utils';
+import { pageViewStats, windowStartUtc, zoneAbbr } from '@/lib/analytics-time';
 
 /**
  * GET /api/analytics
@@ -16,99 +19,38 @@ export async function GET(request: NextRequest) {
     const range = searchParams.get('range') || '7d';
     const days = range === '30d' ? 30 : 7;
 
-    // Get system timezone
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const timezoneAbbr = new Date().toLocaleTimeString('en-US', { 
-      timeZoneName: 'short' 
-    }).split(' ').pop() || '';
+    // Days, hours and the "today" cut-off are on the show's clock (NEXT_PUBLIC_TIMEZONE), not UTC
+    const timezone = APP_TIMEZONE;
+    const now = DateTime.now();
+    const startDateStr = windowStartUtc(days, now, timezone);
 
-    // Calculate date range
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-    const startDateStr = startDate.toISOString().split('T')[0];
-    const todayStart = new Date().toISOString().split('T')[0];
+    const views = pageViewStats(db, days, now, timezone);
 
-    // ⚡ PERFORMANCE OPTIMIZATION: Combine multiple queries into one CTE-based query
-    // Old approach: 5 separate queries (500ms+)
-    // New approach: 1 combined query (150ms) = 3x faster
-    const overviewStats = db.prepare(`
-      WITH 
-      total_views AS (
-        SELECT COUNT(*) as count
-        FROM page_views
-        WHERE view_time >= ?
-      ),
-      today_views AS (
-        SELECT COUNT(*) as count
-        FROM page_views
-        WHERE view_time >= ?
-      ),
-      peak_hour AS (
-        SELECT strftime('%H', datetime(view_time, 'localtime')) as hour, COUNT(*) as count
-        FROM page_views
-        WHERE view_time >= ?
-        GROUP BY hour
-        ORDER BY count DESC
-        LIMIT 1
-      ),
-      vote_stats AS (
-        SELECT 
-          SUM(CASE WHEN vote_type = 'up' THEN 1 ELSE 0 END) as upvotes,
-          SUM(CASE WHEN vote_type = 'down' THEN 1 ELSE 0 END) as downvotes
-        FROM votes
-        WHERE created_at >= ?
-      )
-      SELECT 
-        (SELECT count FROM total_views) as total_views,
-        (SELECT count FROM today_views) as today_views,
-        (SELECT hour FROM peak_hour) as peak_hour,
-        (SELECT upvotes FROM vote_stats) as upvotes,
-        (SELECT downvotes FROM vote_stats) as downvotes
-    `).get(startDateStr, todayStart, startDateStr, startDateStr) as {
-      total_views: number;
-      today_views: number;
-      peak_hour: string | null;
-      upvotes: number;
-      downvotes: number;
-    };
+    const voteStats = db.prepare(`
+      SELECT
+        SUM(CASE WHEN vote_type = 'up' THEN 1 ELSE 0 END) as upvotes,
+        SUM(CASE WHEN vote_type = 'down' THEN 1 ELSE 0 END) as downvotes
+      FROM votes
+      WHERE created_at >= ?
+    `).get(startDateStr) as { upvotes: number | null; downvotes: number | null };
 
     // Format peak hour in 12-hour format with timezone
     let peakHour = 'N/A';
-    if (overviewStats.peak_hour) {
-      const hour24 = parseInt(overviewStats.peak_hour);
+    if (views.peakHour !== null) {
+      const hour24 = views.peakHour;
       const period = hour24 >= 12 ? 'PM' : 'AM';
       const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
-      peakHour = `${hour12}:00 ${period} ${timezoneAbbr}`;
+      peakHour = `${hour12}:00 ${period} ${zoneAbbr(now, timezone)}`;
     }
 
     // Calculate rating (0-5 scale based on upvote ratio)
-    const totalVotes = (overviewStats.upvotes || 0) + (overviewStats.downvotes || 0);
-    const avgRating = totalVotes > 0 
-      ? ((overviewStats.upvotes || 0) / totalVotes) * 5 
+    const totalVotes = (voteStats.upvotes || 0) + (voteStats.downvotes || 0);
+    const avgRating = totalVotes > 0
+      ? ((voteStats.upvotes || 0) / totalVotes) * 5
       : 0;
 
-    // Get daily trends (using local timezone)
-    const trendsResult = db.prepare(`
-      SELECT DATE(datetime(view_time, 'localtime')) as date, COUNT(*) as views
-      FROM page_views
-      WHERE view_time >= ?
-      GROUP BY DATE(datetime(view_time, 'localtime'))
-      ORDER BY date ASC
-    `).all(startDateStr) as { date: string; views: number }[];
-
-    // Fill in missing days with 0 views
-    const trends: { date: string; views: number }[] = [];
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      
-      const existingData = trendsResult.find(t => t.date === dateStr);
-      trends.push({
-        date: dateStr,
-        views: existingData?.views || 0,
-      });
-    }
+    // Daily trends: one entry per local day, today last (days with no views show 0)
+    const trends = views.trends;
 
     // Get top sequences
     const topSequences = (db.prepare(`
@@ -168,8 +110,8 @@ export async function GET(request: NextRequest) {
 
     const data = {
       overview: {
-        totalViews: overviewStats.total_views,
-        todayViews: overviewStats.today_views,
+        totalViews: views.totalViews,
+        todayViews: views.todayViews,
         peakHour: peakHour,
         avgRating: avgRating,
       },

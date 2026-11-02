@@ -42,6 +42,16 @@ export function formatDateTime(
 }
 
 /**
+ * Convert a database UTC timestamp to a date on the show's clock, e.g. "10/30/2025"
+ */
+export function formatLocalDate(utcTimestamp: string | null): string {
+  if (!utcTimestamp) return 'Never';
+  const dt = parseDbTimestamp(utcTimestamp);
+  if (!dt) return 'Invalid date';
+  return dt.setZone(APP_TIMEZONE).toLocaleString(DateTime.DATE_SHORT);
+}
+
+/**
  * Get current time in app timezone
  */
 export function getCurrentTime(format: 'iso' | 'display' | 'simple' = 'display'): string {

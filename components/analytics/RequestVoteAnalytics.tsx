@@ -6,6 +6,7 @@ import CircuitBreakerWidget from '@/components/CircuitBreakerWidget';
 import { VotingTrendChart, VotingByHourChart, TopSongsVoteDistribution } from '@/components/analytics/VotingCharts';
 import AlertsPanel from '@/components/analytics/AlertsPanel';
 import { exportRequestAnalytics, exportVoteAnalytics } from '@/lib/csv-export';
+import { formatDateTime, formatLocalDate } from '@/lib/time-utils';
 import { Users, Download, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { card, insetBox, eyebrow, button, badge } from '@/components/admin/ui-classes';
 
@@ -122,9 +123,8 @@ export default function RequestVoteAnalytics() {
     return `${minutes}m ${remainingSeconds}s`;
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
-  };
+  // Stored times are UTC; show them on the show's clock
+  const formatDate = (dateString: string) => formatDateTime(dateString, 'medium');
 
   if (loading) {
     return (
@@ -304,7 +304,7 @@ export default function RequestVoteAnalytics() {
                     <td className={`${td} text-center font-semibold text-adm-ok`}>{song.completed_count}</td>
                     <td className={`${td} text-center font-semibold text-adm-danger`}>{song.skipped_count}</td>
                     <td className={`${td} text-center`}>
-                      {new Date(song.last_requested).toLocaleDateString()}
+                      {formatLocalDate(song.last_requested)}
                     </td>
                   </tr>
                 ))}

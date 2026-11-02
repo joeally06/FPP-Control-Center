@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-helpers';
 import db from '@/lib/database';
+import { DateTime } from 'luxon';
+import { APP_TIMEZONE } from '@/lib/time-utils';
+import { localDateStamp, utcSqlToLocal, windowStartUtc } from '@/lib/analytics-time';
 
 /**
  * GET /api/analytics/export
@@ -39,26 +42,28 @@ export async function GET(request: NextRequest) {
     const range = searchParams.get('range') || '7d';
     const days = range === '30d' ? 30 : 7;
 
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-    const startDateStr = startDate.toISOString().split('T')[0];
+    // The window, the times in the file and the file name's date are on the show's clock, not UTC
+    const startDateStr = windowStartUtc(days);
+    const dateStamp = localDateStamp();
+    const generated = DateTime.now().setZone(APP_TIMEZONE).toFormat('yyyy-MM-dd HH:mm:ss ZZZZ');
 
     // Get all data
-    const pageViews = db.prepare(`
+    const pageViews = (db.prepare(`
       SELECT * FROM page_views WHERE view_time >= ? ORDER BY view_time DESC
-    `).all(startDateStr) as PageViewRow[];
+    `).all(startDateStr) as PageViewRow[]).map((row) => ({ ...row, view_time: utcSqlToLocal(row.view_time) }));
 
-    const votes = db.prepare(`
+    const votes = (db.prepare(`
       SELECT * FROM votes WHERE created_at >= ? ORDER BY created_at DESC
-    `).all(startDateStr) as VoteRow[];
+    `).all(startDateStr) as VoteRow[]).map((row) => ({ ...row, created_at: utcSqlToLocal(row.created_at) }));
 
-    const santaLetters = db.prepare(`
+    const santaLetters = (db.prepare(`
       SELECT * FROM santa_letters ORDER BY created_at DESC
-    `).all() as SantaLetterRow[];
+    `).all() as SantaLetterRow[]).map((row) => ({ ...row, created_at: utcSqlToLocal(row.created_at) }));
 
     if (format === 'json') {
       return NextResponse.json({
-        exportDate: new Date().toISOString(),
+        exportDate: generated,
+        timezone: APP_TIMEZONE,
         range,
         data: {
           pageViews,
@@ -67,26 +72,26 @@ export async function GET(request: NextRequest) {
         },
       }, {
         headers: {
-          'Content-Disposition': `attachment; filename="analytics-${range}-${new Date().toISOString().split('T')[0]}.json"`,
+          'Content-Disposition': `attachment; filename="analytics-${range}-${dateStamp}.json"`,
         },
       });
     }
 
     if (format === 'csv') {
       let csv = 'PAGE VIEWS\n';
-      csv += 'Session ID,Page,View Time\n';
+      csv += `Session ID,Page,View Time (${APP_TIMEZONE})\n`;
       pageViews.forEach((view) => {
         csv += `"${view.session_id}","${view.page_path}","${view.view_time}"\n`;
       });
 
       csv += '\n\nVOTES\n';
-      csv += 'User IP,Sequence,Vote Type,Created At\n';
+      csv += `User IP,Sequence,Vote Type,Created At (${APP_TIMEZONE})\n`;
       votes.forEach((vote) => {
         csv += `"${vote.user_ip}","${vote.sequence_name}","${vote.vote_type}","${vote.created_at}"\n`;
       });
 
       csv += '\n\nSANTA LETTERS\n';
-      csv += 'Name,Age,Email,Letter Content,Status,Created At\n';
+      csv += `Name,Age,Email,Letter Content,Status,Created At (${APP_TIMEZONE})\n`;
       santaLetters.forEach((letter) => {
         csv += `"${letter.child_name}","${letter.child_age || 'N/A'}","${letter.parent_email}","${letter.letter_content.replace(/"/g, '""')}","${letter.status}","${letter.created_at}"\n`;
       });
@@ -94,7 +99,7 @@ export async function GET(request: NextRequest) {
       return new NextResponse(csv, {
         headers: {
           'Content-Type': 'text/csv',
-          'Content-Disposition': `attachment; filename="analytics-${range}-${new Date().toISOString().split('T')[0]}.csv"`,
+          'Content-Disposition': `attachment; filename="analytics-${range}-${dateStamp}.csv"`,
         },
       });
     }
@@ -103,7 +108,8 @@ export async function GET(request: NextRequest) {
       // For PDF, return a properly formatted text file with print-ready content
       // This will be handled by the client-side to generate a proper PDF
       const reportData = {
-        generated: new Date().toISOString(),
+        generated,
+        timezone: APP_TIMEZONE,
         range: `Last ${days} days`,
         summary: {
           totalPageViews: pageViews.length,
@@ -118,7 +124,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(reportData, {
         headers: {
           'Content-Type': 'application/json',
-          'Content-Disposition': `attachment; filename="analytics-${range}-${new Date().toISOString().split('T')[0]}.json"`,
+          'Content-Disposition': `attachment; filename="analytics-${range}-${dateStamp}.json"`,
         },
       });
     }

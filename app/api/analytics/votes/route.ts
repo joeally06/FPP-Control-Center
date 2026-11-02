@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-helpers';
 import { getDb } from '@/lib/database';
+import { voteTimeStats } from '@/lib/analytics-time';
 
 // A copy of the object without the given keys (the SQL helper columns must not appear in the response)
 function omit<T extends object, K extends keyof T>(obj: T, ...keys: K[]): Omit<T, K> {
@@ -91,30 +92,8 @@ export async function GET() {
       FROM votes
     `).get();
 
-    // Voting activity over time (last 30 days by day)
-    const votingTrend = db.prepare(`
-      SELECT 
-        DATE(created_at) as date,
-        COUNT(*) as vote_count,
-        SUM(CASE WHEN vote_type = 'up' THEN 1 ELSE 0 END) as upvotes,
-        SUM(CASE WHEN vote_type = 'down' THEN 1 ELSE 0 END) as downvotes
-      FROM votes
-      WHERE created_at >= datetime('now', '-30 days')
-      GROUP BY DATE(created_at)
-      ORDER BY date
-    `).all();
-
-    // Voting activity by hour
-    const votingByHour = db.prepare(`
-      SELECT 
-        CAST(strftime('%H', created_at) AS INTEGER) as hour,
-        COUNT(*) as vote_count,
-        SUM(CASE WHEN vote_type = 'up' THEN 1 ELSE 0 END) as upvotes,
-        SUM(CASE WHEN vote_type = 'down' THEN 1 ELSE 0 END) as downvotes
-      FROM votes
-      GROUP BY hour
-      ORDER BY hour
-    `).all();
+    // Voting activity by day (last 30 days) and by hour of day, on the show's clock
+    const { votingTrend, votingByHour } = voteTimeStats(db);
 
 
     return NextResponse.json({

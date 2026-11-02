@@ -13,6 +13,7 @@ import {
 import { card, insetBox, eyebrow, button, notice, tabClass } from '@/components/admin/ui-classes';
 import { chartColors, axisTick, legendStyle, tooltipStyle } from '@/components/analytics/chart-theme';
 import { Download, TrendingUp, Star, FileText, Users, CalendarDays, Clock, ListMusic } from 'lucide-react';
+import { localDateStamp } from '@/lib/analytics-time';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
@@ -54,6 +55,14 @@ interface AnalyticsData {
     sent: number;
     failed: number;
   };
+  /** The zone every date and hour on this page is in (NEXT_PUBLIC_TIMEZONE) */
+  timezone?: string;
+}
+
+// A calendar day ('YYYY-MM-DD') as text. Read it as local midnight: new Date('2026-11-02') is midnight UTC,
+// which would show as the day before.
+function dayLabel(value: unknown, options: Intl.DateTimeFormatOptions): string {
+  return new Date(`${String(value)}T00:00:00`).toLocaleDateString('en-US', options);
 }
 
 // What /api/analytics/export?format=pdf returns (only the fields the PDF uses)
@@ -179,7 +188,7 @@ function SiteAnalytics() {
         // Metadata
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Generated: ${new Date(reportData.generated).toLocaleString()}`, 14, yPos);
+        doc.text(`Generated: ${reportData.generated}`, 14, yPos);
         yPos += 6;
         doc.text(`Range: ${reportData.range}`, 14, yPos);
         yPos += 10;
@@ -208,7 +217,7 @@ function SiteAnalytics() {
           
           const pageViewRows = reportData.pageViews.slice(0, 30).map(view => [
             view.page_path,
-            new Date(view.view_time).toLocaleString(),
+            view.view_time,
           ]);
           
           autoTable(doc, {
@@ -240,7 +249,7 @@ function SiteAnalytics() {
           const voteRows = reportData.votes.slice(0, 30).map(vote => [
             vote.sequence_name,
             vote.vote_type === 'up' ? '👍 Up' : '👎 Down',
-            new Date(vote.created_at).toLocaleString(),
+            vote.created_at,
           ]);
           
           autoTable(doc, {
@@ -273,7 +282,7 @@ function SiteAnalytics() {
             letter.child_name,
             letter.child_age || 'N/A',
             letter.status,
-            new Date(letter.created_at).toLocaleDateString(),
+            letter.created_at.slice(0, 10),
           ]);
           
           autoTable(doc, {
@@ -288,7 +297,7 @@ function SiteAnalytics() {
         }
         
         // Save the PDF
-        const filename = `analytics-${timeRange}-${new Date().toISOString().split('T')[0]}.pdf`;
+        const filename = `analytics-${timeRange}-${localDateStamp()}.pdf`;
         doc.save(filename);
         
         console.log('[PDF Export] PDF saved successfully:', filename);
@@ -301,7 +310,7 @@ function SiteAnalytics() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `analytics-${timeRange}-${new Date().toISOString().split('T')[0]}.${format}`;
+      a.download = `analytics-${timeRange}-${localDateStamp()}.${format}`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -342,7 +351,10 @@ function SiteAnalytics() {
       <div className="flex flex-col gap-4">
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <AdminH1 className="mb-0">Show Analytics</AdminH1>
+          <div>
+            <AdminH1 className="mb-0">Show Analytics</AdminH1>
+            {data.timezone && <AdminTextSmall>Dates and times are shown in {data.timezone}.</AdminTextSmall>}
+          </div>
 
           {/* Time Range Selector */}
           <div className="inline-flex self-start rounded-xl border border-adm-control-line bg-adm-side p-1 sm:self-auto">
@@ -404,12 +416,12 @@ function SiteAnalytics() {
                   dataKey="date"
                   tick={axisTick}
                   stroke={chartColors.grid}
-                  tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  tickFormatter={(value) => dayLabel(value, { month: 'short', day: 'numeric' })}
                 />
                 <YAxis tick={axisTick} stroke={chartColors.grid} />
                 <Tooltip
                   contentStyle={tooltipStyle}
-                  labelFormatter={(value) => new Date(value as string | number).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                  labelFormatter={(value) => dayLabel(value, { month: 'long', day: 'numeric', year: 'numeric' })}
                 />
                 <Legend wrapperStyle={legendStyle} />
                 <Line
