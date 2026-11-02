@@ -78,8 +78,6 @@ export default function VisitorPagePreview() {
             nextShowDay: schedule?.nextShowDay ?? null,
             nextShowStartTime: schedule?.nextShowStartTime ?? null,
             countdown: schedule?.countdown ?? null,
-            nextShowDate: schedule?.nextShowDate ?? null,
-            countdownCard: nextShow !== null,
           })}
           nextShow={nextShow}
           showActions={isActive}

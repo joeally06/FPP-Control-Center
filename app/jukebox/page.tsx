@@ -916,8 +916,6 @@ export default function JukeboxPage() {
             nextShowDay: scheduleStatus?.nextShowDay ?? null,
             nextShowStartTime: scheduleStatus?.nextShowStartTime ?? null,
             countdown: scheduleStatus?.countdown ?? null,
-            nextShowDate: scheduleStatus?.nextShowDate ?? null,
-            countdownCard: nextShow !== null,
           })}
           nextShow={nextShow}
           showActions={Boolean(showInteractiveFeatures)}

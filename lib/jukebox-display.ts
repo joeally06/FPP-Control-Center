@@ -142,17 +142,12 @@ export function showStatus(input: {
   nextShowDay: string | null;
   nextShowStartTime: string | null;
   countdown: string | null;
-  /** "YYYY-MM-DD" of the next show; with `countdownCard` the pill names the date, since the card shows the time left */
-  nextShowDate?: string | null;
-  countdownCard?: boolean;
 }): ShowStatus {
   if (input.isActive) {
     const until = formatShowTime(input.currentShowEndTime);
     return { live: true, label: until ? `Live now · until ${until}` : 'Live now' };
   }
   const start = formatShowTime(input.nextShowStartTime);
-  const date = input.countdownCard ? formatShowDate(input.nextShowDate) : '';
-  if (date && start) return { live: false, label: `Next show ${date} · ${start}` };
   if (input.nextShowDay && start) {
     return { live: false, label: `Next show ${input.nextShowDay} ${start}${input.countdown ? ` · in ${input.countdown}` : ''}` };
   }

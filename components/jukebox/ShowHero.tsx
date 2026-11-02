@@ -40,17 +40,20 @@ export default function ShowHero({ siteName, fmFrequency, status, showActions, l
 
       <div className="mt-2 flex flex-col items-center gap-3.5">
         {/* Only the status is a live region; the audience count changes too often to announce */}
-        <p
-          role="status"
-          className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-[0.12em] ${
-            status.live ? 'sp-live-pill' : 'sp-live-pill-off'
-          }`}
-        >
-          {status.live && <span className="sp-live-dot h-2.5 w-2.5 rounded-full" aria-hidden="true" />}
-          {status.label}
-        </p>
-
-        {!status.live && nextShow && <NextShowCountdown nextShow={nextShow} />}
+        {/* The countdown card already says when the next show starts, so it replaces the pill while no show is on */}
+        {!status.live && nextShow ? (
+          <NextShowCountdown nextShow={nextShow} />
+        ) : (
+          <p
+            role="status"
+            className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-[0.12em] ${
+              status.live ? 'sp-live-pill' : 'sp-live-pill-off'
+            }`}
+          >
+            {status.live && <span className="sp-live-dot h-2.5 w-2.5 rounded-full" aria-hidden="true" />}
+            {status.label}
+          </p>
+        )}
 
         {fmFrequency && (
           <p className="sp-display sp-title sp-glow-text sp-fm">

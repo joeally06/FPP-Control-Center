@@ -263,16 +263,6 @@ const SONGS: CatalogSong[] = [
     label: 'No show running right now',
   }, 'unparseable start time → nothing scheduled');
   assert.deepStrictEqual(showStatus({ ...none, isActive: false }), { live: false, label: 'No show running right now' });
-  // With the countdown card the pill names the date and leaves the time left to the card
-  assert.deepStrictEqual(
-    showStatus({ ...none, isActive: false, nextShowDay: 'Saturday', nextShowStartTime: '17:30', countdown: '27d 1h', nextShowDate: '2026-11-28', countdownCard: true }),
-    { live: false, label: 'Next show Sat, Nov 28 · 5:30 PM' }
-  );
-  assert.deepStrictEqual(
-    showStatus({ ...none, isActive: false, nextShowDay: 'Saturday', nextShowStartTime: '17:30', countdown: '27d 1h', nextShowDate: '2026-11-28' }),
-    { live: false, label: 'Next show Saturday 5:30 PM · in 27d 1h' },
-    'no card → unchanged'
-  );
   print('Test 13 OK');
 })();
 
