@@ -15,3 +15,14 @@ export function isAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false;
   return parseAdminEmails().includes(email.trim().toLowerCase());
 }
+
+/** Where a signed-in account that is not an admin is sent: the visitor page, with a note about why. */
+export const NOT_ADMIN_REDIRECT = '/jukebox?signin=denied';
+
+/**
+ * What the sign-in callback returns. `true` lets an admin in. For anyone else it is a path, which next-auth
+ * redirects to without creating a session (returning `false` would show next-auth's plain error page instead).
+ */
+export function adminSignInResult(email: string | null | undefined): true | string {
+  return isAdminEmail(email) ? true : NOT_ADMIN_REDIRECT;
+}

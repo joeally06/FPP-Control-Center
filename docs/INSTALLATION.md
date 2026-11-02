@@ -762,7 +762,7 @@ npm run dev
 <details>
 <summary><strong>Error: Access blocked</strong></summary>
 
-**Cause:** Your email is not in the `ADMIN_EMAILS` list.
+**Cause:** Your email is not in the `ADMIN_EMAILS` list. A Google account that is not on the list is not signed in at all: it is sent back to the jukebox page with a "User not authorized" note saying it isn't an admin for this show.
 
 **Solution:**
 1. Edit `.env.local`

@@ -4,7 +4,7 @@ import { JWT } from 'next-auth/jwt';
 import { Session, User } from 'next-auth';
 import { hashEmail, createSafeUserId } from '@/lib/privacy-utils';
 import { SESSION } from '@/lib/constants';
-import { isAdminEmail } from '@/lib/admin-emails';
+import { adminSignInResult, isAdminEmail } from '@/lib/admin-emails';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -65,24 +65,21 @@ export const authOptions: NextAuthOptions = {
           provider: account?.provider,
           timestamp: new Date().toISOString()
         });
+      } else {
+        console.warn(`[SECURITY] Sign-in refused (not an admin):`, {
+          userHash: hashEmail(user.email ?? ''),
+          provider: account?.provider,
+          timestamp: new Date().toISOString()
+        });
       }
-      
-      return true; // Allow all Google OAuth users
+
+      // Only admins get a session. Anyone else is sent back to the visitor page and never signed in.
+      return adminSignInResult(user.email);
     },
     async jwt({ token, user }: { token: JWT; user?: User }) {
       // Add role to token
       if (user) {
-        // Check if user email is in admin list
-        const isAdmin = isAdminEmail(user.email);
-        token.role = isAdmin ? 'admin' : 'user';
-        
-        // GDPR: Log non-admin authentication attempts with hashed email
-        if (!isAdmin) {
-          console.warn(`[SECURITY] Non-admin user authenticated:`, {
-            userHash: hashEmail(user.email!),
-            timestamp: new Date().toISOString()
-          });
-        }
+        token.role = isAdminEmail(user.email) ? 'admin' : 'user';
       }
       return token;
     },

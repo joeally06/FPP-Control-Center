@@ -50,6 +50,7 @@ import {
   type VisitorPlaylist,
 } from '@/lib/jukebox-display';
 import { TIMING } from '@/lib/constants';
+import { NOT_ADMIN_REDIRECT } from '@/lib/admin-emails';
 
 import type { CurrentlyPlaying, ScheduleStatus, SequenceMetadata, YouTubeVideo } from '@/lib/jukebox-page-types';
 
@@ -127,6 +128,30 @@ export default function JukeboxPage() {
   const hideToast = useCallback(() => {
     setToast(prev => ({ ...prev, isVisible: false }));
   }, []);
+
+  // A Google account that is not an admin is sent back here with ?signin=denied. Say why, then drop the
+  // parameter so a refresh does not show the note again.
+  const [showNotAdminNotice, setShowNotAdminNotice] = useState(false);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('signin') !== 'denied') return;
+    // Start after this render, not during the effect body (React flags state updates made synchronously in an effect).
+    // The parameter is dropped only here, once the note is set: in development React runs effects twice and
+    // cancels the first timer, so dropping it earlier would leave the second run with nothing to find.
+    const id = setTimeout(() => {
+      setShowNotAdminNotice(true);
+      window.history.replaceState(null, '', window.location.pathname);
+    }, 0);
+    return () => clearTimeout(id);
+  }, []);
+
+  // A non-admin who is already signed in (a cookie from before this check, or an admin taken off ADMIN_EMAILS) is signed out.
+  const signingOutRef = useRef(false);
+  useEffect(() => {
+    if (session && !isAdmin && !signingOutRef.current) {
+      signingOutRef.current = true;
+      signOut({ callbackUrl: NOT_ADMIN_REDIRECT });
+    }
+  }, [session, isAdmin]);
 
   // Compute location badge status - returns null if restrictions disabled or no location yet
   const getLocationBadgeStatus = useCallback((): LocationStatus | null => {
@@ -907,6 +932,14 @@ export default function JukeboxPage() {
 
       {/* Clears the fixed radio bar and the string lights hanging under it */}
       <div className="mx-auto max-w-6xl px-4 pb-4" style={{ paddingTop: 'calc(5.75rem + env(safe-area-inset-top))' }}>
+        {/* At the very top, so it is seen without scrolling past the hero */}
+        {showNotAdminNotice && (
+          <p role="alert" className="mb-5 flex items-start justify-between gap-3 rounded-xl border border-amber-400/40 bg-amber-600/25 px-4 py-3 text-sm text-white">
+            <span><span className="font-semibold">User not authorized.</span> That Google account isn&apos;t an admin for this show, so it wasn&apos;t signed in. You can still use the jukebox.</span>
+            <button type="button" onClick={() => setShowNotAdminNotice(false)} aria-label="Dismiss" className="shrink-0 font-semibold hover:text-amber-200">✕</button>
+          </p>
+        )}
+
         <ShowHero
           siteName={siteName || 'Light Show Jukebox'}
           fmFrequency={fmFrequency}
