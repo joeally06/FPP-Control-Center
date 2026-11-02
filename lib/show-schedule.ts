@@ -2,7 +2,7 @@
 // FPP schedule times ("18:45:00") are local to the show, so "now" must be too: comparing them with
 // the server's own clock breaks on a server running in UTC (it reported "Live now" mid-afternoon).
 
-import type { DateTime } from 'luxon';
+import { DateTime } from 'luxon';
 
 /** The fields of an FPP /api/schedule entry this uses */
 export interface FppScheduleEntry {
@@ -98,6 +98,51 @@ function inSeason(entry: FppScheduleEntry, today: string): boolean {
   if (bound.yearless && otherIsHoliday) return true;
   const arrived = bound.yearless ? todayMonthDay >= bound.monthDay : today >= bound.iso;
   return start ? arrived : bound.yearless ? todayMonthDay <= bound.monthDay : today <= bound.iso;
+}
+
+const MANUAL_SHOW_START = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+
+/** Is this what the admin's "next show starts" field saves ("YYYY-MM-DDTHH:mm", a real date and time)? */
+export function isManualShowStart(value: string): boolean {
+  return MANUAL_SHOW_START.test(value) && DateTime.fromISO(value, { zone: 'utc' }).isValid;
+}
+
+/**
+ * The admin's own next show start, as a time in the show's timezone (`now`'s zone): the date and time they typed,
+ * while it is still ahead. Null when empty, not a date and time, or already past.
+ */
+export function parseManualShowStart(value: string | null | undefined, now: DateTime): DateTime | null {
+  if (!value || !isManualShowStart(value)) return null;
+  const start = DateTime.fromISO(value, { zone: now.zone });
+  return start > now ? start : null;
+}
+
+export interface ScheduleOutlook {
+  isActiveBySchedule: boolean;
+  currentShowEndTime: string | null;
+  scheduledPlaylist: string | null;
+  nextShow: ShowWindow['nextShow'];
+}
+
+/**
+ * What the schedule says right now. `entries` is FPP's schedule, or the copy saved on its last answer (`fppAnswered`
+ * false) when FPP is off or slow; a saved copy only gives the next show and tonight's playlist, it never says a show
+ * is on, because nothing is running it. A start the admin typed (`manualStart`) replaces the next show.
+ */
+export function scheduleOutlook(entries: FppScheduleEntry[] | null, fppAnswered: boolean, manualStart: string | null | undefined, now: DateTime): ScheduleOutlook {
+  const outlook: ScheduleOutlook = { isActiveBySchedule: false, currentShowEndTime: null, scheduledPlaylist: null, nextShow: null };
+  if (entries) {
+    const window = findShowWindow(entries, now);
+    if (fppAnswered) {
+      outlook.isActiveBySchedule = window.isActiveBySchedule;
+      outlook.currentShowEndTime = window.currentShowEndTime;
+    }
+    outlook.scheduledPlaylist = findScheduledPlaylist(entries, now);
+    outlook.nextShow = window.nextShow;
+  }
+  const typed = parseManualShowStart(manualStart, now);
+  if (typed) outlook.nextShow = { start: typed, entry: { startTime: typed.toFormat('HH:mm') } };
+  return outlook;
 }
 
 /**

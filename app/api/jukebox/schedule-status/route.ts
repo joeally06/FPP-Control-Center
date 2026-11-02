@@ -15,8 +15,9 @@ import { NextResponse } from 'next/server';
 import { DateTime } from 'luxon';
 import db, { getFPPState } from '@/lib/database';
 import type { FppStateRow } from '@/lib/fpp-state';
-import { storeSchedule } from '@/lib/jukebox-playlists';
-import { DAY_NAMES, dayIndex, findScheduledPlaylist, findShowWindow, formatCountdown, type FppScheduleEntry } from '@/lib/show-schedule';
+import { readStoredSchedule, storeSchedule } from '@/lib/jukebox-playlists';
+import { getSetting } from '@/lib/settings';
+import { DAY_NAMES, dayIndex, formatCountdown, scheduleOutlook, type FppScheduleEntry } from '@/lib/show-schedule';
 import { APP_TIMEZONE } from '@/lib/time-utils';
 
 export async function GET() {
@@ -53,46 +54,62 @@ export async function GET() {
     let scheduledPlaylist: string | null = null; // playlist for tonight's show (on now, or the next one)
 
     try {
-      const fppUrl = process.env.FPP_URL || process.env.NEXT_PUBLIC_FPP_URL;
-      
-      if (fppUrl) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
-        
-        const scheduleResponse = await fetch(`${fppUrl}/api/schedule`, {
-          signal: controller.signal,
-          headers: { 'Accept': 'application/json' }
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (scheduleResponse.ok) {
-          const scheduleData = await scheduleResponse.json();
+      // FPP schedule times are show-local, so compare them with the show's clock, not the server's
+      const now = DateTime.now().setZone(APP_TIMEZONE);
+      let entries: FppScheduleEntry[] | null = null;
+      let fppAnswered = false;
 
-          // FPP schedule times are show-local, so compare them with the show's clock, not the server's
-          const now = DateTime.now().setZone(APP_TIMEZONE);
-          const entries: FppScheduleEntry[] = scheduleData.value || scheduleData;
-          const window = findShowWindow(entries, now);
-          isActiveBySchedule = window.isActiveBySchedule;
-          currentShowEndTime = window.currentShowEndTime;
-          scheduledPlaylist = findScheduledPlaylist(entries, now);
-          // Keep a copy so the jukebox can offer only playlists the Scheduler still runs, without asking FPP again
-          if (Array.isArray(entries)) storeSchedule(db, entries);
+      try {
+        const fppUrl = process.env.FPP_URL || process.env.NEXT_PUBLIC_FPP_URL;
 
-          if (window.nextShow) {
-            const { start, entry } = window.nextShow;
-            nextShowTime = start.toUTC().toISO();
-            nextShowDate = start.toISODate();
-            nextShowDay = DAY_NAMES[dayIndex(start)];
-            nextShowStartTime = entry.startTime ?? null;
-            nextShowEndTime = entry.endTime ?? null;
-            countdown = formatCountdown(start, now);
+        if (fppUrl) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+
+          const scheduleResponse = await fetch(`${fppUrl}/api/schedule`, {
+            signal: controller.signal,
+            headers: { 'Accept': 'application/json' }
+          });
+
+          clearTimeout(timeoutId);
+
+          if (scheduleResponse.ok) {
+            const scheduleData = await scheduleResponse.json();
+            const live = scheduleData.value || scheduleData;
+            if (Array.isArray(live)) {
+              entries = live;
+              fppAnswered = true;
+              // Keep a copy so the jukebox can offer only playlists the Scheduler still runs, without asking FPP again
+              storeSchedule(db, live);
+            }
           }
         }
+      } catch (error) {
+        // FPP is off or slow: the copy saved on its last answer still gives the next show
+        console.debug('[Schedule Status] Could not fetch the FPP schedule:', error);
+      }
+
+      if (!entries) entries = readStoredSchedule(db);
+
+      // A start time typed in Settings → Jukebox → Visitor page wins while it is still ahead
+      const outlook = scheduleOutlook(entries, fppAnswered, getSetting('jukebox_countdown_start'), now);
+      isActiveBySchedule = outlook.isActiveBySchedule;
+      currentShowEndTime = outlook.currentShowEndTime;
+      scheduledPlaylist = outlook.scheduledPlaylist;
+      const nextShow = outlook.nextShow;
+
+      if (nextShow) {
+        const { start, entry } = nextShow;
+        nextShowTime = start.toUTC().toISO();
+        nextShowDate = start.toISODate();
+        nextShowDay = DAY_NAMES[dayIndex(start)];
+        nextShowStartTime = entry.startTime ?? null;
+        nextShowEndTime = entry.endTime ?? null;
+        countdown = formatCountdown(start, now);
       }
     } catch (error) {
       // Silently fail - next show time is optional enhancement
-      console.debug('[Schedule Status] Could not fetch next show time:', error);
+      console.debug('[Schedule Status] Could not work out the next show time:', error);
     }
 
     // Determine if show is active

@@ -3,6 +3,7 @@ import { requireAdminWithRateLimit } from '@/lib/auth-helpers';
 import { toErrorMessage } from '@/lib/api-errors';
 import { getSettings, getSettingsDetailed, updateSettings } from '@/lib/settings';
 import { VISITOR_BOOLEAN_SETTINGS, VISITOR_SETTING_LIMITS } from '@/lib/jukebox-display';
+import { isManualShowStart } from '@/lib/show-schedule';
 import { parseSantaDailyCap, SANTA_DAILY_CAP_MAX } from '@/lib/santa-confirmation';
 import { parseTriviaSetting, TRIVIA_SETTING_LIMITS, type TriviaSettingKey } from '@/lib/trivia-logic';
 
@@ -113,6 +114,16 @@ export async function PUT(request: NextRequest) {
       if (key in settings && String(settings[key]).length > max) {
         return NextResponse.json(
           { error: `${key} must be at most ${max} characters` },
+          { status: 400 }
+        );
+      }
+    }
+
+    if ('jukebox_countdown_start' in settings) {
+      const start = String(settings.jukebox_countdown_start);
+      if (start !== '' && !isManualShowStart(start)) {
+        return NextResponse.json(
+          { error: 'jukebox_countdown_start must be empty or a date and time like 2026-11-28T17:30' },
           { status: 400 }
         );
       }

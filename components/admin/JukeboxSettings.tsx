@@ -328,6 +328,7 @@ export function VisitorPageSettings({ onSaved }: { onSaved?: () => void }) {
   const [audienceEnabled, setAudienceEnabled] = useState(false);
   const [countdownEnabled, setCountdownEnabled] = useState(true);
   const [countdownHeading, setCountdownHeading] = useState('');
+  const [countdownStart, setCountdownStart] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
@@ -348,6 +349,7 @@ export function VisitorPageSettings({ onSaved }: { onSaved?: () => void }) {
           setAudienceEnabled(data.settings.jukebox_audience_enabled === 'true');
           setCountdownEnabled(data.settings.jukebox_countdown_enabled !== 'false');
           setCountdownHeading(data.settings.jukebox_countdown_heading || '');
+          setCountdownStart(data.settings.jukebox_countdown_start || '');
         }
       } catch (err) {
         console.error('Error fetching visitor page settings:', err);
@@ -379,6 +381,7 @@ export function VisitorPageSettings({ onSaved }: { onSaved?: () => void }) {
             jukebox_audience_enabled: audienceEnabled ? 'true' : 'false',
             jukebox_countdown_enabled: countdownEnabled ? 'true' : 'false',
             jukebox_countdown_heading: countdownHeading.trim(),
+            jukebox_countdown_start: countdownStart,
           }
         })
       });
@@ -481,6 +484,27 @@ export function VisitorPageSettings({ onSaved }: { onSaved?: () => void }) {
           />
           <p className="mt-1 text-xs text-adm-muted">
             For example &ldquo;Christmas lights return in&rdquo;. Leave empty to use the default shown above.
+          </p>
+        </div>
+      )}
+
+      {countdownEnabled && (
+        <div>
+          <AdminLabel htmlFor="jukebox-countdown-start">Next show starts (optional)</AdminLabel>
+          <div className="flex gap-2 sm:max-w-md">
+            <input
+              id="jukebox-countdown-start"
+              type="datetime-local"
+              value={countdownStart}
+              onChange={(e) => setCountdownStart(e.target.value)}
+              className={`${field} min-w-0 flex-1`}
+            />
+            <button type="button" onClick={() => setCountdownStart('')} disabled={!countdownStart} className={`${smallButton} shrink-0`}>
+              Clear
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-adm-muted">
+            Counts down to this date and time, in the show&apos;s time zone, even when FPP is off. Leave empty to follow FPP&apos;s Scheduler. Once it has passed, the Scheduler takes over again. The digital sign counts down to it too.
           </p>
         </div>
       )}

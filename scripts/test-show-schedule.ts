@@ -9,7 +9,10 @@ import {
   findShowWindow,
   formatCountdown,
   isInDailyWindow,
+  isManualShowStart,
+  parseManualShowStart,
   playlistSeason,
+  scheduleOutlook,
   type FppScheduleEntry,
 } from '../lib/show-schedule';
 
@@ -272,6 +275,45 @@ try {
   // An end time that is a sun time still lets the next show be found
   assert.strictEqual(summary([{ ...twoSeasons[1], endTime: 'SunRise' }], at('2026-11-01T12:00:00')).next, 'Saturday 2026-11-28 17:30');
   print('Test 12 OK');
+
+  // Test 13: the admin's own "next show starts" date and time (show-local), used while it is still ahead
+  print('Test 13: parseManualShowStart');
+  const soon = at('2026-11-01T16:41:00');
+  const typed = parseManualShowStart('2026-11-28T17:30', soon);
+  assert.strictEqual(typed?.toUTC().toISO(), '2026-11-28T23:30:00.000Z', 'read in the show zone (CST, UTC-6)');
+  assert.strictEqual(typed?.zoneName, ZONE);
+  assert.strictEqual(parseManualShowStart('2026-11-01T16:41', soon), null, 'not ahead of now');
+  assert.strictEqual(parseManualShowStart('2026-10-31T18:00', soon), null, 'already past');
+  for (const bad of ['', null, undefined, 'soon', '2026-11-28', '2026-11-28 17:30', '2026-13-40T17:30', '2026-11-28T25:00']) {
+    assert.strictEqual(parseManualShowStart(bad, soon), null, `${String(bad)} is not a start`);
+  }
+  assert.deepStrictEqual(['2026-11-28T17:30', '2026-11-28T17:30:00', '', 'x', '2026-02-30T10:00'].map(isManualShowStart), [true, false, false, false, false]);
+  print('Test 13 OK');
+
+  // Test 14: scheduleOutlook - FPP's answer, the saved copy when FPP is off, and a typed start
+  print('Test 14: scheduleOutlook');
+  const showNow = at('2026-11-28T18:00:00');
+  const live = scheduleOutlook(twoSeasons, true, null, showNow);
+  assert.strictEqual(live.isActiveBySchedule, true);
+  assert.strictEqual(live.currentShowEndTime, '22:00:00');
+  assert.strictEqual(live.scheduledPlaylist, 'Christmas');
+  // The saved copy never opens the jukebox, but still gives tonight's playlist and the next show
+  const offline = scheduleOutlook(twoSeasons, false, null, showNow);
+  assert.strictEqual(offline.isActiveBySchedule, false, 'FPP is off: nothing is running the show');
+  assert.strictEqual(offline.currentShowEndTime, null);
+  assert.strictEqual(offline.scheduledPlaylist, 'Christmas');
+  const offlineBefore = scheduleOutlook(twoSeasons, false, null, soon);
+  assert.strictEqual(offlineBefore.nextShow?.start.toUTC().toISO(), '2026-11-28T23:30:00.000Z', 'the saved copy still counts down');
+  // No schedule at all
+  assert.deepStrictEqual(scheduleOutlook(null, false, null, soon), { isActiveBySchedule: false, currentShowEndTime: null, scheduledPlaylist: null, nextShow: null });
+  // A typed start replaces the Scheduler's next show, with or without FPP, and only while ahead
+  const typedOutlook = scheduleOutlook(twoSeasons, true, '2026-12-05T18:15', soon);
+  assert.strictEqual(typedOutlook.nextShow?.start.toUTC().toISO(), '2026-12-06T00:15:00.000Z');
+  assert.strictEqual(typedOutlook.nextShow?.entry.startTime, '18:15');
+  assert.strictEqual(scheduleOutlook(null, false, '2026-12-05T18:15', soon).nextShow?.entry.startTime, '18:15', 'FPP off and nothing saved');
+  assert.strictEqual(scheduleOutlook(twoSeasons, true, '2026-10-01T18:15', soon).nextShow?.start.toUTC().toISO(), '2026-11-28T23:30:00.000Z', 'a passed start is ignored');
+  assert.strictEqual(scheduleOutlook(twoSeasons, true, '2026-12-05T18:15', showNow).isActiveBySchedule, true, 'a typed start does not close a show that is on');
+  print('Test 14 OK');
 
   print('All tests passed');
 } catch (err) {

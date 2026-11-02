@@ -223,6 +223,7 @@ export const VISITOR_SETTING_LIMITS = {
   jukebox_fm_frequency: 40,
   jukebox_courtesy_text: 600,
   jukebox_countdown_heading: 60,
+  jukebox_countdown_start: 16,
   jukebox_spec_pixels: 40,
   jukebox_spec_universes: 40,
   jukebox_spec_wiring: 40,
