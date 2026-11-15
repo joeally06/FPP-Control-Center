@@ -329,6 +329,7 @@ Before starting setup, you should have:
 ADMIN_EMAILS=yourname@gmail.com
 
 # FPP Server
+# Include the scheme (and port if not 80). FPP_HOST, FPP_PORT and NEXT_PUBLIC_FPP_URL are deprecated.
 FPP_URL=http://192.168.1.100
 
 # Google OAuth

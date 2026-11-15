@@ -1,149 +1,58 @@
-/**
- * Centralized FPP configuration
- * 
- * Uses fpp.local as the default fallback (FPP's mDNS hostname)
- * This works on most local networks without configuration.
- * 
- * To use a specific IP, set FPP_URL in your .env.local:
- *   FPP_URL=http://192.168.1.100
- * 
- * SECURITY: SSRF protection - only allows whitelisted FPP hosts
- */
+/** One server-owned destination for every FPP request, including the standalone poller. */
+const warned = new Set<string>();
+function warnOnce(message: string) {
+  if (!warned.has(message)) { warned.add(message); console.warn('[FPP config] ' + message); }
+}
 
-// Default to fpp.local (mDNS hostname that FPP advertises)
-const DEFAULT_FPP_HOST = 'fpp.local';
-const DEFAULT_FPP_PORT = 80;
-
-// SECURITY: Whitelist of allowed FPP hostnames/IPs
-// Add your FPP device hostname or IP here
-const ALLOWED_FPP_HOSTS = [
-  'fpp.local',
-  '192.168.5.2',  // Your FPP device IP
-  // Add more FPP devices as needed
-];
-
-/**
- * Validate FPP URL to prevent SSRF attacks
- * Blocks: localhost, private IPs (except whitelisted), cloud metadata endpoints
- * 
- * @throws Error if URL is invalid or not whitelisted
- */
-function validateFppUrl(urlString: string): string {
-  try {
-    const url = new URL(urlString);
-    
-    // 1. Protocol validation - only HTTP/HTTPS allowed
-    if (!['http:', 'https:'].includes(url.protocol)) {
-      throw new Error(`Invalid protocol: ${url.protocol}. Only HTTP/HTTPS allowed.`);
-    }
-    
-    // 2. Hostname whitelist validation
-    const hostname = url.hostname;
-    
-    // Check if hostname is in whitelist
-    if (!ALLOWED_FPP_HOSTS.includes(hostname)) {
-      // Also check if it's a whitelisted IP in different formats
-      const isWhitelisted = ALLOWED_FPP_HOSTS.some(allowed => {
-        // Handle IPv6 localhost variations
-        if (allowed === hostname) return true;
-        // Normalize IPv6 addresses
-        if (hostname.includes(':') && allowed.includes(':')) {
-          return hostname.toLowerCase() === allowed.toLowerCase();
-        }
-        return false;
-      });
-      
-      if (!isWhitelisted) {
-        console.error(`[Security] SSRF attempt blocked: ${hostname} not in whitelist`);
-        throw new Error(`FPP hostname not whitelisted: ${hostname}`);
-      }
-    }
-    
-    // 3. Block dangerous hostnames
-    const dangerousHosts = [
-      'localhost',
-      '127.0.0.1',
-      '0.0.0.0',
-      '[::]',
-      '::1',
-      '169.254.169.254', // AWS/GCP metadata
-      'metadata.google.internal', // GCP metadata
-      'instance-data',
-    ];
-    
-    if (dangerousHosts.some(dangerous => 
-      hostname.toLowerCase().includes(dangerous.toLowerCase())
-    )) {
-      console.error(`[Security] SSRF attempt blocked: dangerous hostname ${hostname}`);
-      throw new Error('Localhost and metadata endpoints not allowed');
-    }
-    
-    // 4. Block private IP ranges (except whitelisted)
-    if (hostname.startsWith('10.') || 
-        hostname.startsWith('172.') ||
-        hostname.startsWith('192.168.') ||
-        hostname.startsWith('127.')) {
-      // These are private IPs - must be explicitly whitelisted
-      if (!ALLOWED_FPP_HOSTS.includes(hostname)) {
-        console.error(`[Security] SSRF attempt blocked: private IP ${hostname} not whitelisted`);
-        throw new Error('Private IP not whitelisted');
-      }
-    }
-    
-    return urlString;
-  } catch (error) {
-    console.error('[Security] FPP URL validation failed:', error);
-    throw error;
+export function resolveFppUrl(env: Record<string, string | undefined>): string {
+  let configured = env.FPP_URL;
+  if (configured && (env.FPP_HOST || env.FPP_PORT || env.NEXT_PUBLIC_FPP_URL)) {
+    warnOnce('FPP_URL takes precedence; remove legacy FPP_HOST, FPP_PORT and NEXT_PUBLIC_FPP_URL settings.');
   }
-}
-
-/**
- * Get the FPP base URL with SSRF protection
- * Priority: FPP_URL env > NEXT_PUBLIC_FPP_URL env > fpp.local default
- * 
- * @throws Error if URL fails validation (SSRF protection)
- */
-export function getFppUrl(): string {
-  const url = (
-    process.env.FPP_URL ||
-    process.env.NEXT_PUBLIC_FPP_URL ||
-    `http://${DEFAULT_FPP_HOST}`
-  );
-  
-  // Validate URL for security
-  return validateFppUrl(url);
-}
-
-/**
- * Get just the FPP host (without protocol or port)
- * Useful for socket connections
- */
-export function getFppHost(): string {
-  const url = getFppUrl();
-  try {
-    const parsed = new URL(url);
-    return parsed.hostname;
-  } catch {
-    return DEFAULT_FPP_HOST;
+  if (!configured && env.NEXT_PUBLIC_FPP_URL) {
+    warnOnce('NEXT_PUBLIC_FPP_URL is deprecated. Set server-side FPP_URL instead.');
+    configured = env.NEXT_PUBLIC_FPP_URL;
   }
+  if (!configured && (env.FPP_HOST || env.FPP_PORT)) {
+    warnOnce('FPP_HOST/FPP_PORT are deprecated. Set FPP_URL including the scheme and port instead.');
+    const host = env.FPP_HOST || 'fpp.local';
+    if (!/^[a-zA-Z0-9.\-\[\]:]+$/.test(host)) throw new Error('Invalid FPP_HOST; use FPP_URL');
+    const port = env.FPP_PORT || '80';
+    if (!/^\d+$/.test(port) || Number(port) < 1 || Number(port) > 65535) throw new Error('Invalid FPP_PORT');
+    configured = 'http://' + host + ':' + port;
+  }
+  let url: URL;
+  try { url = new URL(configured || 'http://fpp.local'); }
+  catch { throw new Error('Invalid FPP_URL. Set an HTTP(S) origin such as http://fpp.local:80.'); }
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash || url.pathname !== '/') {
+    throw new Error('FPP_URL must be an HTTP(S) origin without credentials, path, query or fragment.');
+  }
+  const host = url.hostname.toLowerCase().replace(/\.$/, '');
+  if (host === 'localhost' || host.endsWith('.localhost') || host === 'metadata.google.internal' || host === 'instance-data' ||
+      /^(0\.|127\.|169\.254\.)/.test(host) || /^(22[4-9]|23\d|24\d|25[0-5])\./.test(host) ||
+      ['[::]', '[::1]'].includes(host) || host.startsWith('[::ffff:') || /^\[fe[89ab]/.test(host)) {
+    throw new Error('FPP_URL cannot target a loopback, unspecified, link-local, multicast or metadata address.');
+  }
+  return url.origin;
 }
 
-/**
- * Get the FPP port
- */
+export function getFppUrl(): string { return resolveFppUrl(process.env); }
+export function getFppHost(): string { return new URL(getFppUrl()).hostname; }
 export function getFppPort(): number {
-  const url = getFppUrl();
-  try {
-    const parsed = new URL(url);
-    return parsed.port ? parseInt(parsed.port, 10) : DEFAULT_FPP_PORT;
-  } catch {
-    return DEFAULT_FPP_PORT;
-  }
+  const url = new URL(getFppUrl());
+  return Number(url.port || (url.protocol === 'https:' ? 443 : 80));
 }
 
-// Export constants for reference
-export const FPP_DEFAULTS = {
-  host: DEFAULT_FPP_HOST,
-  port: DEFAULT_FPP_PORT,
-  url: `http://${DEFAULT_FPP_HOST}`,
-} as const;
+/** Only the configured origin is reachable. Redirects are refused, even to the same host. */
+export async function fetchFpp(input: string, options: RequestInit = {}, fetcher: typeof fetch = fetch): Promise<Response> {
+  const origin = getFppUrl();
+  const url = new URL(input, origin);
+  if (url.origin !== origin || url.username || url.password || !url.pathname.startsWith('/api/')) {
+    throw new Error('FPP request must stay within the configured origin and API path.');
+  }
+  const response = await fetcher(url.href, { ...options, redirect: 'error' });
+  if (response.status >= 300 && response.status < 400) throw new Error('FPP redirects are not allowed');
+  return response;
+}
+
+export const FPP_DEFAULTS = { host: 'fpp.local', port: 80, url: 'http://fpp.local' } as const;

@@ -125,7 +125,7 @@ function runBuild() {
     console.log('  SKIP  build (--skip-build)');
     return;
   }
-  const r = run([bin('next', 'dist', 'bin', 'next'), 'build']);
+  const r = run([path.join(root, 'scripts', 'build.js')]);
   report('next build', r.ok, `${r.seconds}s`);
   if (!r.ok) tail(r.output, 40);
 }

@@ -1,3 +1,4 @@
+import { migrateDatabase } from './database-migrations';
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
@@ -15,6 +16,10 @@ const tmpDir = path.join(process.cwd(), 'tmp');
 if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 const dbPath = path.join(tmpDir, 'test-circuit-breaker.db');
 if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+
+const seed = new Database(dbPath);
+migrateDatabase(seed);
+seed.close();
 
 const config = { failureThreshold: 3, resetTimeout: 10000, successThreshold: 2 };
 const instances: FPPCircuitBreaker[] = [];

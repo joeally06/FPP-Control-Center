@@ -289,6 +289,19 @@ else
     exit 1
 fi
 
+# A failed migration leaves the database on the old schema (all-or-nothing), so put the old code back.
+# Without this the working tree is already on the new commit, the next restart would refuse to start,
+# and a retry would say "Already up to date". Phase 3 also stopped the poller.
+rollback_after_failed_migration() {
+    log "🔄 Attempting rollback..."
+    git reset --hard "$LOCAL_COMMIT" >> "$LOG_FILE" 2>&1
+    npm install --include=dev >> "$LOG_FILE" 2>&1
+    npm run build >> "$LOG_FILE" 2>&1
+    if [ -n "$PM2_BIN" ]; then
+        timeout 30 "$PM2_BIN" start fpp-poller >> "$LOG_FILE" 2>&1 || log "⚠️  Could not restart fpp-poller - run: pm2 start fpp-poller"
+    fi
+}
+
 # Phase 6.5: Run database migrations
 log "🗄️  Phase 6.5: Running database migrations..."
 write_status "MIGRATING"
@@ -298,11 +311,16 @@ if [ -f "$PROJECT_DIR/scripts/migrate-database.js" ]; then
         log "✅ Database migrations completed"
     else
         log "❌ Database migrations failed"
-        log "⚠️  Continuing anyway - check logs/update.log for details"
-        # Don't exit - migrations might fail if already applied
+        log "Update stopped before service restart. See logs/update.log and the recovery snapshot."
+        write_status "FAILED"
+        rollback_after_failed_migration
+        exit 1
     fi
 else
-    log "ℹ️  No migration script found, skipping"
+    log "Migration script missing; update stopped before service restart"
+    write_status "FAILED"
+    rollback_after_failed_migration
+    exit 1
 fi
 
 # Phase 7: Restart all services

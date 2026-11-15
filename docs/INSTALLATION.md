@@ -539,6 +539,7 @@ Edit `.env.local`:
 ADMIN_EMAILS=yourname@gmail.com
 
 # FPP server
+# Include the scheme (and port if not 80). FPP_HOST, FPP_PORT and NEXT_PUBLIC_FPP_URL are deprecated.
 FPP_URL=http://192.168.1.100
 
 # Timezone
@@ -570,7 +571,7 @@ openssl rand -base64 32
 npm run setup
 ```
 
-This creates `votes.db` and applies any pending migrations. It does not touch `.env.local`; use `./setup.sh` for the full guided install.
+This creates `votes.db` and applies any pending migrations. It does not touch `.env.local`; use `./setup.sh` for the full guided install. The app no longer creates or changes tables when it starts: after any update, run `node scripts/migrate-database.js` (the admin updater does this for you) or the app will refuse to start.
 
 #### **Step 5: Build Application**
 
@@ -1489,10 +1490,12 @@ SMTP_PASS=your-app-password
 # returning visitor count as new once.
 # IP_HASH_SALT=a-long-random-string
 
-# Database file location (default: votes.db in the project folder). The web app and the
-# poller both follow it; the setup/migrate scripts (npm run setup, scripts/migrate-database.js)
-# always use ./votes.db, so leave this unset unless you know you need it.
+# Database file location (default: votes.db in the project folder). The web app, the poller
+# and the setup/migrate scripts (npm run setup, scripts/migrate-database.js) all follow it.
 # VOTES_DB_PATH=/path/to/votes.db
+
+# Where scripts/migrate-database.js saves its recovery copy before migrating (default: ./backups)
+# DB_BACKUP_DIR=/path/to/backups
 
 # Monitoring schedule (24-hour format)
 MONITORING_START_TIME=16:00

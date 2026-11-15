@@ -67,8 +67,8 @@ export default function LocationRestrictions() {
         body: JSON.stringify({
           enabled,
           max_distance_miles: maxDistance,
-          show_latitude: lat || null,
-          show_longitude: lng || null,
+          show_latitude: Number.isFinite(lat) ? lat : null,
+          show_longitude: Number.isFinite(lng) ? lng : null,
           location_name: locationName || null,
         }),
       });

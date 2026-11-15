@@ -32,6 +32,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(checkAgainstShow(coords, restrictions));
   } catch (error) {
     console.error('[Location API] check error:', error);
-    return NextResponse.json({ error: 'Failed to check location' }, { status: 500 });
+    return NextResponse.json({ error: 'Location verification is temporarily unavailable. Please try again shortly.' }, { status: 503 });
   }
 }

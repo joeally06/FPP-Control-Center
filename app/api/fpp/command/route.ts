@@ -1,10 +1,10 @@
+import { getFppUrl, fetchFpp } from '@/lib/fpp-config';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { isAdminSession } from '@/lib/auth-helpers';
 import { hashEmail } from '@/lib/privacy-utils';
 
-const FPP_URL = process.env.FPP_URL || 'http://fpp.local';
 
 /**
  * POST /api/fpp/command
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-    const response = await fetch(`${FPP_URL}/api/command`, {
+    const response = await fetchFpp(`${getFppUrl()}/api/command`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

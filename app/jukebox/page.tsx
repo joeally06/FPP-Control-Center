@@ -49,7 +49,7 @@ import {
   type ShowSpec,
   type VisitorPlaylist,
 } from '@/lib/jukebox-display';
-import { TIMING } from '@/lib/constants';
+import { useJukeboxPolling } from '@/hooks/useJukeboxPolling';
 import { NOT_ADMIN_REDIRECT } from '@/lib/admin-emails';
 
 import type { CurrentlyPlaying, ScheduleStatus, SequenceMetadata, YouTubeVideo } from '@/lib/jukebox-page-types';
@@ -606,71 +606,11 @@ export default function JukeboxPage() {
     }
   };
 
-  // The polling effect below starts once; it reads the current settings loader and rate limit through this ref
-  const latestSettingsRef = useRef({ fetchJukeboxSettings, jukeboxRateLimit });
-  useEffect(() => {
-    latestSettingsRef.current = { fetchJukeboxSettings, jukeboxRateLimit };
+  useJukeboxPolling(isAdmin, {
+    fetchAvailableSequences, fetchPlaylists, fetchData, fetchYouTubeVideos,
+    fetchScheduleStatus, fetchJukeboxSettings, fetchLocationRestrictions,
+    fetchRequestStatus, jukeboxRateLimit,
   });
-
-  useEffect(() => {
-    // Start after this render, not during the effect body (React flags state updates made synchronously in an effect)
-    const firstLoads = setTimeout(() => {
-      fetchAvailableSequences();
-      fetchPlaylists();
-      fetchData();
-      fetchYouTubeVideos();
-      fetchScheduleStatus(); // Check schedule status
-      latestSettingsRef.current.fetchJukeboxSettings(); // Fetch jukebox rate limit, insert mode, and visitor page settings
-      fetchLocationRestrictions(); // Fetch location settings for distance calculation
-    }, 0);
-
-    const interval = setInterval(fetchData, TIMING.POLL_INTERVAL_FAST);
-    const scheduleInterval = setInterval(fetchScheduleStatus, TIMING.POLL_INTERVAL_SLOW);
-
-    // Refresh request status to keep it up to date
-    const requestStatusInterval = setInterval(() => {
-      if (latestSettingsRef.current.jukeboxRateLimit > 0) {
-        fetchRequestStatus();
-      }
-    }, TIMING.POLL_INTERVAL_MEDIUM);
-
-    // Admin-only background operations
-    let cacheRefreshInterval: NodeJS.Timeout | undefined;
-
-    if (isAdmin) {
-      // Background cache refresh every 10 minutes (admin only)
-      cacheRefreshInterval = setInterval(async () => {
-        try {
-          const response = await fetch('/api/jukebox/refresh-cache', { method: 'POST' });
-          const data = await response.json();
-
-          if (data.success) {
-            console.log(`[Jukebox] Background cache refresh: ${data.sequencesCached} sequences cached`);
-          } else {
-            // Only log if not offline (reduce console spam)
-            if (data.error !== 'FPP is offline') {
-              console.warn('[Jukebox] Background cache refresh failed:', data.error);
-            }
-          }
-        } catch (error) {
-          // Silently fail for background refreshes to avoid console spam
-          // Only log if it's not a timeout/abort error
-          if (error instanceof Error && error.name !== 'AbortError') {
-            console.error('Background cache refresh failed:', error);
-          }
-        }
-      }, 10 * 60 * 1000); // 10 minutes
-    }
-
-    // ✅ MEMORY LEAK FIX: Clear all intervals on unmount
-    return () => {
-      clearTimeout(firstLoads);
-      clearInterval(interval);
-      clearInterval(scheduleInterval);
-      clearInterval(requestStatusInterval);
-      if (cacheRefreshInterval) clearInterval(cacheRefreshInterval);
-    };
-  }, [isAdmin]);
 
   // Latest fetchData for the song-change refresh above, which lives in a mount-once effect
   useEffect(() => {

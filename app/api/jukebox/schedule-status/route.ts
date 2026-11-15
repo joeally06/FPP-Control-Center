@@ -1,3 +1,4 @@
+import { getFppUrl, fetchFpp } from '@/lib/fpp-config';
 /**
  * Jukebox Schedule Status API
  * 
@@ -60,13 +61,13 @@ export async function GET() {
       let fppAnswered = false;
 
       try {
-        const fppUrl = process.env.FPP_URL || process.env.NEXT_PUBLIC_FPP_URL;
+        const fppUrl = getFppUrl();
 
         if (fppUrl) {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
 
-          const scheduleResponse = await fetch(`${fppUrl}/api/schedule`, {
+          const scheduleResponse = await fetchFpp(`${fppUrl}/api/schedule`, {
             signal: controller.signal,
             headers: { 'Accept': 'application/json' }
           });

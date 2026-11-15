@@ -1,4 +1,4 @@
-import { getFppUrl } from './fpp-config';
+import { getFppUrl, fetchFpp } from './fpp-config';
 import { TIMING } from './constants';
 import { getDb } from './database';
 
@@ -35,7 +35,7 @@ export async function syncFppData(): Promise<SyncResult> {
     
     // Fetch playlists from FPP
     console.log('[FPP Sync] Fetching playlists from', `${fppUrl}/api/playlists`);
-    const playlistsRes = await fetch(`${fppUrl}/api/playlists`, {
+    const playlistsRes = await fetchFpp(`${fppUrl}/api/playlists`, {
       headers: { 'Accept': 'application/json' },
       signal: AbortSignal.timeout(TIMING.FETCH_TIMEOUT_VERY_LONG) // 15 seconds for FPP to respond
     });
@@ -52,7 +52,7 @@ export async function syncFppData(): Promise<SyncResult> {
     const playlists: FppPlaylistDetail[] = [];
     for (const name of playlistNames) {
       try {
-        const playlistRes = await fetch(`${fppUrl}/api/playlist/${encodeURIComponent(name)}`, {
+        const playlistRes = await fetchFpp(`${fppUrl}/api/playlist/${encodeURIComponent(name)}`, {
           headers: { 'Accept': 'application/json' },
           signal: AbortSignal.timeout(TIMING.FETCH_TIMEOUT_LONG)
         });
@@ -74,7 +74,7 @@ export async function syncFppData(): Promise<SyncResult> {
 
     // Fetch sequences from FPP
     console.log('[FPP Sync] Fetching sequences from', `${fppUrl}/api/sequence`);
-    const sequencesRes = await fetch(`${fppUrl}/api/sequence`, {
+    const sequencesRes = await fetchFpp(`${fppUrl}/api/sequence`, {
       headers: { 'Accept': 'application/json' },
       signal: AbortSignal.timeout(TIMING.FETCH_TIMEOUT_VERY_LONG) // 15 seconds for FPP to respond
     });

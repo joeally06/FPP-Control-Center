@@ -60,8 +60,8 @@ assert.ok(far.enabled && Math.abs(far.distanceMiles * 10 - Math.round(far.distan
 const body = JSON.stringify(far);
 assert.ok(!body.includes('41.5') && !body.includes('90.5'), 'the answer carries no show coordinates');
 assert.deepStrictEqual(checkAgainstShow({ lat: 0, lng: 0 }, { ...show, is_active: 0 }), { enabled: false });
-assert.deepStrictEqual(checkAgainstShow({ lat: 0, lng: 0 }, { ...show, show_latitude: null }), { enabled: false });
-assert.deepStrictEqual(checkAgainstShow({ lat: 0, lng: 0 }, undefined), { enabled: false });
+assert.throws(() => checkAgainstShow({ lat: 0, lng: 0 }, { ...show, show_latitude: null }), /settings invalid/);
+assert.throws(() => checkAgainstShow({ lat: 0, lng: 0 }, undefined), /settings unavailable/);
 assert.strictEqual(isRestrictionConfigured({ ...show, show_latitude: 0, show_longitude: 0 }), true, '0,0 is a real position');
 assert.strictEqual(roundMiles(1.04), 1);
 assert.strictEqual(roundMiles(1.06), 1.1);

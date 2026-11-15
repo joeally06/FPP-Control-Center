@@ -1,6 +1,6 @@
+import { getFppUrl, fetchFpp } from '@/lib/fpp-config';
 import { NextResponse } from 'next/server';
 
-const FPP_URL = process.env.FPP_URL || 'http://fpp.local';
 
 /**
  * GET /api/fpp/playlists/list
@@ -12,7 +12,7 @@ export async function GET() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-    const response = await fetch(`${FPP_URL}/api/playlists`, {
+    const response = await fetchFpp(`${getFppUrl()}/api/playlists`, {
       signal: controller.signal,
     });
 

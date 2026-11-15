@@ -4,6 +4,7 @@ import fs from 'fs';
 import assert from 'assert';
 import { spawnSync } from 'child_process';
 import { addMissingColumns } from '../lib/db-columns';
+import { migrateDatabase } from './database-migrations';
 
 function print(msg: string) {
   console.log('[test-database-init] ' + msg);
@@ -62,6 +63,7 @@ function importDatabase(dbFile: string) {
 print('Test 6: an unmigrated database fails with a clear message');
 {
   const empty = path.join(root, 'empty.db');
+  new Database(empty).close();
   const run = importDatabase(empty);
   assert.notStrictEqual(run.status, 0);
   assert.match(run.stderr, /has not been set up yet/);
@@ -72,10 +74,7 @@ print('Test 7: after the real migrations, lib/database.ts imports, and importing
 {
   const migrated = path.join(root, 'migrated.db');
   const db = new Database(migrated);
-  const dir = path.join(process.cwd(), 'migrations');
-  for (const file of fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
-    db.transaction(() => db.exec(fs.readFileSync(path.join(dir, file), 'utf-8')))();
-  }
+  migrateDatabase(db);
   db.close();
 
   const first = importDatabase(migrated);

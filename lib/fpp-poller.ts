@@ -25,7 +25,7 @@ import path from 'path';
 import fs from 'fs';
 import { config } from 'dotenv';
 import { getCircuitBreaker, CircuitState } from './circuit-breaker';
-import { getFppHost } from './fpp-config';
+import { getFppUrl, fetchFpp } from './fpp-config';
 import { POLLER } from './constants';
 import { nextPollDelay } from './poll-timing';
 import { markFppOffline } from './fpp-state';
@@ -42,15 +42,14 @@ if (fs.existsSync(envPath)) {
 // Configuration
 // ============================================================================
 
-const FPP_HOST = process.env.FPP_HOST || getFppHost();
-const FPP_PORT = process.env.FPP_PORT || '80';
+const FPP_URL = getFppUrl();
 const POLL_INTERVAL = parseInt(process.env.FPP_POLL_INTERVAL || String(POLLER.DEFAULT_INTERVAL));
 const MAX_POLL_INTERVAL = POLLER.MAX_INTERVAL;
 const RETRY_BACKOFF_MULTIPLIER = 1.5; // Exponential backoff
 const MAX_CONSECUTIVE_FAILURES = 10; // Max failures before longer backoff
 
 console.log('[FPP Poller] Starting FPP State Polling Service');
-console.log(`[FPP Poller] Target: http://${FPP_HOST}:${FPP_PORT}`);
+console.log(`[FPP Poller] Target: ${FPP_URL}`);
 console.log(`[FPP Poller] Poll Interval: ${POLL_INTERVAL}ms`);
 
 // ============================================================================
@@ -294,9 +293,9 @@ async function fetchFPPStatus(): Promise<{ success: boolean; data?: FppStatus; e
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), POLLER.TIMEOUT);
     
-    const url = `http://${FPP_HOST}:${FPP_PORT}/api/fppd/status`;
+    const url = `${FPP_URL}/api/fppd/status`;
     
-    const response = await fetch(url, {
+    const response = await fetchFpp(url, {
       signal: controller.signal,
       headers: {
         'Accept': 'application/json',
@@ -341,9 +340,9 @@ async function fetchPlaylistDetails(playlistName: string): Promise<FppPlaylistDe
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), POLLER.TIMEOUT);
     
-    const url = `http://${FPP_HOST}:${FPP_PORT}/api/playlist/${encodeURIComponent(playlistName)}`;
+    const url = `${FPP_URL}/api/playlist/${encodeURIComponent(playlistName)}`;
     
-    const response = await fetch(url, {
+    const response = await fetchFpp(url, {
       signal: controller.signal,
       headers: {
         'Accept': 'application/json'

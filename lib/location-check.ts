@@ -37,8 +37,8 @@ export function parseUserCoordinates(body: unknown): { lat: number; lng: number 
 export function isRestrictionConfigured(restrictions: ShowRestrictions | undefined | null): boolean {
   return Boolean(
     restrictions?.is_active &&
-    restrictions.show_latitude !== null && restrictions.show_latitude !== undefined &&
-    restrictions.show_longitude !== null && restrictions.show_longitude !== undefined
+    parseUserCoordinates({ lat: restrictions.show_latitude, lng: restrictions.show_longitude }) &&
+    typeof restrictions.max_distance_miles === 'number' && Number.isFinite(restrictions.max_distance_miles) && restrictions.max_distance_miles > 0
   );
 }
 
@@ -46,7 +46,9 @@ export function checkAgainstShow(
   user: { lat: number; lng: number },
   restrictions: ShowRestrictions | undefined | null
 ): LocationCheckResult {
-  if (!restrictions || !isRestrictionConfigured(restrictions)) return { enabled: false };
+  if (!restrictions || ![0, 1, false, true].includes(restrictions.is_active as number | boolean)) throw new Error('Location settings unavailable');
+  if (!restrictions.is_active) return { enabled: false };
+  if (!isRestrictionConfigured(restrictions)) throw new Error('Location settings invalid');
 
   const maxDistance = restrictions.max_distance_miles ?? 1;
   const distance = getDistanceInMiles(user.lat, user.lng, restrictions.show_latitude as number, restrictions.show_longitude as number);

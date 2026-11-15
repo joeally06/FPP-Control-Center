@@ -4,13 +4,12 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { writeFile, mkdir, readFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
-import { getFppUrl } from '@/lib/fpp-config';
+import { getFppUrl, fetchFpp } from '@/lib/fpp-config';
 import { isAdminSession } from '@/lib/auth-helpers';
 
 const AUDIO_DIR = join(process.cwd(), 'public', 'audio');
 const DATA_DIR = join(process.cwd(), 'data');
 const MAPPING_FILE = join(DATA_DIR, 'audio-mapping.json');
-const FPP_URL = getFppUrl();
 
 /**
  * POST /api/audio/download
@@ -79,7 +78,7 @@ export async function POST(request: NextRequest) {
       // Fallback: Try to find matching audio from FPP media list
       console.log(`[Audio Download] No mediaName provided, searching FPP media list...`);
       
-      const mediaListRes = await fetch(`${FPP_URL}/api/media`, {
+      const mediaListRes = await fetchFpp(`${getFppUrl()}/api/media`, {
         signal: AbortSignal.timeout(10000)
       });
 
@@ -139,12 +138,12 @@ export async function POST(request: NextRequest) {
 
     // Download the audio file from FPP
     // FPP serves music files at /api/file/music/{filename}
-    const audioUrl = `${FPP_URL}/api/file/music/${encodeURIComponent(audioFileName)}`;
+    const audioUrl = `${getFppUrl()}/api/file/music/${encodeURIComponent(audioFileName)}`;
     console.log(`[Audio Download] Fetching from URL: ${audioUrl}`);
     
     let audioRes: Response;
     try {
-      audioRes = await fetch(audioUrl, {
+      audioRes = await fetchFpp(audioUrl, {
         signal: AbortSignal.timeout(60000) // 1 minute timeout for large files
       });
     } catch (fetchError) {

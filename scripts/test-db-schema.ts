@@ -93,10 +93,10 @@ afterMigration025.exec(fs.readFileSync(path.join(migrationsDir, '026_jukebox_son
 afterMigration025.exec(fs.readFileSync(path.join(migrationsDir, '026_jukebox_song_art.sql'), 'utf-8'));
 afterMigration025.close();
 
-print('Test 6: lib/database.ts opens the connection and calls applySchema; it holds no table definitions');
+print('Test 6: lib/database.ts only checks schema compatibility; it holds no table definitions');
 const databaseSource = fs.readFileSync(path.join(root, 'lib', 'database.ts'), 'utf-8');
-assert.ok(/applySchema\(db\);/.test(databaseSource));
+assert.ok(/assertDatabaseReady\(db\);/.test(databaseSource));
+assert.ok(!/applySchema/.test(databaseSource));
 assert.ok(!/CREATE TABLE|CREATE INDEX/i.test(databaseSource), 'table definitions belong in lib/db-schema.ts');
-assert.ok(databaseSource.indexOf("db.pragma('journal_mode = WAL')") < databaseSource.indexOf('applySchema(db);'), 'WAL is set before the schema runs');
 
 print('All tests passed');

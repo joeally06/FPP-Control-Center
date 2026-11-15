@@ -1,3 +1,4 @@
+import { getFppUrl, fetchFpp } from '@/lib/fpp-config';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
@@ -73,22 +74,14 @@ export async function POST(request: NextRequest) {
     console.log('[FPP Media Download] Original filename:', filename);
     console.log('[FPP Media Download] Sanitized filename:', sanitized);
 
-    const FPP_URL = process.env.FPP_URL;
-    
-    if (!FPP_URL) {
-      return NextResponse.json(
-        { error: 'FPP_URL not configured' },
-        { status: 500 }
-      );
-    }
 
     // SECURITY: Download with timeout and size limit
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
     // FPP serves files from /api/file/Music/ directory
-    const response = await fetch(
-      `${FPP_URL}/api/file/Music/${encodeURIComponent(filename)}`,
+    const response = await fetchFpp(
+      `${getFppUrl()}/api/file/Music/${encodeURIComponent(filename)}`,
       {
         method: 'GET',
         signal: controller.signal

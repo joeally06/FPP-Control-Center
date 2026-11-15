@@ -1,8 +1,8 @@
+import { getFppUrl, fetchFpp } from '@/lib/fpp-config';
 import { NextResponse } from 'next/server';
 import { getCircuitBreaker } from '@/lib/circuit-breaker';
 import { getDb } from '@/lib/database';
 
-const FPP_URL = process.env.FPP_URL || 'http://fpp.local';
 const HEALTH_CHECK_TIMEOUT = 5000; // 5 seconds
 
 /**
@@ -59,7 +59,7 @@ export async function GET() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT);
 
-    const response = await fetch(`${FPP_URL}/api/system/status`, {
+    const response = await fetchFpp(`${getFppUrl()}/api/system/status`, {
       signal: controller.signal,
       headers: { 'Accept': 'application/json' }
     });

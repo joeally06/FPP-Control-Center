@@ -1,3 +1,4 @@
+import { assertDatabaseReady } from './db-compatibility';
 /**
  * Circuit Breaker for FPP Device State Management
  * 
@@ -72,11 +73,11 @@ export class FPPCircuitBreaker extends EventEmitter {
     };
 
     // Initialize database connection
-    this.db = new Database(dbPath);
+    this.db = new Database(dbPath, { fileMustExist: true });
     this.db.pragma('foreign_keys = ON');
 
-    // Create circuit breaker state table if not exists
-    this.initializeDatabase();
+    // Check compatibility without changing schema or defaults.
+    try { assertDatabaseReady(this.db); } catch (error) { this.db.close(); throw error; }
 
     // Load persisted state from database
     this.loadState();
@@ -93,34 +94,6 @@ export class FPPCircuitBreaker extends EventEmitter {
    * Initialize database table for circuit breaker state
    * SECURITY: Uses CHECK constraints to validate state values
    */
-  private initializeDatabase(): void {
-    try {
-      this.db.exec(`
-        CREATE TABLE IF NOT EXISTS fpp_circuit_breaker (
-          id INTEGER PRIMARY KEY CHECK (id = 1),
-          state TEXT NOT NULL CHECK(state IN ('CLOSED', 'OPEN', 'HALF_OPEN')),
-          failure_count INTEGER DEFAULT 0 CHECK(failure_count >= 0),
-          success_count INTEGER DEFAULT 0 CHECK(success_count >= 0),
-          last_failure_time INTEGER CHECK(last_failure_time >= 0),
-          last_state_change INTEGER NOT NULL,
-          total_transitions INTEGER DEFAULT 0 CHECK(total_transitions >= 0),
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-        
-        -- Insert default state if not exists
-        INSERT OR IGNORE INTO fpp_circuit_breaker (
-          id, state, last_state_change
-        ) VALUES (
-          1, 'CLOSED', strftime('%s', 'now') * 1000
-        );
-      `);
-    } catch (error) {
-      console.error('[Circuit Breaker] Failed to initialize database:', error instanceof Error ? error.message : String(error));
-      throw error;
-    }
-  }
-
   /**
    * Load circuit breaker state from database (survives restarts)
    * The poller and the web server each have an instance; the database row is the shared state,

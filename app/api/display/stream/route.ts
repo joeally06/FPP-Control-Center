@@ -10,7 +10,7 @@ import db, {
   type SequenceMetadataRow,
 } from '@/lib/database';
 import { playlistForNowPlaying, playlistSongDetails } from '@/lib/jukebox-songs';
-import { getFppUrl } from '@/lib/fpp-config';
+import { getFppUrl, fetchFpp } from '@/lib/fpp-config';
 import { getSetting } from '@/lib/settings';
 import { createLazyPoller } from '@/lib/lazy-poller';
 import { isFreshPlaying, type FppStateRow } from '@/lib/fpp-state';
@@ -170,7 +170,7 @@ async function fetchUpcomingFromPlaylist(
 ): Promise<string[]> {
   try {
     const url = `${getFppUrl()}/api/playlist/${encodeURIComponent(playlistName)}`;
-    const res = await fetch(url, {
+    const res = await fetchFpp(url, {
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(4000),
     });
@@ -230,7 +230,7 @@ async function resolveFPPStatus(): Promise<{
 
   // 2. Fallback: query FPP directly (same as jukebox status route)
   try {
-    const fppResponse = await fetch(`${getFppUrl()}/api/fppd/status`, {
+    const fppResponse = await fetchFpp(`${getFppUrl()}/api/fppd/status`, {
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(4000),
     });

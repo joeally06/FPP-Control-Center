@@ -1,3 +1,4 @@
+import { getFppUrl, fetchFpp } from '@/lib/fpp-config';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
@@ -30,20 +31,12 @@ export async function GET() {
       );
     }
 
-    const FPP_URL = process.env.FPP_URL;
-    
-    if (!FPP_URL) {
-      return NextResponse.json(
-        { error: 'FPP_URL not configured' },
-        { status: 500 }
-      );
-    }
 
     // SECURITY: Use AbortController for timeout protection
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-    const response = await fetch(`${FPP_URL}/api/media`, {
+    const response = await fetchFpp(`${getFppUrl()}/api/media`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',

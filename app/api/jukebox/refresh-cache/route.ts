@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-helpers';
 import db, { clearCachedSequences, insertCachedSequence, upsertSongDuration } from '@/lib/database';
-import { getFppUrl } from '@/lib/fpp-config';
+import { getFppUrl, fetchFpp } from '@/lib/fpp-config';
 import { toSongDuration } from '@/lib/jukebox-display';
 import { playlistDetails, storeSchedule, syncJukeboxPlaylists, type FppPlaylistJson, type PlaylistDetails } from '@/lib/jukebox-playlists';
 
 // GET with a 5 second timeout; null when FPP doesn't answer or answers with an error
 async function fetchFppJson(path: string): Promise<unknown> {
   try {
-    const response = await fetch(`${getFppUrl()}${path}`, { signal: AbortSignal.timeout(5000), cache: 'no-store' });
+    const response = await fetchFpp(`${getFppUrl()}${path}`, { signal: AbortSignal.timeout(5000), cache: 'no-store' });
     return response.ok ? await response.json() : null;
   } catch {
     return null;
@@ -50,7 +50,7 @@ export async function POST() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
       
-      const healthCheck = await fetch(`${getFppUrl()}/api/system/status`, {
+      const healthCheck = await fetchFpp(`${getFppUrl()}/api/system/status`, {
         signal: controller.signal,
         cache: 'no-store'
       });
@@ -85,7 +85,7 @@ export async function POST() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
         
-        scheduleResponse = await fetch(`${getFppUrl()}/api/schedule`, {
+        scheduleResponse = await fetchFpp(`${getFppUrl()}/api/schedule`, {
           signal: controller.signal,
           cache: 'no-store'
         });
@@ -139,7 +139,7 @@ export async function POST() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
         
-        const playlistResponse = await fetch(`${getFppUrl()}/api/playlist/${encodeURIComponent(playlistName)}`, {
+        const playlistResponse = await fetchFpp(`${getFppUrl()}/api/playlist/${encodeURIComponent(playlistName)}`, {
           signal: controller.signal
         });
         

@@ -1,5 +1,5 @@
 import { getCircuitBreaker } from './circuit-breaker';
-import { getFppUrl } from './fpp-config';
+import { getFppUrl, fetchFpp } from './fpp-config';
 import db, {
   getQueue,
   updateQueueStatus,
@@ -108,7 +108,7 @@ async function makeFppCall<T = { response?: string }>(endpoint: string, method: 
       options.body = JSON.stringify(body);
     }
     
-    const response = await fetch(url, options);
+    const response = await fetchFpp(url, options);
     const text = await response.text();
     
     if (!response.ok) {

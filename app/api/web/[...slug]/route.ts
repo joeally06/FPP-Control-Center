@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-helpers';
-import { getFppUrl } from '@/lib/fpp-config';
+import { getFppUrl, fetchFpp } from '@/lib/fpp-config';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ slug: string[] }> }) {
   const { slug } = await params;
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   
   const url = `${getFppUrl()}/api/${slug.map(encodeURIComponent).join('/')}`;
   try {
-    const response = await fetch(url);
+    const response = await fetchFpp(url);
     const data = await response.text();
     console.log('FPP API call:', url, 'status:', response.status);
     return new NextResponse(data, {
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const url = `${getFppUrl()}/api/${slug.map(encodeURIComponent).join('/')}`;
   try {
     const body = await request.text();
-    const response = await fetch(url, {
+    const response = await fetchFpp(url, {
       method: 'POST',
       body,
       headers: {

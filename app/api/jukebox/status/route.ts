@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminWithRateLimit } from '@/lib/auth-helpers';
 import { toErrorMessage } from '@/lib/api-errors';
 import { getCurrentlyPlaying, updateQueueStatus, getFPPState } from '@/lib/database';
-import { getFppUrl } from '@/lib/fpp-config';
+import { getFppUrl, fetchFpp } from '@/lib/fpp-config';
 import { toPublicQueueItem } from '@/lib/jukebox-display';
 import { isFreshPlaying, type FppStateRow } from '@/lib/fpp-state';
 import { parseDbTimestamp } from '@/lib/time-utils';
@@ -82,7 +82,7 @@ export async function GET() {
     // This maintains backward compatibility and handles poller downtime
     if (!usedCache) {
       try {
-        const fppResponse = await fetch(`${getFppUrl()}/api/fppd/status`);
+        const fppResponse = await fetchFpp(`${getFppUrl()}/api/fppd/status`);
         if (fppResponse.ok) {
           const fppStatus = await fppResponse.json();
 

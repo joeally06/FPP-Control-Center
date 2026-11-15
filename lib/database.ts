@@ -3,22 +3,24 @@ import { DateTime } from 'luxon';
 import { NEXT_QUEUED_LETTER_SQL } from './santa-confirmation';
 import { isInDailyWindow } from './show-schedule';
 import { APP_TIMEZONE } from './time-utils';
-import { applySchema } from './db-schema';
+import { assertDatabaseReady } from './db-compatibility';
 import { getVotesDbPath } from './db-path';
 
 // Initialize database
 const dbPath = getVotesDbPath();
-const db = new Database(dbPath);
+const db = new Database(dbPath, { fileMustExist: true });
 
-// The schema comes from migrations (npm run setup / the updater); applySchema() only tops it up.
+// The schema comes only from explicit migrations (npm run setup / the updater).
 // Fail with a clear message instead of a cryptic "no such table" further down.
 if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'settings'").get()) {
   db.close();
   throw new Error(
     `[Database] ${dbPath} has not been set up yet (it has no settings table). ` +
-    'Run "node scripts/init-database.js" first. It sets up ./votes.db (the setup scripts ignore VOTES_DB_PATH).'
+    'Run "node scripts/init-database.js" first (honours VOTES_DB_PATH).'
   );
 }
+
+try { assertDatabaseReady(db); } catch (error) { db.close(); throw error; }
 
 // ========================================
 // SQLite Performance Optimizations
@@ -48,7 +50,7 @@ db.pragma('mmap_size = 67108864');
 
 console.log('✅ SQLite performance optimizations enabled (WAL mode, 64MB cache, memory-mapped I/O)');
 
-applySchema(db);
+
 
 /** Returns the singleton better-sqlite3 instance for routes that need raw queries. */
 export function getDb() { return db; }

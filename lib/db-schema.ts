@@ -3,9 +3,9 @@ import { addMissingColumns } from './db-columns';
 
 /**
  * Creates every table and index the app needs, adds columns that older databases lack, and seeds the
- * default rows and settings. Safe to run on every start: everything is IF NOT EXISTS / INSERT OR IGNORE.
- * The numbered migrations remain the main source of the schema (npm run setup / the updater); this tops it up,
- * and it is why `next build`, which imports lib/database.ts before the updater runs migrations, finds its tables.
+ * default rows and settings. Frozen implementation of migration 027_explicit_schema.
+ * Called only by explicit migrations and isolated tests, never by application imports.
+ * Add future changes in new numbered migrations instead of changing this snapshot.
  * Order matters: later statements use tables, columns and settings created by earlier ones.
  */
 export function applySchema(db: Database.Database): void {
@@ -188,8 +188,8 @@ export function applySchema(db: Database.Database): void {
     );
   `);
 
-  // Per-song details for the jukebox catalog (also migration 019; created here too because
-  // `next build` imports this file before the updater runs migrations)
+  // Per-song details for the jukebox catalog (also migration 019; kept here because this file is the frozen
+  // snapshot behind migration 027)
   db.exec(`
     CREATE TABLE IF NOT EXISTS jukebox_song_details (
       sequence_name TEXT PRIMARY KEY,

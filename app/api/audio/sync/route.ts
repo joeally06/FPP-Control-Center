@@ -1,11 +1,10 @@
 import { NextRequest } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
-import { getFppUrl } from '@/lib/fpp-config';
+import { getFppUrl, fetchFpp } from '@/lib/fpp-config';
 import { createLazyPoller } from '@/lib/lazy-poller';
 
 // FPP Configuration - uses fpp.local as default
-const FPP_URL = getFppUrl();
 
 interface SyncState {
   isPlaying: boolean;
@@ -116,7 +115,7 @@ function findAudioForSequence(sequenceName: string): string | null {
 let lastBroadcastTime = 0;
 async function pollFPPStatus() {
   try {
-    const response = await fetch(`${FPP_URL}/api/fppd/status`, {
+    const response = await fetchFpp(`${getFppUrl()}/api/fppd/status`, {
       method: 'GET',
       headers: { 'Accept': 'application/json' },
       signal: AbortSignal.timeout(5000),

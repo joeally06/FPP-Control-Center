@@ -4,6 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { isAdminSession } from '@/lib/auth-helpers';
 import { getDb } from '@/lib/database';
 import { isRestrictionConfigured } from '@/lib/location-check';
+import { validLocationSettings } from '@/lib/location-policy';
 
 const NO_STORE = { headers: { 'Cache-Control': 'private, no-store' } };
 
@@ -92,6 +93,9 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
+    if (!validLocationSettings(body)) {
+      return NextResponse.json({ error: 'Provide a valid distance, show coordinates, location name, and enabled switch.' }, { status: 400 });
+    }
     const { enabled, max_distance_miles, show_latitude, show_longitude, location_name } = body;
 
     const db = getDb();

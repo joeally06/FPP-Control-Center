@@ -54,9 +54,8 @@ These two could cause a visible outage on the day of the upgrade, so they are Pa
 
 Not caused by FPP 10, but each one bites a second install or a bigger show. Independent of Part A, in this order:
 
-1. **Configurable FPP address.** `ALLOWED_FPP_HOSTS` in `lib/fpp-config.ts` is hard-coded to `fpp.local` and `192.168.5.2`, so any other install (or a changed IP) is refused with "not whitelisted". Read the allowed hosts from an env var (default: the host of `FPP_URL`), keep the SSRF checks, and document the variable in `README.md` and `docs/INSTALLATION.md`.
-   - Verify: extend the existing config test or add `scripts/test-fpp-config.ts`: host from `FPP_URL` allowed, other hosts refused, localhost and metadata hosts still blocked.
-2. **One way to read the FPP address.** Replace the direct `process.env.FPP_URL || 'http://fpp.local'` reads with `getFppUrl()`: `app/api/fpp/health`, `command`, `playlists/list`, `playlists/[name]`, `sequences/list`, `media/list`, `media/download`, and `app/api/jukebox/schedule-status`. They skip the allowlist today.
+1. **Configurable FPP address (done).** `FPP_URL` is the only setting. The hard-coded host list is gone; `lib/fpp-config.ts` accepts a plain http(s) origin and blocks loopback, link-local, multicast and metadata addresses. Covered by `scripts/test-fpp-config.ts`.
+2. **One way to read the FPP address (done).** Replace the direct `process.env.FPP_URL || 'http://fpp.local'` reads with `getFppUrl()`: `app/api/fpp/health`, `command`, `playlists/list`, `playlists/[name]`, `sequences/list`, `media/list`, `media/download`, and `app/api/jukebox/schedule-status`.
    - Verify: grep shows no remaining direct reads outside `lib/fpp-config.ts` and the poller; test-api-auth and existing tests pass.
 3. **Poll log retention.** Nothing deletes old rows from `fpp_poll_log` (about 8,600 a day). Delete rows older than a set age (for example 30 days) from the poller, in the same place that already trims `fpp_status_cache`.
    - Verify: a test with seeded old and new rows.
