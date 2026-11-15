@@ -30,7 +30,13 @@ import { parseDbTimestamp, toDbSqlString, formatDateTime, isRecent } from '../li
     console.log('[test-time-utils] formatted:', fmt);
 
     // isRecent should return false for past date
-    const recent = isRecent(sqlTs, 60 * 24 * 365); // 1 year -> true
+    // (relative to now: a fixed date stops being within a year as the calendar moves on)
+    const monthAgo = toDbSqlString(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+    const recent = isRecent(monthAgo, 60 * 24 * 365); // 30 days ago, 1 year window -> true
+    if (isRecent(monthAgo, 60 * 24 * 7)) {
+      console.error('[test-time-utils] ❌ isRecent true for 30 days ago with a 7 day window');
+      process.exit(5);
+    }
     if (!recent) {
       console.error('[test-time-utils] ❌ isRecent false for 1 year boundary');
       process.exit(4);

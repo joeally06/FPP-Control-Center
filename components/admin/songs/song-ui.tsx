@@ -47,8 +47,6 @@ export const FILTERS: { id: SongFilter; label: string }[] = [
   { id: 'audio', label: 'Needs phone audio' },
 ];
 
-export const CATEGORY_LIST_ID = 'jukebox-category-suggestions';
-
 export function matchesFilter(song: AdminSong, filter: SongFilter) {
   if (filter === 'titles') return !song.title;
   if (filter === 'audio') return song.audioStatus !== 'ready';

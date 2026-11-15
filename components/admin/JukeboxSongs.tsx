@@ -9,7 +9,7 @@ import { SUGGESTED_CATEGORIES, formatClock } from '@/lib/jukebox-display';
 import { AdminH3, AdminTextMuted } from '@/components/admin/Typography';
 import { card, field, notice, smallButton } from '@/components/admin/ui-classes';
 
-import { Message, AUDIO, FILTERS, CATEGORY_LIST_ID, matchesFilter, SongArt, ListedSong, CHIP, seasonNote } from './songs/song-ui';
+import { Message, AUDIO, FILTERS, matchesFilter, SongArt, ListedSong, CHIP, seasonNote } from './songs/song-ui';
 import SongPanel from './songs/SongPanel';
 import AdvancedTools from './songs/AdvancedTools';
 
@@ -202,12 +202,6 @@ export default function JukeboxSongs({ songs, playlists, reloadKey, filter, onFi
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-      <datalist id={CATEGORY_LIST_ID}>
-        {categories.map((category) => (
-          <option key={category} value={category} />
-        ))}
-      </datalist>
-
       <div className="flex min-w-0 flex-1 flex-col gap-4">
         {playlists.length > 0 && (
           <div className="flex flex-col gap-2">
@@ -375,6 +369,7 @@ export default function JukeboxSongs({ songs, playlists, reloadKey, filter, onFi
           key={`${playlist ?? ''}\u0000${selected.name}`}
           song={selected}
           playlist={playlist}
+          categories={categories}
           onClose={() => setSelectedName(null)}
           onChanged={refresh}
         />

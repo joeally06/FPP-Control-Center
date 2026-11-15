@@ -6,17 +6,19 @@ import { MAX_CATEGORY_LENGTH } from '@/lib/jukebox-display';
 import { AdminLabel } from '@/components/admin/Typography';
 import { accentButton, badge, button, field, iconButton, notice, textLink } from '@/components/admin/ui-classes';
 
-import { SpotifySearchResult, LocalAudioFile, Message, AUDIO, CATEGORY_LIST_ID, SongArt, ListedSong } from './song-ui';
+import { SpotifySearchResult, LocalAudioFile, Message, AUDIO, CHIP, SongArt, ListedSong } from './song-ui';
 interface SongPanelProps {
   song: ListedSong;
   /** The playlist being edited; null edits the song's default details */
   playlist: string | null;
+  /** Categories to offer as one-tap suggestions */
+  categories: string[];
   onClose: () => void;
   onChanged: () => Promise<void>;
 }
 
 /** Everything about one song. A side column on wide screens, a full-screen sheet on phones. */
-export default function SongPanel({ song, playlist, onClose, onChanged }: SongPanelProps) {
+export default function SongPanel({ song, playlist, categories, onClose, onChanged }: SongPanelProps) {
   const pictureInput = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState(song.title ? `${song.title} ${song.artist ?? ''}`.trim() : song.name.replace(/[_-]+/g, ' '));
   const [results, setResults] = useState<SpotifySearchResult[] | null>(null);
@@ -322,7 +324,6 @@ export default function SongPanel({ song, playlist, onClose, onChanged }: SongPa
           <input
             id="song-category"
             type="text"
-            list={CATEGORY_LIST_ID}
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             maxLength={MAX_CATEGORY_LENGTH}
@@ -337,6 +338,13 @@ export default function SongPanel({ song, playlist, onClose, onChanged }: SongPa
             {busy === 'category' ? 'Saving…' : 'Save'}
           </button>
         </div>
+        {categories.length > 0 && (
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Suggested categories">
+            {categories.map((name) => (
+              <button key={name} type="button" onClick={() => setCategory(name)} aria-pressed={category.trim() === name} className={CHIP(category.trim() === name)}>{name}</button>
+            ))}
+          </div>
+        )}
         <p className="text-xs text-adm-muted">Categories become filter buttons on the visitor song list. Optional.</p>
       </section>
 
