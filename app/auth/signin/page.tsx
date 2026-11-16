@@ -3,6 +3,10 @@
 import { getProviders, signIn, getSession, type ClientSafeProvider } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { safeCallbackUrl } from '@/lib/session-expiry';
+
+/** Where the admin was when their session ended; only a page on this site is accepted */
+const callbackUrl = () => safeCallbackUrl(new URLSearchParams(window.location.search).get('callbackUrl'), window.location.origin);
 
 export default function SignIn() {
   const [providers, setProviders] = useState<Record<string, ClientSafeProvider> | null>(null);
@@ -19,7 +23,7 @@ export default function SignIn() {
     const checkSession = async () => {
       const session = await getSession();
       if (session) {
-        router.push('/');
+        router.push(callbackUrl());
       }
     };
     checkSession();
@@ -36,7 +40,7 @@ export default function SignIn() {
           provider.id !== 'facebook' && (
             <button
               key={provider.name}
-              onClick={() => signIn(provider.id)}
+              onClick={() => signIn(provider.id, { callbackUrl: callbackUrl() })}
               className="w-full bg-blue-500 text-white py-2 px-4 rounded mb-3 hover:bg-blue-600"
             >
               Sign in with {provider.name}
