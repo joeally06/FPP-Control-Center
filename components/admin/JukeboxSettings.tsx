@@ -318,7 +318,11 @@ export function RequestRulesSettings() {
 }
 
 /** Jukebox → Visitor page: the show name, radio frequency and optional cards on the visitor page. */
-export function VisitorPageSettings({ onSaved }: { onSaved?: () => void }) {
+export function VisitorPageSettings({ onSaved, startClearedCount = 0 }: {
+  onSaved?: () => void;
+  /** Goes up each time something else clears the saved "Next show starts"; this form then drops its copy so it cannot save the old value back */
+  startClearedCount?: number;
+}) {
   const [siteName, setSiteName] = useState('');
   const [fmFrequency, setFmFrequency] = useState('');
   const [courtesyEnabled, setCourtesyEnabled] = useState(false);
@@ -329,6 +333,11 @@ export function VisitorPageSettings({ onSaved }: { onSaved?: () => void }) {
   const [countdownEnabled, setCountdownEnabled] = useState(true);
   const [countdownHeading, setCountdownHeading] = useState('');
   const [countdownStart, setCountdownStart] = useState('');
+  const [seenStartCleared, setSeenStartCleared] = useState(startClearedCount);
+  if (seenStartCleared !== startClearedCount) {
+    setSeenStartCleared(startClearedCount);
+    setCountdownStart('');
+  }
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
@@ -488,26 +497,25 @@ export function VisitorPageSettings({ onSaved }: { onSaved?: () => void }) {
         </div>
       )}
 
-      {countdownEnabled && (
-        <div>
-          <AdminLabel htmlFor="jukebox-countdown-start">Next show starts (optional)</AdminLabel>
-          <div className="flex gap-2 sm:max-w-md">
-            <input
-              id="jukebox-countdown-start"
-              type="datetime-local"
-              value={countdownStart}
-              onChange={(e) => setCountdownStart(e.target.value)}
-              className={`${field} min-w-0 flex-1`}
-            />
-            <button type="button" onClick={() => setCountdownStart('')} disabled={!countdownStart} className={`${smallButton} shrink-0`}>
-              Clear
-            </button>
-          </div>
-          <p className="mt-1 text-xs text-adm-muted">
-            Counts down to this date and time, in the show&apos;s time zone, even when FPP is off. Leave empty to follow FPP&apos;s Scheduler. Once it has passed, the Scheduler takes over again. The digital sign counts down to it too.
-          </p>
+      {/* Always shown: a typed start also drives the digital sign, even with the visitor countdown off */}
+      <div>
+        <AdminLabel htmlFor="jukebox-countdown-start">Next show starts (optional)</AdminLabel>
+        <div className="flex gap-2 sm:max-w-md">
+          <input
+            id="jukebox-countdown-start"
+            type="datetime-local"
+            value={countdownStart}
+            onChange={(e) => setCountdownStart(e.target.value)}
+            className={`${field} min-w-0 flex-1`}
+          />
+          <button type="button" onClick={() => setCountdownStart('')} disabled={!countdownStart} className={`${smallButton} shrink-0`}>
+            Clear
+          </button>
         </div>
-      )}
+        <p className="mt-1 text-xs text-adm-muted">
+          Counts down to this date and time, in the show&apos;s time zone, even when FPP is off. Leave empty to follow FPP&apos;s Scheduler. Once it has passed, the Scheduler takes over again. The digital sign counts down to it too.
+        </p>
+      </div>
 
       <label className={choiceCard}>
         <input

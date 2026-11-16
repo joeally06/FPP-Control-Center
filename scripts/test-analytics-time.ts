@@ -125,8 +125,9 @@ print('Test 6: votes by hour (all time) and by day (last 30 days) are local');
   insert.run('B', 'down', '2026-10-29 01:40:00'); // 8:40 PM CDT
   insert.run('C', 'up', '2026-10-29 03:05:00'); // 10:05 PM CDT
   // recent votes: where they land depends on today's real date, so compute the expected local day from the stored time
-  db.prepare("INSERT INTO votes (sequence_name, vote_type, created_at) VALUES ('D', 'up', datetime('now', '-1 hours'))").run();
-  db.prepare("INSERT INTO votes (sequence_name, vote_type, created_at) VALUES ('E', 'down', datetime('now', '-45 days'))").run();
+  // At 17:00 UTC (midday locally) so they never fall in the 8 PM or 10 PM hours checked below, whatever time the suite runs
+  db.prepare("INSERT INTO votes (sequence_name, vote_type, created_at) VALUES ('D', 'up', datetime(date('now', '-1 days') || ' 17:00:00'))").run();
+  db.prepare("INSERT INTO votes (sequence_name, vote_type, created_at) VALUES ('E', 'down', datetime(date('now', '-45 days') || ' 17:00:00'))").run();
 
   const { votingTrend, votingByHour } = voteTimeStats(db, ZONE);
   const hour20 = votingByHour.find((h) => h.hour === 20);

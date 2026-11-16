@@ -7,9 +7,11 @@ import JukeboxSongs from '@/components/admin/JukeboxSongs';
 import LocationRestrictions from '@/components/admin/LocationRestrictions';
 import ThemeSettings from '@/components/admin/ThemeSettings';
 import YouTubeVideoSettings from '@/components/admin/YouTubeVideoSettings';
+import LiveStatus from '@/components/admin/jukebox/LiveStatus';
 import { RequestRulesSettings, VisitorPageSettings } from '@/components/admin/JukeboxSettings';
 import { accentButton, card, insetBox, notice, smallButton, tabClass } from '@/components/admin/ui-classes';
 import type { AdminPlaylist } from '@/lib/jukebox-playlists';
+import type { LiveStatus as LiveStatusData } from '@/lib/jukebox-live-status';
 import type { AdminSong, ChecklistItem, SongFilter } from '@/lib/jukebox-songs';
 import { formatDateTime } from '@/lib/time-utils';
 
@@ -41,7 +43,10 @@ export default function JukeboxSetup({ initialTab }: { initialTab?: string }) {
   const [cacheInfo, setCacheInfo] = useState<{ count: number; lastUpdated: string | null } | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
-  const [setup, setSetup] = useState<{ songs: AdminSong[]; checklist: ChecklistItem[]; playlists: AdminPlaylist[] } | null>(null);
+  const [setup, setSetup] = useState<{ songs: AdminSong[]; checklist: ChecklistItem[]; playlists: AdminPlaylist[]; live: LiveStatusData } | null>(null);
+  const [savingStart, setSavingStart] = useState(false);
+  // Goes up when the box clears the typed start, so the Visitor page form drops its copy (its other unsaved edits stay)
+  const [startClearedCount, setStartClearedCount] = useState(0);
   const [songFilter, setSongFilter] = useState<SongFilter>('all');
   // Changing it switches the Playlists & songs tab back to "All songs", which is the list the checklist counts
   const [songsKey, setSongsKey] = useState(0);
@@ -49,6 +54,11 @@ export default function JukeboxSetup({ initialTab }: { initialTab?: string }) {
   // Bumped after a save on the Visitor page tab so the preview frame reloads
   const [previewKey, setPreviewKey] = useState(0);
   const reloadPreview = () => setPreviewKey((n) => n + 1);
+  // A save on the Visitor page tab can change what the "What visitors see right now" box says (theme, typed start)
+  const savedOnVisitorTab = () => {
+    reloadPreview();
+    fetchSetup();
+  };
 
   useEffect(() => {
     fetchCacheInfo();
@@ -87,6 +97,45 @@ export default function JukeboxSetup({ initialTab }: { initialTab?: string }) {
     window.history.replaceState(null, '', url);
     // Other tabs may have changed what the checklist reports
     fetchSetup();
+  }
+
+  // A button in the "What visitors see right now" box: open a tab, and put the cursor in the field it points at
+  function openTabAt(id: TabId, focusId?: string) {
+    selectTab(id);
+    tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (!focusId) return;
+    // The tab's section is un-hidden on the next render
+    requestAnimationFrame(() => {
+      const field = document.getElementById(focusId);
+      field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      field?.focus();
+    });
+  }
+
+  // Clear the typed "next show starts" so the countdown follows FPP's schedule again
+  async function useScheduleStart() {
+    setSavingStart(true);
+    setMessage(null);
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: { jukebox_countdown_start: '' } }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
+      setMessage({ ok: true, text: "✅ The countdown now follows FPP's schedule." });
+      setStartClearedCount((n) => n + 1);
+      reloadPreview();
+    } catch (error) {
+      console.error('Error clearing the typed start time:', error);
+      setMessage({ ok: false, text: '❌ Could not clear the start time. Try again from Visitor page → Next show starts.' });
+    } finally {
+      await fetchSetup();
+      setSavingStart(false);
+    }
   }
 
   function openChecklistItem(item: ChecklistItem) {
@@ -163,6 +212,17 @@ export default function JukeboxSetup({ initialTab }: { initialTab?: string }) {
         <p role="status" className={`${message.ok ? notice.ok : notice.danger} mb-4`}>{message.text}</p>
       )}
 
+      {setup?.live && (
+        <LiveStatus
+          live={setup.live}
+          syncing={syncing}
+          onSync={handleSync}
+          onOpenTab={openTabAt}
+          onUseScheduleStart={useScheduleStart}
+          startSaving={savingStart}
+        />
+      )}
+
       {setup && (
         <section aria-labelledby="setup-checklist-title" className={`${card} mb-6`}>
           {(() => {
@@ -235,9 +295,9 @@ export default function JukeboxSetup({ initialTab }: { initialTab?: string }) {
 
       <section aria-label="Visitor page" hidden={tab !== 'visitor'} className="flex flex-col gap-6 xl:flex-row xl:items-start">
         <div className="flex min-w-0 flex-1 flex-col gap-6">
-          <ThemeSettings onSaved={reloadPreview} />
+          <ThemeSettings onSaved={savedOnVisitorTab} />
           <div className="flex max-w-3xl flex-col gap-4">
-            <VisitorPageSettings onSaved={reloadPreview} />
+            <VisitorPageSettings startClearedCount={startClearedCount} onSaved={savedOnVisitorTab} />
             <BannerSettings onSaved={reloadPreview} />
             <YouTubeVideoSettings />
           </div>
