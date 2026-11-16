@@ -30,7 +30,7 @@ interface ScheduleStatus {
 
 /**
  * The top of the visitor jukebox page as visitors see it, built from the same components and the saved
- * settings. Shown in a frame on Settings → Jukebox → Visitor page. Unlike /jukebox it records no visit,
+ * settings. Shown in a frame on Settings → Jukebox → Season & countdown and Visitor page. Unlike /jukebox it records no visit,
  * shows no admin controls and takes no requests.
  */
 export default function VisitorPagePreview() {

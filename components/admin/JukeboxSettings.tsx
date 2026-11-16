@@ -318,11 +318,7 @@ export function RequestRulesSettings() {
 }
 
 /** Jukebox → Visitor page: the show name, radio frequency and optional cards on the visitor page. */
-export function VisitorPageSettings({ onSaved, startClearedCount = 0 }: {
-  onSaved?: () => void;
-  /** Goes up each time something else clears the saved "Next show starts"; this form then drops its copy so it cannot save the old value back */
-  startClearedCount?: number;
-}) {
+export function VisitorPageSettings({ onSaved }: { onSaved?: () => void }) {
   const [siteName, setSiteName] = useState('');
   const [fmFrequency, setFmFrequency] = useState('');
   const [courtesyEnabled, setCourtesyEnabled] = useState(false);
@@ -330,14 +326,6 @@ export function VisitorPageSettings({ onSaved, startClearedCount = 0 }: {
   const [specsEnabled, setSpecsEnabled] = useState(false);
   const [specValues, setSpecValues] = useState<Record<string, string>>({});
   const [audienceEnabled, setAudienceEnabled] = useState(false);
-  const [countdownEnabled, setCountdownEnabled] = useState(true);
-  const [countdownHeading, setCountdownHeading] = useState('');
-  const [countdownStart, setCountdownStart] = useState('');
-  const [seenStartCleared, setSeenStartCleared] = useState(startClearedCount);
-  if (seenStartCleared !== startClearedCount) {
-    setSeenStartCleared(startClearedCount);
-    setCountdownStart('');
-  }
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
@@ -356,9 +344,6 @@ export function VisitorPageSettings({ onSaved, startClearedCount = 0 }: {
           setSpecsEnabled(data.settings.jukebox_specs_enabled === 'true');
           setSpecValues(Object.fromEntries(SHOW_SPEC_FIELDS.map((field) => [field.key, data.settings[field.key] || ''])));
           setAudienceEnabled(data.settings.jukebox_audience_enabled === 'true');
-          setCountdownEnabled(data.settings.jukebox_countdown_enabled !== 'false');
-          setCountdownHeading(data.settings.jukebox_countdown_heading || '');
-          setCountdownStart(data.settings.jukebox_countdown_start || '');
         }
       } catch (err) {
         console.error('Error fetching visitor page settings:', err);
@@ -388,9 +373,6 @@ export function VisitorPageSettings({ onSaved, startClearedCount = 0 }: {
             jukebox_specs_enabled: specsEnabled ? 'true' : 'false',
             ...Object.fromEntries(SHOW_SPEC_FIELDS.map((field) => [field.key, (specValues[field.key] || '').trim()])),
             jukebox_audience_enabled: audienceEnabled ? 'true' : 'false',
-            jukebox_countdown_enabled: countdownEnabled ? 'true' : 'false',
-            jukebox_countdown_heading: countdownHeading.trim(),
-            jukebox_countdown_start: countdownStart,
           }
         })
       });
@@ -462,59 +444,6 @@ export function VisitorPageSettings({ onSaved, startClearedCount = 0 }: {
             Leave empty to hide the radio frequency (the Listen Online button still shows).
           </p>
         </div>
-      </div>
-
-      <label className={choiceCard}>
-        <input
-          type="checkbox"
-          checked={countdownEnabled}
-          onChange={(e) => setCountdownEnabled(e.target.checked)}
-          className={checkInput}
-        />
-        <div className="flex-1">
-          <p className="text-sm font-medium text-adm-text">Show a countdown to the next show</p>
-          <p className="mt-0.5 text-[13px] text-adm-muted">
-            Shown while no show is running, counting down to the next start in FPP&apos;s Scheduler, even weeks away between seasons.
-          </p>
-        </div>
-      </label>
-
-      {countdownEnabled && (
-        <div>
-          <AdminLabel htmlFor="jukebox-countdown-heading">Countdown heading</AdminLabel>
-          <input
-            id="jukebox-countdown-heading"
-            type="text"
-            value={countdownHeading}
-            onChange={(e) => setCountdownHeading(e.target.value)}
-            maxLength={VISITOR_SETTING_LIMITS.jukebox_countdown_heading}
-            placeholder={DEFAULT_COUNTDOWN_HEADING}
-            className={field}
-          />
-          <p className="mt-1 text-xs text-adm-muted">
-            For example &ldquo;Christmas lights return in&rdquo;. Leave empty to use the default shown above.
-          </p>
-        </div>
-      )}
-
-      {/* Always shown: a typed start also drives the digital sign, even with the visitor countdown off */}
-      <div>
-        <AdminLabel htmlFor="jukebox-countdown-start">Next show starts (optional)</AdminLabel>
-        <div className="flex gap-2 sm:max-w-md">
-          <input
-            id="jukebox-countdown-start"
-            type="datetime-local"
-            value={countdownStart}
-            onChange={(e) => setCountdownStart(e.target.value)}
-            className={`${field} min-w-0 flex-1`}
-          />
-          <button type="button" onClick={() => setCountdownStart('')} disabled={!countdownStart} className={`${smallButton} shrink-0`}>
-            Clear
-          </button>
-        </div>
-        <p className="mt-1 text-xs text-adm-muted">
-          Counts down to this date and time, in the show&apos;s time zone, even when FPP is off. Leave empty to follow FPP&apos;s Scheduler. Once it has passed, the Scheduler takes over again. The digital sign counts down to it too.
-        </p>
       </div>
 
       <label className={choiceCard}>
@@ -603,6 +532,160 @@ export function VisitorPageSettings({ onSaved, startClearedCount = 0 }: {
       <div className="flex gap-3 border-t border-adm-line pt-5">
         <button onClick={handleSave} disabled={saving} className={accentButton}>
           {saving ? 'Saving…' : 'Save settings'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Jukebox → Season & countdown: the countdown to the next show, and the optional start time typed by the admin. */
+export function CountdownSettings({ onSaved, startClearedCount = 0 }: {
+  onSaved?: () => void;
+  /** Goes up each time something else clears the saved "Next show starts"; this form then drops its copy so it cannot save the old value back */
+  startClearedCount?: number;
+}) {
+  const [countdownEnabled, setCountdownEnabled] = useState(true);
+  const [countdownHeading, setCountdownHeading] = useState('');
+  const [countdownStart, setCountdownStart] = useState('');
+  const [seenStartCleared, setSeenStartCleared] = useState(startClearedCount);
+  if (seenStartCleared !== startClearedCount) {
+    setSeenStartCleared(startClearedCount);
+    setCountdownStart('');
+  }
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    async function fetchSettings() {
+      try {
+        const response = await fetch('/api/settings');
+        if (response.ok) {
+          const data = await response.json();
+          setCountdownEnabled(data.settings.jukebox_countdown_enabled !== 'false');
+          setCountdownHeading(data.settings.jukebox_countdown_heading || '');
+          setCountdownStart(data.settings.jukebox_countdown_start || '');
+        }
+      } catch (err) {
+        console.error('Error fetching countdown settings:', err);
+        setError('Failed to load settings');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchSettings();
+  }, []);
+
+  async function handleSave() {
+    setSaving(true);
+    setSuccess('');
+    setError('');
+
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          settings: {
+            jukebox_countdown_enabled: countdownEnabled ? 'true' : 'false',
+            jukebox_countdown_heading: countdownHeading.trim(),
+            jukebox_countdown_start: countdownStart,
+          }
+        })
+      });
+
+      if (response.ok) {
+        setSuccess('✅ Countdown saved!');
+        setTimeout(() => setSuccess(''), 3000);
+        onSaved?.();
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Failed to save settings');
+      }
+    } catch (err) {
+      console.error('Error saving countdown settings:', err);
+      setError('Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className={card}>
+        <AdminH2>Countdown to the next show</AdminH2>
+        <AdminTextMuted>Loading...</AdminTextMuted>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${card} flex max-w-3xl flex-col gap-4`}>
+      <div>
+        <AdminH2 className="mb-1">Countdown to the next show</AdminH2>
+        <AdminTextMuted>Shown while no show is running. It follows FPP&apos;s Scheduler unless you type a start time.</AdminTextMuted>
+      </div>
+
+      {success && <p className={notice.ok}>{success}</p>}
+      {error && <p className={notice.danger}>{error}</p>}
+
+      <label className={choiceCard}>
+        <input
+          type="checkbox"
+          checked={countdownEnabled}
+          onChange={(e) => setCountdownEnabled(e.target.checked)}
+          className={checkInput}
+        />
+        <div className="flex-1">
+          <p className="text-sm font-medium text-adm-text">Show a countdown to the next show</p>
+          <p className="mt-0.5 text-[13px] text-adm-muted">
+            Counting down to the next start in FPP&apos;s Scheduler, even weeks away between seasons.
+          </p>
+        </div>
+      </label>
+
+      {countdownEnabled && (
+        <div>
+          <AdminLabel htmlFor="jukebox-countdown-heading">Countdown heading</AdminLabel>
+          <input
+            id="jukebox-countdown-heading"
+            type="text"
+            value={countdownHeading}
+            onChange={(e) => setCountdownHeading(e.target.value)}
+            maxLength={VISITOR_SETTING_LIMITS.jukebox_countdown_heading}
+            placeholder={DEFAULT_COUNTDOWN_HEADING}
+            className={field}
+          />
+          <p className="mt-1 text-xs text-adm-muted">
+            For example &ldquo;Christmas lights return in&rdquo;. Leave empty to use the default shown above.
+          </p>
+        </div>
+      )}
+
+      {/* Always shown: a typed start also drives the digital sign, even with the visitor countdown off */}
+      <div>
+        <AdminLabel htmlFor="jukebox-countdown-start">Next show starts (optional)</AdminLabel>
+        <div className="flex gap-2 sm:max-w-md">
+          <input
+            id="jukebox-countdown-start"
+            type="datetime-local"
+            value={countdownStart}
+            onChange={(e) => setCountdownStart(e.target.value)}
+            className={`${field} min-w-0 flex-1`}
+          />
+          <button type="button" onClick={() => setCountdownStart('')} disabled={!countdownStart} className={`${smallButton} shrink-0`}>
+            Clear
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-adm-muted">
+          Counts down to this date and time, in the show&apos;s time zone, even when FPP is off. Leave empty to follow FPP&apos;s Scheduler. Once it has passed, the Scheduler takes over again. The digital sign counts down to it too.
+        </p>
+      </div>
+
+      <div className="flex gap-3 border-t border-adm-line pt-5">
+        <button onClick={handleSave} disabled={saving} className={accentButton}>
+          {saving ? 'Saving…' : 'Save countdown'}
         </button>
       </div>
     </div>

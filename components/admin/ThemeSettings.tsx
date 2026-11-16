@@ -30,7 +30,7 @@ const ACCEPT = 'image/jpeg,image/png,image/webp';
 
 type Feedback = { type: 'success' | 'error'; text: string };
 
-/** Jukebox → Visitor page: pick the season and upload its logo and badge. */
+/** Jukebox → Season & countdown: pick the season and upload its logo and badge. */
 export default function ThemeSettings({ onSaved }: { onSaved?: () => void }) {
   const themes = getAllThemes();
   const [activeThemeId, setActiveThemeId] = useState<ThemeId | null>(null);

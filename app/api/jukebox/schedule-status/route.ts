@@ -92,7 +92,7 @@ export async function GET() {
 
       if (!entries) entries = readStoredSchedule(db);
 
-      // A start time typed in Settings → Jukebox → Visitor page wins while it is still ahead
+      // A start time typed in Settings → Jukebox → Season & countdown wins while it is still ahead
       const outlook = scheduleOutlook(entries, fppAnswered, getSetting('jukebox_countdown_start'), now);
       isActiveBySchedule = outlook.isActiveBySchedule;
       currentShowEndTime = outlook.currentShowEndTime;

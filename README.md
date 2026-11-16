@@ -50,8 +50,8 @@ FPP Control Center is a **complete web-based control panel** for your Falcon Pla
 - **Analytics** - Visitor engagement, popular sequences, request patterns
 - **Queue Management** - View, reorder, or clear song requests
 - **Database Tools** - Backup, maintenance, and statistics
-- **Seasonal Themes** - Halloween and Christmas looks for the visitor page, each with your own uploaded logo and round badge (Settings → Jukebox → Visitor page)
-- **Next-Show Countdown** - While no show is running, the visitor page counts down to the next start in FPP's Scheduler, even weeks away between seasons. It keeps counting when FPP is off (it uses the schedule saved on FPP's last answer), or you can type your own start date and time (switch, heading and start in Settings → Jukebox → Visitor page)
+- **Seasonal Themes** - Halloween and Christmas looks for the visitor page, each with your own uploaded logo and round badge (Settings → Jukebox → Season & countdown)
+- **Next-Show Countdown** - While no show is running, the visitor page counts down to the next start in FPP's Scheduler, even weeks away between seasons. It keeps counting when FPP is off (it uses the schedule saved on FPP's last answer), or you can type your own start date and time (switch, heading and start in Settings → Jukebox → Season & countdown)
 - **Security Settings** - Configure rate limits and access control
 
 ### 🔒 **Enterprise Security**

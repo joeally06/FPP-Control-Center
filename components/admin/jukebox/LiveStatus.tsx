@@ -11,7 +11,7 @@ interface LiveStatusProps {
   syncing: boolean;
   onSync: () => void;
   /** Open a tab of the page, and focus a field on it when `focusId` is given */
-  onOpenTab: (tab: 'songs' | 'visitor', focusId?: string) => void;
+  onOpenTab: (tab: 'songs' | 'season', focusId?: string) => void;
   /** Clear the typed start so the countdown follows FPP's schedule again */
   onUseScheduleStart: () => void;
   startSaving?: boolean;
@@ -106,7 +106,7 @@ export default function LiveStatus({ live, syncing, onSync, onOpenTab, onUseSche
           <button type="button" onClick={onUseScheduleStart} disabled={startSaving} className={button}>
             {startSaving ? 'Saving…' : "Use FPP's time"}
           </button>
-          <button type="button" onClick={() => onOpenTab('visitor', 'jukebox-countdown-start')} className={button}>Edit it</button>
+          <button type="button" onClick={() => onOpenTab('season', 'jukebox-countdown-start')} className={button}>Edit it</button>
         </div>
       )}
 

@@ -267,7 +267,7 @@ export function listPlaylistSongs(db: Database.Database, playlist: string, audio
   });
 }
 
-export type SetupTab = 'songs' | 'rules' | 'visitor';
+export type SetupTab = 'songs' | 'season' | 'rules' | 'visitor';
 export type SongFilter = 'all' | 'titles' | 'audio';
 
 export interface ChecklistItem {
@@ -349,7 +349,7 @@ export function buildSetupChecklist(summary: SetupSummary): ChecklistItem[] {
         ? `${summary.themeName} theme with your logo`
         : summary.siteName
           ? `${summary.themeName} theme, showing "${summary.siteName}"`
-          : `Add a show name or upload a ${summary.themeName} logo`,
+          : `Add a show name, or upload a ${summary.themeName} logo under Season & countdown`,
       tab: 'visitor',
     },
   ];
