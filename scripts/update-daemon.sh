@@ -133,6 +133,19 @@ fi
 
 log "📦 Updates available: $LOCAL_COMMIT -> $REMOTE_COMMIT"
 
+# package-lock.json is generated, and git's copy is the tested one. An earlier install can leave npm's
+# own rewrite of it behind (npm versions differ), which must not block the next update.
+restore_lockfile_if_changed() {
+    if [ -n "$(git status --porcelain --untracked-files=no -- package-lock.json)" ]; then
+        if git checkout -- package-lock.json >> "$LOG_FILE" 2>&1; then
+            log "ℹ️  Restored package-lock.json to the committed version (npm had rewritten it)"
+        else
+            log "⚠️  Could not restore package-lock.json"
+        fi
+    fi
+}
+restore_lockfile_if_changed
+
 # Refuse to update over local changes to tracked files - the pull and any
 # rollback (git reset --hard) would lose them. Runtime data is gitignored.
 LOCAL_CHANGES=$(git status --porcelain --untracked-files=no)
@@ -257,6 +270,7 @@ fi
 
 # Install all dependencies including devDependencies (needed for TypeScript build)
 if npm install --include=dev >> "$LOG_FILE" 2>&1; then
+    restore_lockfile_if_changed
     log "✅ Dependencies installed"
 else
     log "❌ npm install failed"
@@ -265,6 +279,7 @@ else
     log "🔄 Attempting rollback..."
     git reset --hard "$LOCAL_COMMIT" >> "$LOG_FILE" 2>&1
     npm install --include=dev >> "$LOG_FILE" 2>&1
+    restore_lockfile_if_changed
     
     write_status "FAILED"
     exit 1
@@ -283,6 +298,7 @@ else
     log "🔄 Attempting rollback..."
     git reset --hard "$LOCAL_COMMIT" >> "$LOG_FILE" 2>&1
     npm install --include=dev >> "$LOG_FILE" 2>&1
+    restore_lockfile_if_changed
     npm run build >> "$LOG_FILE" 2>&1
     
     write_status "FAILED"
@@ -296,6 +312,7 @@ rollback_after_failed_migration() {
     log "🔄 Attempting rollback..."
     git reset --hard "$LOCAL_COMMIT" >> "$LOG_FILE" 2>&1
     npm install --include=dev >> "$LOG_FILE" 2>&1
+    restore_lockfile_if_changed
     npm run build >> "$LOG_FILE" 2>&1
     if [ -n "$PM2_BIN" ]; then
         timeout 30 "$PM2_BIN" start fpp-poller >> "$LOG_FILE" 2>&1 || log "⚠️  Could not restart fpp-poller - run: pm2 start fpp-poller"
