@@ -1,6 +1,8 @@
 // Santa Letter Queue Processor
 // Runs in the background to process queued letters every 90 seconds
 
+import { debugLog } from './logging';
+
 const PROCESSING_INTERVAL = 90000; // 90 seconds (1.5 minutes)
 let processingInterval: NodeJS.Timeout | null = null;
 let isProcessing = false;
@@ -32,7 +34,7 @@ async function processQueue() {
     if (result.processed) {
       console.log('[Queue Processor] ✅ Processed a letter');
     } else if (result.message === 'Queue is empty') {
-      console.log('[Queue Processor] Queue is empty - no letters to process');
+      debugLog('[Queue Processor] Queue is empty - no letters to process');
     } else {
       console.log('[Queue Processor] Processing result:', result.message);
     }

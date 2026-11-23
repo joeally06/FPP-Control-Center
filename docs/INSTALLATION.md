@@ -1493,6 +1493,10 @@ SMTP_PASS=your-app-password
 # returning visitor count as new once.
 # IP_HASH_SALT=a-long-random-string
 
+# Extra logging: the per-poll and per-request lines (FPP state every 10 s, queue state, admin sign-ins)
+# are only printed outside production. Set this to see them in the PM2 logs on the show machine.
+# JUKEBOX_DEBUG=true
+
 # Database file location (default: votes.db in the project folder). The web app, the poller
 # and the setup/migrate scripts (npm run setup, scripts/migrate-database.js) all follow it.
 # VOTES_DB_PATH=/path/to/votes.db

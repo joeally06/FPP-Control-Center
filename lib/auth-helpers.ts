@@ -5,6 +5,7 @@ import { getClientIP } from './rate-limit';
 import { RATE_LIMIT } from './constants';
 import { isAdminEmail } from './admin-emails';
 import { hashEmail } from './privacy-utils';
+import { debugLog } from './logging';
 
 // Admin rate limiting - in-memory store (resets on server restart)
 // Key: "email:ip", Value: { count, timestamp }
@@ -82,8 +83,8 @@ export async function requireAdminWithRateLimit(request?: NextRequest) {
     adminRateLimitStore.set(key, rateLimitData);
   }
   
-  // Log successful admin access for audit trail
-  console.log(`[Security] Admin access granted to: ${session.user.email}`);
+  // Debug log only: silent in production unless JUKEBOX_DEBUG=true. Failed attempts above are always logged.
+  debugLog(`[Security] Admin access granted to: ${session.user.email}`);
   
   return session;
 }
@@ -119,8 +120,8 @@ export async function requireAdmin() {
     throw new Error('Admin access required');
   }
   
-  // Log successful admin access for audit trail
-  console.log(`[Security] Admin access granted to: ${session.user.email}`);
+  // Debug log only: silent in production unless JUKEBOX_DEBUG=true. Failed attempts above are always logged.
+  debugLog(`[Security] Admin access granted to: ${session.user.email}`);
   
   return session;
 }

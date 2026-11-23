@@ -4,6 +4,7 @@ import { addToQueueTransactional, countRecentRequests, RateLimitExceededError } 
 import { getClientIP, getSongRequestRateLimit } from '@/lib/rate-limit';
 import { getUtcNow, getUtcOffset } from '@/lib/time-utils';
 import { debugLog } from '@/lib/logging';
+import { anonymizeIP } from '@/lib/privacy-utils';
 import db from '@/lib/database';
 import { isRequestableSong, lookupMediaName } from '@/lib/jukebox-catalog';
 import { authorizeLocation } from '@/lib/location-policy';
@@ -151,7 +152,7 @@ export async function POST(request: NextRequest) {
     } catch (txError) {
       if (txError instanceof RateLimitExceededError) {
         const used = txError.requestsUsed || rateLimit;
-        console.warn(`[SECURITY] Rate limit exceeded for ${requester_ip} (${used}/${rateLimit} used)`);
+        console.warn(`[SECURITY] Rate limit exceeded for ${anonymizeIP(requester_ip)} (${used}/${rateLimit} used)`);
         return NextResponse.json({ 
           error: `Rate limit exceeded. You can request ${rateLimit} songs per hour.`,
           rateLimit,
@@ -166,7 +167,7 @@ export async function POST(request: NextRequest) {
         }, { status: 409 });
       }
       if (txCode === 'DUPLICATE_REQUEST') {
-        console.warn(`[SECURITY] Duplicate request detected from ${requester_ip} for ${sequence_name}`);
+        console.warn(`[SECURITY] Duplicate request detected from ${anonymizeIP(requester_ip)} for ${sequence_name}`);
         return NextResponse.json({ 
           error: `You already requested this ${isPlaylist ? 'playlist' : 'song'} recently. Please wait a few minutes.` 
         }, { status: 429 });

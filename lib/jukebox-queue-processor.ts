@@ -10,6 +10,7 @@ import db, {
 } from './database';
 import { insertStartDeadline, queueItemProgress } from './jukebox-queue';
 import { singleFlight } from './single-flight';
+import { debugLog } from './logging';
 import { TIMING } from './constants';
 
 interface QueueItem {
@@ -171,7 +172,7 @@ async function processQueueStateMachine(fppStatus: FppStatus): Promise<void> {
   const sequenceStartTime = state.sequence_start_time;
   const currentQueueItemId = state.current_queue_item_id;
 
-  console.log(`[Queue] State: ${processingState}, FPP: ${fppStatus.status_name}, Current: ${fppStatus.current_sequence || 'none'}`);
+  debugLog(`[Queue] State: ${processingState}, FPP: ${fppStatus.status_name}, Current: ${fppStatus.current_sequence || 'none'}`);
 
   switch (processingState) {
     case 'IDLE': {
@@ -264,7 +265,7 @@ async function processQueueStateMachine(fppStatus: FppStatus): Promise<void> {
         updateQueueStatus.run('skipped', currentQueueItemId);
         resetProcessorState.run();
       } else {
-        console.log(`[Queue] Monitoring... Current: ${fppStatus.current_sequence}, Status: ${currentItem.status}`);
+        debugLog(`[Queue] Monitoring... Current: ${fppStatus.current_sequence}, Status: ${currentItem.status}`);
       }
       break;
     }

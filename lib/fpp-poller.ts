@@ -30,6 +30,7 @@ import { POLLER } from './constants';
 import { nextPollDelay } from './poll-timing';
 import { markFppOffline } from './fpp-state';
 import { getVotesDbPath } from './db-path';
+import { debugLog } from './logging';
 
 // Load environment variables from .env.local
 const envPath = path.join(process.cwd(), '.env.local');
@@ -444,7 +445,7 @@ function updateDatabase(status: FppStatus, responseTime: number): void {
     // ✅ CIRCUIT BREAKER: Record success
     circuitBreaker.recordSuccess();
 
-    console.log(`[FPP Poller] ✓ Updated state: ${status.status_name} | ${status.current_sequence || 'idle'} (${responseTime}ms)`);
+    debugLog(`[FPP Poller] ✓ Updated state: ${status.status_name} | ${status.current_sequence || 'idle'} (${responseTime}ms)`);
 
     // Async: Fetch and cache playlist details (don't block polling)
     if (status.current_playlist?.playlist) {
@@ -499,7 +500,7 @@ function syncPlaylistSequences(playlistName: string, sequences: FppPlaylistItem[
     });
 
     transaction();
-    console.log(`[FPP Poller] ✓ Synced ${sequences.length} sequences for playlist: ${playlistName}`);
+    debugLog(`[FPP Poller] ✓ Synced ${sequences.length} sequences for playlist: ${playlistName}`);
   } catch (error) {
     console.error('[FPP Poller] Sequence sync error:', error instanceof Error ? error.message : String(error));
   }
@@ -515,7 +516,7 @@ function cachePlaylistData(playlistName: string, data: unknown): void {
       playlistName,
       JSON.stringify(data)
     );
-    console.log(`[FPP Poller] ✓ Cached playlist data: ${playlistName}`);
+    debugLog(`[FPP Poller] ✓ Cached playlist data: ${playlistName}`);
   } catch (error) {
     console.error('[FPP Poller] Playlist cache error:', error instanceof Error ? error.message : String(error));
   }

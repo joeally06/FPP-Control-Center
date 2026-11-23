@@ -8,6 +8,7 @@ import {
 } from '@/lib/database';
 import { generateSantaReply } from '@/lib/ollama-client';
 import { sendSantaReply } from '@/lib/email-service';
+import { debugLog } from '@/lib/logging';
 
 const MAX_RETRIES = 3;
 
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
         { status: 401 }
       );
     }
-    console.log('[Queue Processor] Starting queue processing...');
+    debugLog('[Queue Processor] Starting queue processing...');
 
     // Get the next queued letter
     const letter = getNextQueuedLetter.get() as {
@@ -56,7 +57,7 @@ export async function GET(request: Request) {
     } | undefined;
 
     if (!letter) {
-      console.log('[Queue Processor] No letters in queue');
+      debugLog('[Queue Processor] No letters in queue');
       return NextResponse.json({
         success: true,
         message: 'Queue is empty',

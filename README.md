@@ -354,6 +354,10 @@ OLLAMA_MODEL=llama3.2
 
 # Public Domain (if using Cloudflare Tunnel)
 NEXTAUTH_URL=https://yourdomain.com
+
+# Extra logging: the per-poll and per-request lines (FPP state every 10 s, queue state, admin sign-ins)
+# are only printed outside production. Set this to see them on the show machine.
+# JUKEBOX_DEBUG=true
 ```
 
 ---
