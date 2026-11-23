@@ -40,7 +40,7 @@
 - `/api/jukebox/status` - GET public, PUT admin (requireAdminWithRateLimit)
 - `/api/settings` - GET/POST admin (getServerSession)
 - `/api/spotify/metadata/[name]` - GET/PUT admin (getServerSession)
-- `/api/fpp/sync` - POST admin (getServerSession)
+- `/api/fpp/sync` - POST and GET admin (getServerSession + isAdminSession)
 
 ### ❌ Needs Securing (23 routes)
 

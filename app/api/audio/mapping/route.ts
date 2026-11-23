@@ -16,10 +16,15 @@ interface AudioMapping {
 /**
  * GET /api/audio/mapping
  * Get sequence to audio file mappings
- * PUBLIC - Used by audio sync server
+ * ADMIN ONLY
  */
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
+    if (!isAdminSession(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // Check if mapping file exists
     if (!existsSync(MAPPING_FILE)) {
       return NextResponse.json({

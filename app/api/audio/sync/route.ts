@@ -1,6 +1,9 @@
 import { NextRequest } from 'next/server';
+import { getServerSession } from 'next-auth';
 import fs from 'fs/promises';
 import path from 'path';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { isAdminSession } from '@/lib/auth-helpers';
 import { getFppUrl, fetchFpp } from '@/lib/fpp-config';
 import { createLazyPoller } from '@/lib/lazy-poller';
 
@@ -266,9 +269,17 @@ export async function GET(req: NextRequest) {
   });
 }
 
-// Reload audio files endpoint
+// Reload audio files endpoint (admin only)
 export async function POST() {
   try {
+    const session = await getServerSession(authOptions);
+    if (!isAdminSession(session)) {
+      return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     await loadAvailableAudioFiles();
     await loadMappings();
     return new Response(JSON.stringify({ 

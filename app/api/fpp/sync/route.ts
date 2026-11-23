@@ -64,14 +64,13 @@ export async function POST() {
 
 /**
  * GET /api/fpp/sync - Get current sync status
- * 🔒 AUTHENTICATED USERS - Any logged-in user can view status
+ * 🔒 ADMIN ONLY - Requires admin authentication
  */
 export async function GET() {
   try {
-    // Check authentication (any user)
     const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
+
+    if (!isAdminSession(session)) {
       return NextResponse.json(
         { error: 'Unauthorized - login required' },
         { status: 401 }
