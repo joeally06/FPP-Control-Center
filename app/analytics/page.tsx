@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import AdminLayout from '@/components/AdminLayout';
+import { useNotify } from '@/components/admin/AdminFeedback';
 import RequestVoteAnalytics from '@/components/analytics/RequestVoteAnalytics';
 import {
   AdminH1,
@@ -104,6 +105,7 @@ function AnalyticsViews() {
 }
 
 function SiteAnalytics() {
+  const notify = useNotify();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'7d' | '30d'>('7d');
@@ -120,13 +122,13 @@ function SiteAnalytics() {
         
         if (!response.ok) {
           console.error('[Analytics] API error:', result.error || 'Unknown error');
-          alert(`Failed to load analytics: ${result.error || 'Unknown error'}`);
+          notify('error', `Failed to load analytics: ${result.error || 'Unknown error'}`);
           return;
         }
         
         if (!result.data) {
           console.error('[Analytics] No data in response:', result);
-          alert('No analytics data received from server');
+          notify('error', 'No analytics data received from server');
           return;
         }
         
@@ -134,13 +136,13 @@ function SiteAnalytics() {
         setData(result.data);
       } catch (error) {
         console.error('[Analytics] Failed to fetch analytics:', error);
-        alert(`Error loading analytics: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        notify('error', `Error loading analytics: ${error instanceof Error ? error.message : 'Unknown error'}`);
       } finally {
         setLoading(false);
       }
     };
     fetchAnalytics();
-  }, [timeRange]);
+  }, [timeRange, notify]);
 
   const exportData = (format: 'csv' | 'json' | 'pdf') => exportAnalytics(format, timeRange);
 

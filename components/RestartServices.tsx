@@ -4,11 +4,13 @@ import { useEffect, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { AdminH2, AdminTextSmall } from './admin/Typography';
 import { button, dangerButton, notice } from './admin/ui-classes';
+import { useConfirm } from './admin/AdminFeedback';
 import { TIMING } from '@/lib/constants';
 
 const MAX_ATTEMPTS = 24; // ~2 minutes at TIMING.RECONNECT_DELAY
 
 export default function RestartServices() {
+  const confirmAction = useConfirm();
   const [phase, setPhase] = useState<'idle' | 'starting' | 'waiting'>('idle');
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -33,13 +35,15 @@ export default function RestartServices() {
   };
 
   const restart = async () => {
-    if (!confirm(
-      'Restart Services\n\n' +
-      'This restarts the Control Center and the FPP poller so they pick up changes to .env.local.\n\n' +
-      'Visitor pages (jukebox, voting, Santa letters) will be offline for about 30 seconds. ' +
-      'FPP keeps running the show.\n\n' +
-      'Continue?'
-    )) {
+    if (!(await confirmAction({
+      title: 'Restart services?',
+      text:
+        'This restarts the Control Center and the FPP poller so they pick up changes to .env.local.\n\n' +
+        'Visitor pages (jukebox, voting, Santa letters) will be offline for about 30 seconds. ' +
+        'FPP keeps running the show.',
+      confirmLabel: 'Restart',
+      danger: true,
+    }))) {
       return;
     }
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { formatDateTime } from '@/lib/time-utils';
+import { useConfirm } from '@/components/admin/AdminFeedback';
 import {
   DEFAULT_COUNTDOWN_HEADING,
   DEFAULT_COURTESY_TEXT,
@@ -29,6 +30,7 @@ interface JukeboxUser {
 
 /** Jukebox → Request rules: how many requests a visitor gets and where they go in the show. */
 export function RequestRulesSettings() {
+  const confirmAction = useConfirm();
   const [rateLimit, setRateLimit] = useState<number>(3);
   const [insertMode, setInsertMode] = useState<string>('after_current');
   const [loading, setLoading] = useState(true);
@@ -75,7 +77,11 @@ export function RequestRulesSettings() {
   }
 
   async function handleClearUserRateLimit(userIp: string, userName: string) {
-    if (!confirm(`Clear rate limit for ${userName}? This will allow them to make new requests immediately.`)) {
+    if (!(await confirmAction({
+      title: `Clear rate limit for ${userName}?`,
+      text: 'This will allow them to make new requests immediately.',
+      confirmLabel: 'Clear limit',
+    }))) {
       return;
     }
 

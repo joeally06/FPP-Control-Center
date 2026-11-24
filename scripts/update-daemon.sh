@@ -54,6 +54,10 @@ LOCK_FILE="$PROJECT_DIR/logs/update.lock"
 # Track if update completed successfully
 UPDATE_SUCCESS=false
 
+# Whether this run owns update.lock. Only the owner may remove the lock or write the status: a run that
+# was turned away because another update is running must leave that update's lock and status alone.
+HAVE_LOCK=false
+
 # Function to write status
 write_status() {
     echo "$1" > "$STATUS_FILE"
@@ -65,8 +69,19 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
 }
 
+# Take update.lock in one step. noclobber makes the redirect fail if the file already exists, so two
+# runs started at the same moment cannot both get it (a "check, then create" can).
+acquire_lock() {
+    if ( set -o noclobber; echo $$ > "$LOCK_FILE" ) 2>/dev/null; then
+        HAVE_LOCK=true
+        return 0
+    fi
+    return 1
+}
+
 # Cleanup on exit - only mark completed if UPDATE_SUCCESS is true
 cleanup() {
+    [ "$HAVE_LOCK" = true ] || return 0
     rm -f "$LOCK_FILE"
     if [ "$UPDATE_SUCCESS" = true ]; then
         write_status "COMPLETED"
@@ -89,15 +104,12 @@ trap '' TERM INT
 # Ensure logs directory exists
 mkdir -p "$PROJECT_DIR/logs"
 
-# Check for lock file (prevent concurrent updates)
-if [ -f "$LOCK_FILE" ]; then
+# Take the lock (prevent concurrent updates). A run that is turned away exits without touching
+# the lock or the status: they belong to the update that is running.
+if ! acquire_lock; then
     log "⚠️  Another update is already running"
-    write_status "LOCKED"
     exit 1
 fi
-
-# Create lock file
-echo $$ > "$LOCK_FILE"
 
 log "🚀 Update Daemon Started (PID: $$)"
 log "Project Directory: $PROJECT_DIR"

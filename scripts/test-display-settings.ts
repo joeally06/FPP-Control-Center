@@ -116,7 +116,8 @@ markup = between({ idleMode: 'photos', idleSlideshowImages: ['/uploads/display/s
 assert.ok(/<button[^>]*aria-label="Remove photo 1"/.test(markup));
 assert.ok(!/opacity-0/.test(markup), 'the remove button is not hidden until hover');
 const tabSource = fs.readFileSync(path.join(process.cwd(), 'components', 'admin', 'display', 'BetweenSongsTab.tsx'), 'utf-8');
-assert.ok(/window\.confirm\(/.test(tabSource), 'removing a photo asks first');
+// The admin's own dialog (components/admin/AdminFeedback.tsx), awaited before removePhoto runs
+assert.ok(/await confirmAction\(\{[\s\S]*?Remove photo[\s\S]*?\}\)\) void removePhoto\(index\)/.test(tabSource), 'removing a photo asks first');
 
 print('Test 12: the form tracks unsaved edits, and photos count as saved');
 const start = formFrom({ showName: 'Lights', idleSlideshowImages: ['/a.jpg'] });

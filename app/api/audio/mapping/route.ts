@@ -1,17 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { readFile, writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+import { readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { isAdminSession } from '@/lib/auth-helpers';
-
-const DATA_DIR = join(process.cwd(), 'data');
-const MAPPING_FILE = join(DATA_DIR, 'audio-mapping.json');
-
-interface AudioMapping {
-  [sequence: string]: string; // sequence name → audio filename
-}
+import { MAPPING_FILE, updateAudioMappings, type AudioMapping } from '@/lib/audio-mapping';
 
 /**
  * GET /api/audio/mapping
@@ -133,32 +126,8 @@ export async function POST(request: NextRequest) {
     const sanitizedSequence = sequence.replace(/[^a-zA-Z0-9._\-\s'()]/g, '_').substring(0, 255);
     const sanitizedAudio = audioFile.replace(/[^a-zA-Z0-9._\-\s'()]/g, '_').substring(0, 255);
 
-    // Ensure data directory exists
-    if (!existsSync(DATA_DIR)) {
-      await mkdir(DATA_DIR, { recursive: true, mode: 0o755 });
-    }
-
-    // Read existing mappings or create new
-    let mappings: AudioMapping = {};
-    
-    if (existsSync(MAPPING_FILE)) {
-      try {
-        const content = await readFile(MAPPING_FILE, 'utf-8');
-        mappings = JSON.parse(content);
-      } catch {
-        console.warn('[Audio Mapping] Failed to read existing file, creating new');
-      }
-    }
-
-    // Update mapping
-    mappings[sanitizedSequence] = sanitizedAudio;
-
-    // Write back to file with pretty formatting
-    await writeFile(
-      MAPPING_FILE,
-      JSON.stringify(mappings, null, 2),
-      { mode: 0o644 }
-    );
+    // Updates run one at a time and the file is replaced whole, so another request can't undo this one
+    const saved = await updateAudioMappings((current) => ({ ...current, [sanitizedSequence]: sanitizedAudio }));
 
     console.log(`[Audio Mapping] Created/Updated: ${sanitizedSequence} → ${sanitizedAudio}`);
 
@@ -166,7 +135,7 @@ export async function POST(request: NextRequest) {
       success: true,
       sequence: sanitizedSequence,
       audioFile: sanitizedAudio,
-      totalMappings: Object.keys(mappings).length
+      totalMappings: Object.keys(saved ?? {}).length
     });
 
   } catch (error) {
@@ -223,48 +192,33 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Check if mapping file exists
-    if (!existsSync(MAPPING_FILE)) {
-      return NextResponse.json(
-        { error: 'No mappings exist' },
-        { status: 404 }
-      );
-    }
-
-    // Read existing mappings
-    const content = await readFile(MAPPING_FILE, 'utf-8');
-    const mappings: AudioMapping = JSON.parse(content);
-
     // SECURITY: Sanitize sequence name
     const sanitizedSequence = sequence.replace(/[^a-zA-Z0-9._\-\s'()]/g, '_').substring(0, 255);
 
-    // Check if mapping exists
-    if (!mappings[sanitizedSequence]) {
+    // Checked and removed inside the update, so a mapping added a moment ago by another request is not lost
+    const removed: { audio?: string } = {};
+    const saved = await updateAudioMappings((current) => {
+      if (!current[sanitizedSequence]) return null;
+      removed.audio = current[sanitizedSequence];
+      const next = { ...current };
+      delete next[sanitizedSequence];
+      return next;
+    });
+
+    if (saved === null) {
       return NextResponse.json(
         { error: 'Mapping not found' },
         { status: 404 }
       );
     }
 
-    const deletedAudio = mappings[sanitizedSequence];
-
-    // Delete mapping
-    delete mappings[sanitizedSequence];
-
-    // Write back to file
-    await writeFile(
-      MAPPING_FILE,
-      JSON.stringify(mappings, null, 2),
-      { mode: 0o644 }
-    );
-
-    console.log(`[Audio Mapping] Deleted: ${sanitizedSequence} → ${deletedAudio}`);
+    console.log(`[Audio Mapping] Deleted: ${sanitizedSequence} → ${removed.audio}`);
 
     return NextResponse.json({
       success: true,
       sequence: sanitizedSequence,
-      audioFile: deletedAudio,
-      remainingMappings: Object.keys(mappings).length
+      audioFile: removed.audio,
+      remainingMappings: Object.keys(saved).length
     });
 
   } catch (error) {
@@ -364,17 +318,8 @@ export async function PUT(request: NextRequest) {
       sanitizedMappings[sanitizedSequence] = sanitizedAudio;
     }
 
-    // Ensure data directory exists
-    if (!existsSync(DATA_DIR)) {
-      await mkdir(DATA_DIR, { recursive: true, mode: 0o755 });
-    }
-
-    // Write new mappings
-    await writeFile(
-      MAPPING_FILE,
-      JSON.stringify(sanitizedMappings, null, 2),
-      { mode: 0o644 }
-    );
+    // Replace everything, in line with any other update that is running
+    await updateAudioMappings(() => sanitizedMappings);
 
     console.log(`[Audio Mapping] Bulk update: ${Object.keys(sanitizedMappings).length} mappings`);
 

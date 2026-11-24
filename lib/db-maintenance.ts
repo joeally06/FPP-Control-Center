@@ -60,14 +60,25 @@ export function runQuickMaintenance() {
   }
 }
 
+/** How many days of data to keep: a whole number from 1 to 3650 (10 years), or null for anything else */
+export function parseDaysToKeep(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 3650 ? value : null;
+}
+
 /**
  * Archive old data to keep database size manageable
- * @param daysToKeep Number of days of data to retain
+ * @param daysToKeep Number of days of data to retain (whole number, 1 to 3650)
  */
 export function archiveOldData(daysToKeep = 365) {
-  console.log(`🗄️  Archiving data older than ${daysToKeep} days...`);
+  const days = parseDaysToKeep(daysToKeep);
+  if (days === null) {
+    return { success: false, error: new Error('daysToKeep must be a whole number from 1 to 3650') };
+  }
+  console.log(`🗄️  Archiving data older than ${days} days...`);
   const startTime = Date.now();
-  
+  // Bound as a parameter, never pasted into the SQL text
+  const cutoff = `-${days} days`;
+
   try {
     const stats = {
       pageViews: 0,
@@ -77,10 +88,10 @@ export function archiveOldData(daysToKeep = 365) {
 
     // Archive old page views (keep last year by default)
     const deletePageViews = db.prepare(`
-      DELETE FROM page_views 
-      WHERE view_time < datetime('now', '-${daysToKeep} days')
+      DELETE FROM page_views
+      WHERE view_time < datetime('now', ?)
     `);
-    const pageViewResult = deletePageViews.run();
+    const pageViewResult = deletePageViews.run(cutoff);
     stats.pageViews = pageViewResult.changes;
 
     // Archive old device status records (keep last 90 days)
@@ -94,9 +105,9 @@ export function archiveOldData(daysToKeep = 365) {
     // Archive old sessions (keep last year)
     const deleteSessions = db.prepare(`
       DELETE FROM sessions 
-      WHERE session_start < datetime('now', '-${daysToKeep} days')
+      WHERE session_start < datetime('now', ?)
     `);
-    const sessionResult = deleteSessions.run();
+    const sessionResult = deleteSessions.run(cutoff);
     stats.sessions = sessionResult.changes;
 
     // Note: We keep all song requests, votes, and santa letters for historical value
@@ -109,6 +120,19 @@ export function archiveOldData(daysToKeep = 365) {
     console.error('❌ Data archival failed:', error);
     return { success: false, error };
   }
+}
+
+/**
+ * Why a maintenance run failed, or null if it did not. The helpers above report failure as
+ * `{ success: false }` (and getDatabaseStats as null) instead of throwing, so the route has to look.
+ */
+export function maintenanceFailureMessage(result: unknown): string | null {
+  if (result === null || result === undefined) return 'No result from the database';
+  if (typeof result !== 'object' || (result as { success?: unknown }).success !== false) return null;
+  const { error, status } = result as { error?: unknown; status?: unknown };
+  if (error instanceof Error) return error.message;
+  if (status === 'issues') return 'The database integrity check found problems; see the server log';
+  return 'Maintenance failed; see the server log';
 }
 
 /**

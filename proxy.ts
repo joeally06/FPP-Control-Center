@@ -4,8 +4,9 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { isSameOriginRequest } from './lib/csrf';
-import { isAdminEmail } from './lib/admin-emails';
+import { isAdminEmail, NOT_ADMIN_REDIRECT } from './lib/admin-emails';
 import { CONTENT_SECURITY_POLICY, isFrameablePath } from './lib/csp';
+import { isAdminPath, signInUrl } from './lib/session-expiry';
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -43,17 +44,19 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Admin route protection
-  if (pathname.startsWith('/dashboard') || pathname.startsWith('/settings')) {
-    const token = await getToken({ 
+  // Admin pages: strangers go to sign in and come back to the same page, query string included.
+  // (The API routes check the caller themselves; this keeps the admin pages from loading for anyone.)
+  if (isAdminPath(pathname)) {
+    const token = await getToken({
       req: request,
-      secret: process.env.NEXTAUTH_SECRET 
+      secret: process.env.NEXTAUTH_SECRET
     });
 
     if (!isAdminEmail(token?.email)) {
-      const url = new URL('/api/auth/signin', request.url);
-      url.searchParams.set('callbackUrl', pathname);
-      return NextResponse.redirect(url);
+      // Signed in but not an admin (taken off ADMIN_EMAILS): the sign-in page would send them straight back
+      // here, so they go to the visitor page, which signs them out. Only a missing session goes to sign in.
+      const target = token ? NOT_ADMIN_REDIRECT : signInUrl(pathname, request.nextUrl.search);
+      return NextResponse.redirect(new URL(target, request.url));
     }
   }
 

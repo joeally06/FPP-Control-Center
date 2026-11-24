@@ -7,6 +7,7 @@ import { discarded, formFrom, isDirty, withEdit, withPhotosSaved, type DisplayFo
 import type { DisplayPresetValues } from '@/lib/display-presets';
 import type { PreviewScreen } from '@/lib/display-preview';
 import { accentButton, button, card, notice, tabClass } from '@/components/admin/ui-classes';
+import { useUnsavedChanges } from '@/components/admin/AdminFeedback';
 import BetweenSongsTab from '@/components/admin/display/BetweenSongsTab';
 import DisplayPreview from '@/components/admin/display/DisplayPreview';
 import DisplaySchedule from '@/components/admin/display/DisplaySchedule';
@@ -72,13 +73,8 @@ export default function DisplaySettings({ initialTab }: { initialTab?: string })
     return () => clearTimeout(rulesLoad);
   }, [fetchRules]);
 
-  // Closing the page with unsaved edits would lose them
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty]);
+  // Closing the tab or using the menu with unsaved edits would lose them: the browser warns, and the menu asks first
+  useUnsavedChanges(dirty);
 
   const set: SetDisplayConfig = (key, value) => {
     setMessage(null);

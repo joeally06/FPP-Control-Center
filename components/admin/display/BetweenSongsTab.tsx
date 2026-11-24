@@ -5,6 +5,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import type { IdleAnimation, IdleMode } from '@/types/display';
 import { checkInput, choiceCard } from '@/components/admin/ui-classes';
 import ImageUpload from '@/components/admin/display/ImageUpload';
+import { useConfirm } from '@/components/admin/AdminFeedback';
 import { idlePanels, type IdlePanel } from '@/lib/display-idle';
 import { inputClass, selectClass, labelClass, sectionClass, sectionTitle, checkClass, subBox, hint } from './styles';
 import type { TabProps } from './tab-props';
@@ -26,6 +27,7 @@ export default function BetweenSongsTab({
   /** Photos are saved on the server the moment they are added or removed, so the page must not count that as an unsaved change */
   onPhotosSaved: (images: string[]) => void;
 }) {
+  const confirmAction = useConfirm();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
@@ -211,7 +213,9 @@ export default function BetweenSongsTab({
                   />
                   <button
                     type="button"
-                    onClick={() => { if (window.confirm(`Remove photo ${index + 1}? This cannot be undone.`)) void removePhoto(index); }}
+                    onClick={async () => {
+                      if (await confirmAction({ title: `Remove photo ${index + 1}?`, text: 'This cannot be undone.', confirmLabel: 'Remove', danger: true })) void removePhoto(index);
+                    }}
                     className="absolute right-1 top-1 grid h-9 w-9 place-items-center rounded-lg bg-black/70 text-adm-text transition-colors hover:bg-adm-danger-bg hover:text-adm-danger"
                     aria-label={`Remove photo ${index + 1}`}
                   >

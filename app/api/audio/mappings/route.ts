@@ -1,17 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { readFile, writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+import { readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { isAdminSession } from '@/lib/auth-helpers';
-
-const DATA_DIR = join(process.cwd(), 'data');
-const MAPPING_FILE = join(DATA_DIR, 'audio-mapping.json');
-
-interface AudioMapping {
-  [sequence: string]: string;
-}
+import { MAPPING_FILE, updateAudioMappings, type AudioMapping } from '@/lib/audio-mapping';
 
 /**
  * GET /api/audio/mappings
@@ -137,37 +130,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Ensure data directory exists
-    if (!existsSync(DATA_DIR)) {
-      await mkdir(DATA_DIR, { recursive: true, mode: 0o755 });
-    }
-
-    // Read existing mappings or create new
-    let mappings: AudioMapping = {};
-    
-    if (existsSync(MAPPING_FILE)) {
-      try {
-        const content = await readFile(MAPPING_FILE, 'utf-8');
-        mappings = JSON.parse(content);
-      } catch {
-        console.warn('[Audio Mappings] Failed to read existing file, creating new');
-      }
-    }
-
     // Add .fseq extension if not present (for consistency)
-    const normalizedSeqName = sequenceName.endsWith('.fseq') 
-      ? sequenceName 
+    const normalizedSeqName = sequenceName.endsWith('.fseq')
+      ? sequenceName
       : `${sequenceName}.fseq`;
 
-    // Update mapping
-    mappings[normalizedSeqName] = audioFile;
-
-    // Write back to file
-    await writeFile(
-      MAPPING_FILE,
-      JSON.stringify(mappings, null, 2),
-      { mode: 0o644 }
-    );
+    // Updates run one at a time and the file is replaced whole, so another request can't undo this one
+    const saved = await updateAudioMappings((current) => ({ ...current, [normalizedSeqName]: audioFile }));
 
     console.log(`[Audio Mappings] Created/Updated: ${normalizedSeqName} → ${audioFile}`);
 
@@ -175,7 +144,7 @@ export async function POST(request: NextRequest) {
       success: true,
       sequenceName: normalizedSeqName,
       audioFile,
-      totalMappings: Object.keys(mappings).length
+      totalMappings: Object.keys(saved ?? {}).length
     });
 
   } catch (error) {

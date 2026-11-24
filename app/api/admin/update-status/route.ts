@@ -10,6 +10,8 @@ import { isAdminSession } from '@/lib/auth-helpers';
 
 const execAsync = promisify(exec);
 
+const GIT_TIMEOUT_MS = 10_000;
+
 const STATUS_FILE = path.join(process.cwd(), 'logs', 'update_status');
 const LOG_FILE = path.join(process.cwd(), 'logs', 'update.log');
 
@@ -64,11 +66,12 @@ export async function GET() {
     let availableCommit = null;
 
     try {
-      const { stdout: current } = await execAsync('git rev-parse HEAD');
+      // A stalled fetch must not keep this answer from the page that is waiting to see the server come back
+      const { stdout: current } = await execAsync('git rev-parse HEAD', { timeout: GIT_TIMEOUT_MS });
       currentCommit = current.trim();
 
-      await execAsync('git fetch origin master');
-      const { stdout: remote } = await execAsync('git rev-parse origin/master');
+      await execAsync('git fetch origin master', { timeout: GIT_TIMEOUT_MS });
+      const { stdout: remote } = await execAsync('git rev-parse origin/master', { timeout: GIT_TIMEOUT_MS });
       availableCommit = remote.trim();
     } catch (error) {
       console.error('[Update Status] Failed to get commit info:', error);

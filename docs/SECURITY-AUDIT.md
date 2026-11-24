@@ -12,10 +12,10 @@
 - `/api/devices/status` - Device management (requireAdmin)
 - `/api/devices/manage` - Device CRUD (requireAdmin)
 - `/api/devices/schedule` - Device scheduling (requireAdmin)
-- `/api/system/check-updates` - System updates (requireAdmin)
-- `/api/system/update` - Apply updates (requireAdmin)
-- `/api/system/update-status` - Update status (requireAdmin)
-- `/api/update` - Legacy update (requireAdmin)
+- `/api/system/check-updates` - removed (unused; the update UI uses `/api/admin/update-*`)
+- `/api/system/update` - removed (unused, deprecated)
+- `/api/system/update-status` - removed (unused)
+- `/api/update` - removed (unused, legacy)
 - `/api/web/[...slug]` - Web proxy (requireAdmin)
 - `/api/models/import` - Model import (requireAdmin)
 - `/api/santa/admin-letters` - Admin letter management (getServerSession)
@@ -276,11 +276,8 @@ export async function POST(request: NextRequest) {
 - `/api/devices/check` (GET)
 
 #### System Management
-- `/api/system/check-updates` (GET) ✅
-- `/api/system/update` (POST) ✅
-- `/api/system/update-status` (GET) ✅
+- `/api/system/check-updates`, `/api/system/update`, `/api/system/update-status`, `/api/update` - removed (unused)
 - `/api/system/update/stream` (GET - SSE)
-- `/api/update` (POST) ✅
 - `/api/web/[...slug]` (all methods) ✅
 
 #### Media Library

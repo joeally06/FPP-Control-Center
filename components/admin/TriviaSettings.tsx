@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { TriviaQuestionRow, TriviaScoreRow } from '@/types/trivia';
 import { X } from 'lucide-react';
 import { insetBox, button, accentButton, dangerButton, field, sizedField, textLink, notice, tabClass } from '@/components/admin/ui-classes';
+import { useConfirm } from '@/components/admin/AdminFeedback';
 import { TRIVIA_SETTING_LIMITS } from '@/lib/trivia-logic';
 import { formatDateTime } from '@/lib/time-utils';
 
@@ -21,6 +22,7 @@ const EMPTY_FORM = {
 };
 
 export default function TriviaSettings() {
+  const confirmAction = useConfirm();
   const [subTab, setSubTab] = useState<SubTab>('bank');
   const [questions, setQuestions] = useState<TriviaQuestionRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,7 +127,7 @@ export default function TriviaSettings() {
   }
 
   async function deleteQuestion(id: number) {
-    if (!confirm('Delete this question from the bank?')) return;
+    if (!(await confirmAction({ title: 'Delete this question from the bank?', confirmLabel: 'Delete', danger: true }))) return;
     try {
       const res = await fetch(`/api/trivia/questions/${id}`, { method: 'DELETE' });
       if (!res.ok) {
@@ -194,7 +196,12 @@ export default function TriviaSettings() {
   }
 
   async function clearAllScores() {
-    if (!confirm("Clear every trivia score? Tonight's leaderboard starts over. Games being played right now carry on.")) return;
+    if (!(await confirmAction({
+      title: 'Clear every trivia score?',
+      text: "Tonight's leaderboard starts over. Games being played right now carry on.",
+      confirmLabel: 'Clear scores',
+      danger: true,
+    }))) return;
     setClearingScores(true);
     try {
       const res = await fetch('/api/trivia/scores', { method: 'DELETE' });

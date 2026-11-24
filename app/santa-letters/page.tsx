@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '@/components/AdminLayout';
+import { useNotify } from '@/components/admin/AdminFeedback';
 import SantaLetterSettings from '@/components/admin/SantaLetterSettings';
 import { formatDateTime, parseDbTimestamp } from '@/lib/time-utils';
 import { 
@@ -44,6 +45,7 @@ const isLinkExpired = (letter: SantaLetter) =>
   isAwaitingParent(letter) && (parseDbTimestamp(letter.confirm_expires_at)?.toMillis() ?? 0) <= Date.now();
 
 export default function SantaLettersPage() {
+  const notify = useNotify();
   const { data: session, status } = useSession();
   const router = useRouter();
   const [letters, setLetters] = useState<SantaLetter[]>([]);
@@ -96,7 +98,7 @@ export default function SantaLettersPage() {
         setSelectedLetter(null);
       } else {
         const data = await response.json().catch(() => ({}));
-        alert(data.error || 'Failed to update the letter');
+        notify('error', data.error || 'Failed to update the letter');
       }
     } catch (error) {
       console.error('Error updating status:', error);
@@ -119,7 +121,7 @@ export default function SantaLettersPage() {
         setSelectedLetter(null);
       } else {
         const data = await response.json().catch(() => ({}));
-        alert(data.error || 'Failed to save the reply');
+        notify('error', data.error || 'Failed to save the reply');
       }
     } catch (error) {
       console.error('Error updating reply:', error);
@@ -138,15 +140,15 @@ export default function SantaLettersPage() {
       });
 
       if (response.ok) {
-        alert('Email resent successfully!');
+        notify('success', 'Email resent successfully!');
         await fetchLetters();
       } else {
         const data = await response.json();
-        alert(`Failed to resend email: ${data.error}`);
+        notify('error', `Failed to resend email: ${data.error}`);
       }
     } catch (error) {
       console.error('Error resending email:', error);
-      alert('Failed to resend email');
+      notify('error', 'Failed to resend email');
     } finally {
       setUpdating(false);
     }
@@ -161,14 +163,14 @@ export default function SantaLettersPage() {
 
       if (response.ok) {
         await response.json();
-        alert('Queue processing triggered! Check console for details.');
+        notify('success', 'Queue processing triggered.');
         await fetchLetters();
       } else {
-        alert('Failed to trigger queue processing');
+        notify('error', 'Failed to trigger queue processing');
       }
     } catch (error) {
       console.error('Error triggering queue:', error);
-      alert('Failed to trigger queue processing');
+      notify('error', 'Failed to trigger queue processing');
     } finally {
       setUpdating(false);
     }

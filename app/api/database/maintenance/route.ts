@@ -6,7 +6,9 @@ import {
   runQuickMaintenance, 
   archiveOldData,
   getDatabaseStats,
-  checkIntegrity 
+  checkIntegrity,
+  maintenanceFailureMessage,
+  parseDaysToKeep,
 } from '@/lib/db-maintenance';
 import { isAdminSession } from '@/lib/auth-helpers';
 
@@ -39,10 +41,17 @@ export async function POST(request: NextRequest) {
         result = runQuickMaintenance();
         break;
 
-      case 'archive':
-        const daysToKeep = options?.daysToKeep || 365;
+      case 'archive': {
+        const daysToKeep = parseDaysToKeep(options?.daysToKeep ?? 365);
+        if (daysToKeep === null) {
+          return NextResponse.json(
+            { error: 'daysToKeep must be a whole number from 1 to 3650' },
+            { status: 400 }
+          );
+        }
         result = archiveOldData(daysToKeep);
         break;
+      }
 
       case 'stats':
         result = getDatabaseStats();
@@ -57,6 +66,12 @@ export async function POST(request: NextRequest) {
           { error: 'Invalid action. Use: full, quick, archive, stats, or integrity' },
           { status: 400 }
         );
+    }
+
+    // The helpers report failure in their result instead of throwing
+    const failure = maintenanceFailureMessage(result);
+    if (failure) {
+      return NextResponse.json({ success: false, action, error: failure }, { status: 500 });
     }
 
     return NextResponse.json({

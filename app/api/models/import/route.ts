@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { toErrorMessage } from '@/lib/api-errors';
 import { requireAdmin } from '@/lib/auth-helpers';
 import db from '@/lib/database';
+import { ModelImportError, replaceFppModels, type ModelImportRow } from '@/lib/model-import';
 import ExcelJS from 'exceljs';
 
 export async function POST(request: NextRequest) {
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Convert worksheet to JSON array
-    const data: Record<string, unknown>[] = [];
+    const data: ModelImportRow[] = [];
     const headers: string[] = [];
     
     worksheet.eachRow((row, rowNumber) => {
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
           }
         });
         if (Object.keys(rowData).length > 0) {
-          data.push(rowData);
+          data.push({ rowNumber, values: rowData });
         }
       }
     });
@@ -74,66 +75,22 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Clear existing data
-    db.prepare('DELETE FROM fpp_models').run();
-
-    // Insert models
-    const insertModel = db.prepare(`
-      INSERT INTO fpp_models (
-        model_name, display_as, description, string_type, string_count,
-        node_count, light_count, channels_per_node, channel_count,
-        start_channel, start_channel_no, end_channel_no, universe_start_channel,
-        controller_name, controller_type, controller_ip, controller_ports,
-        protocol, universe_id, universe_channel, controller_channel,
-        connection_protocol, connection_attributes, est_current_amps,
-        buffer_dimensions
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    let imported = 0;
-    const errors: string[] = [];
-
-    for (const row of data) {
-      try {
-        insertModel.run(
-          row['Model Name'] || 'Unknown',
-          row['Display As'],
-          row['Description'],
-          row['String Type'],
-          row['String Count'],
-          row['Node Count'],
-          row['Light Count'],
-          row['Channels Per Node'],
-          row['Channel Count'],
-          row['Start Channel'],
-          row['Start Channel No'],
-          row['End Channel No'],
-          row['#Universe(or id):Start Channel'],
-          row['Controller Name'],
-          row['Controller Type'],
-          row['IP'],
-          row['Controller Ports'],
-          row['Protocol'],
-          row['Universe/Id'],
-          row['Universe Channel'],
-          row['Controller Channel'],
-          row['Connection Protocol'],
-          row['Connection Attributes'],
-          row['Est Current (Amps)'],
-          row['Default Buffer W x H']
-        );
-        imported++;
-      } catch (error) {
-        errors.push(`Row ${imported + 1}: ${error instanceof Error ? error.message : String(error)}`);
+    // Replace the models all at once: if any row can't be stored, the existing models are kept
+    let imported: number;
+    try {
+      ({ imported } = replaceFppModels(db, data));
+    } catch (error) {
+      if (error instanceof ModelImportError) {
+        return NextResponse.json({ error: error.message, problems: error.problems }, { status: 400 });
       }
+      throw error;
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       imported,
       total: data.length,
-      errors: errors.length > 0 ? errors : undefined,
-      message: `Successfully imported ${imported} of ${data.length} models`
+      message: `Successfully imported ${imported} models`
     });
 
   } catch (error) {

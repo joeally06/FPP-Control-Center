@@ -48,7 +48,7 @@ export default function ImageUpload({
     e.target.value = '';
   }
 
-  function onDrop(e: React.DragEvent<HTMLDivElement>) {
+  function onDrop(e: React.DragEvent<HTMLButtonElement>) {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
     if (file) handleFile(file);
@@ -88,11 +88,13 @@ export default function ImageUpload({
           </div>
         </div>
       ) : (
-        <div
+        <button
+          type="button"
           onClick={() => !uploading && inputRef.current?.click()}
           onDrop={onDrop}
           onDragOver={(e) => e.preventDefault()}
-          className="flex h-24 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-adm-control-line bg-adm-surface transition-colors hover:border-adm-faint"
+          disabled={uploading}
+          className="flex h-24 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-adm-control-line bg-adm-surface transition-colors hover:border-adm-faint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-adm-accent"
         >
           {uploading ? (
             <span className="text-sm text-adm-muted">Uploading…</span>
@@ -101,11 +103,11 @@ export default function ImageUpload({
               <ImagePlus className="h-6 w-6 text-adm-faint" aria-hidden="true" />
               <span className="px-2 text-center text-xs text-adm-muted">
                 Click or drag &amp; drop an image<br />
-                <span className="text-adm-faint">JPEG, PNG, GIF, WebP, SVG — max 5 MB</span>
+                <span className="text-adm-faint">JPEG, PNG, GIF, WebP — max 5 MB</span>
               </span>
             </>
           )}
-        </div>
+        </button>
       )}
 
       {error && <p className="text-xs text-adm-danger">{error}</p>}
@@ -113,7 +115,7 @@ export default function ImageUpload({
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+        accept="image/jpeg,image/png,image/gif,image/webp"
         className="hidden"
         onChange={onInputChange}
       />

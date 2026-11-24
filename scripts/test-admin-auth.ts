@@ -68,7 +68,7 @@ const rel = (file: string) => path.relative(root, file).split(path.sep).join('/'
 
 const roleCheck = /\brole\s*[!=]==?\s*['"]admin['"]/;
 const apiRoutes = walk(path.join(root, 'app', 'api')).filter((file) => file.endsWith('route.ts'));
-// proxy.ts gates /dashboard and /settings, so it is held to the same rule
+// proxy.ts gates the admin pages (isAdminPath in lib/session-expiry.ts), so it is held to the same rule
 const roleOffenders = [...apiRoutes, path.join(root, 'proxy.ts')].filter((file) => roleCheck.test(fs.readFileSync(file, 'utf-8'))).map(rel);
 assert.deepStrictEqual(roleOffenders, [], `API routes and proxy.ts must use isAdminSession()/isAdminEmail(), not the JWT role: ${roleOffenders.join(', ')}`);
 

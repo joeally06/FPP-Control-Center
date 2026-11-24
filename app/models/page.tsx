@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Search, Upload, Zap, Cable, Info, Power, File, X, Edit, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import AdminLayout from '@/components/AdminLayout';
 import EditModelModal from '@/components/EditModelModal';
+import { useConfirm, useNotify } from '@/components/admin/AdminFeedback';
 import { card, eyebrow, button, accentButton, smallButton, smallDangerButton, field, sizedField, textLink, notice, badge } from '@/components/admin/ui-classes';
 
 interface Model {
@@ -27,6 +28,8 @@ interface Model {
 }
 
 export default function ModelsPage() {
+  const confirmAction = useConfirm();
+  const notify = useNotify();
   const [models, setModels] = useState<Model[]>([]);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
@@ -73,7 +76,7 @@ export default function ModelsPage() {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-        alert('Please select an Excel file (.xlsx or .xls)');
+        notify('error', 'Please select an Excel file (.xlsx or .xls)');
         return;
       }
       setSelectedFile(file);
@@ -82,11 +85,16 @@ export default function ModelsPage() {
 
   const importModels = async () => {
     if (!selectedFile) {
-      alert('Please select a file first');
+      notify('error', 'Please select a file first');
       return;
     }
 
-    if (!confirm(`Import ${selectedFile.name}? This will replace all existing model data.`)) {
+    if (!(await confirmAction({
+      title: `Import ${selectedFile.name}?`,
+      text: 'This will replace all existing model data.',
+      confirmLabel: 'Import',
+      danger: true,
+    }))) {
       return;
     }
 
@@ -103,23 +111,23 @@ export default function ModelsPage() {
       const result = await res.json();
 
       if (result.success) {
-        alert(`✅ ${result.message}`);
+        notify('success', result.message);
         setShowUploadModal(false);
         setSelectedFile(null);
         fetchModels();
       } else {
-        alert(`❌ Import failed: ${result.error}`);
+        notify('error', `Import failed: ${result.error}`);
       }
     } catch (error) {
       console.error('Import error:', error);
-      alert('❌ Import failed: Network error');
+      notify('error', 'Import failed: Network error');
     } finally {
       setImporting(false);
     }
   };
 
   const deleteModel = async (id: number, name: string) => {
-    if (!confirm(`Delete "${name}"?\n\nThis cannot be undone.`)) {
+    if (!(await confirmAction({ title: `Delete "${name}"?`, text: 'This cannot be undone.', confirmLabel: 'Delete', danger: true }))) {
       return;
     }
 
@@ -131,14 +139,14 @@ export default function ModelsPage() {
       const result = await res.json();
 
       if (result.success) {
-        alert('✅ Model deleted successfully');
+        notify('success', 'Model deleted successfully');
         fetchModels();
       } else {
-        alert(`❌ Delete failed: ${result.error}`);
+        notify('error', `Delete failed: ${result.error}`);
       }
     } catch (error) {
       console.error('Delete error:', error);
-      alert('❌ Delete failed: Network error');
+      notify('error', 'Delete failed: Network error');
     }
   };
 
@@ -339,8 +347,19 @@ export default function ModelsPage() {
           <div key={model.id} className={`${card} transition-colors hover:border-adm-control-line`}>
             {/* Header - Always Visible */}
             <div
-              className="cursor-pointer"
+              role="button"
+              tabIndex={0}
+              aria-expanded={isExpanded}
+              aria-controls={`model-details-${model.id}`}
+              className="cursor-pointer rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-adm-accent"
               onClick={() => toggleModelExpansion(model.id)}
+              onKeyDown={(e) => {
+                // Enter and Space open and close it, like a button
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  toggleModelExpansion(model.id);
+                }
+              }}
             >
               <div className="mb-3 flex items-start justify-between">
                 <div className="min-w-0 flex-1">
@@ -390,7 +409,7 @@ export default function ModelsPage() {
 
             {/* Expanded Details */}
             {isExpanded && (
-              <div className="mt-4 space-y-3 border-t border-adm-line pt-4">
+              <div id={`model-details-${model.id}`} className="mt-4 space-y-3 border-t border-adm-line pt-4">
                 {/* IP & Protocol */}
                 <div className="flex items-center gap-2 text-sm">
                   <Info className="h-4 w-4 shrink-0 text-adm-faint" aria-hidden="true" />

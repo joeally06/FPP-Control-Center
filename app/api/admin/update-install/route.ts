@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { spawn } from 'child_process';
 import { existsSync, mkdirSync, writeFileSync, statSync, unlinkSync, realpathSync } from 'fs';
 import path from 'path';
 import { isAdminSession } from '@/lib/auth-helpers';
+import { startDetached } from '@/lib/start-detached';
 
 const LOGS_DIR = path.join(/*turbopackIgnore: true*/ process.cwd(), 'logs');
 const STATUS_FILE = path.join(LOGS_DIR, 'update_status');
@@ -120,24 +120,25 @@ export async function POST() {
 
     console.log(`[Update Install] Spawning daemon: ${SCRIPT_PATH}`);
 
-    // SECURITY: Validate and canonicalize project path
-    const secureProjectPath = getSecureProjectPath();
-    
     // Spawn daemon using setsid to create a truly independent process session
     // This ensures the daemon survives even when fpp-control is killed
-    const daemon = spawn('setsid', ['bash', SCRIPT_PATH, secureProjectPath], {
-      detached: true,
-      stdio: 'ignore',
-      cwd: secureProjectPath,
-      env: {
-        ...process.env,
-        PATH: '/usr/local/bin:/usr/bin:/bin', // Restrict PATH for security
-      }
-    });
+    let pid: number | undefined;
+    try {
+      // SECURITY: Validate and canonicalize project path
+      const secureProjectPath = getSecureProjectPath();
 
-    daemon.unref();
-
-    const pid = daemon.pid;
+      pid = await startDetached('setsid', ['bash', SCRIPT_PATH, secureProjectPath], {
+        cwd: secureProjectPath,
+        env: {
+          ...process.env,
+          PATH: '/usr/local/bin:/usr/bin:/bin', // Restrict PATH for security
+        }
+      });
+    } catch (error) {
+      // Nothing is running, so don't leave the page waiting on "starting"
+      try { writeFileSync(STATUS_FILE, 'FAILED'); } catch {}
+      throw error;
+    }
     console.log(`[Update Install] Daemon spawned with PID: ${pid}`);
 
     return NextResponse.json({

@@ -1,13 +1,29 @@
 /**
  * What the admin pages do when the sign-in has run out (it lasts 30 minutes): the next save would
  * only fail with an error, so send the admin to the sign-in page instead, which returns them to
- * the page they were on. Browser-side only; the API routes still check the session themselves.
+ * the page they were on. The admin page list is shared with proxy.ts, which sends strangers to sign in;
+ * the API routes still check the session themselves.
  */
 
-const ADMIN_PAGES = ['/dashboard', '/settings', '/admin', '/analytics', '/models', '/device-status', '/theme-settings'];
+const ADMIN_PAGES = ['/dashboard', '/settings', '/admin', '/analytics', '/models', '/device-status', '/theme-settings', '/santa-letters'];
+
+/**
+ * The path as the router would read it: percent-encoding decoded (/%61nalytics is /analytics), repeated slashes
+ * collapsed, and letter case ignored, so a differently written address can't slip past the admin check.
+ */
+function normalizedPath(pathname: string): string {
+  let path = pathname;
+  try {
+    path = decodeURIComponent(path);
+  } catch {
+    // Not valid percent-encoding: judge it as written
+  }
+  return path.replace(/\/{2,}/g, '/').toLowerCase();
+}
 
 export function isAdminPath(pathname: string): boolean {
-  return ADMIN_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`));
+  const path = normalizedPath(pathname);
+  return ADMIN_PAGES.some((page) => path === page || path.startsWith(`${page}/`));
 }
 
 /**

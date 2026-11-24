@@ -28,10 +28,15 @@ function fakeWindow(reply: (url: string) => Response) {
 
 async function main() {
   print('Test 1: which pages are admin pages');
-  for (const p of ['/dashboard', '/settings', '/settings/jukebox', '/admin', '/analytics', '/models', '/device-status', '/theme-settings']) {
+  for (const p of ['/dashboard', '/settings', '/settings/jukebox', '/admin', '/analytics', '/models', '/device-status', '/theme-settings', '/santa-letters']) {
     assert.strictEqual(isAdminPath(p), true, p);
   }
-  for (const p of ['/', '/jukebox', '/trivia', '/santa', '/auth/signin', '/display', '/settingsfoo', '/privacy']) {
+  // The same pages written differently: encoded letters, doubled slashes, capitals, an encoded slash
+  for (const p of ['/%61nalytics', '/%73ettings/jukebox', '//analytics', '/Analytics', '/SETTINGS/jukebox', '/analytics%2Fx', '/analytics/']) {
+    assert.strictEqual(isAdminPath(p), true, p);
+  }
+  assert.strictEqual(isAdminPath('/%E0%A4%A'), false, 'invalid percent-encoding does not throw');
+  for (const p of ['/', '/jukebox', '/trivia', '/santa', '/santa/confirm', '/auth/signin', '/display', '/settingsfoo', '/privacy']) {
     assert.strictEqual(isAdminPath(p), false, p);
   }
 

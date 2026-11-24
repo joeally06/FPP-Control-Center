@@ -10,6 +10,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import TimezoneIndicator from './TimezoneIndicator';
+import { useLeave, useNavigationGuard } from './admin/AdminFeedback';
 import FPPStatusIndicator from './FPPStatusIndicator';
 
 interface NavItem {
@@ -60,6 +61,8 @@ function initials(name: string | null | undefined) {
 
 export default function AdminNavigation() {
   const pathname = usePathname();
+  const { guardLink, hasUnsaved } = useNavigationGuard();
+  const leaveThen = useLeave();
   const { data: session } = useSession();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -122,7 +125,9 @@ export default function AdminNavigation() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  onClick={closeDrawer}
+                  // With unsaved edits the drawer stays open until the visitor answers, so cancelling leaves them where they were
+                  onClick={() => { if (!hasUnsaved()) closeDrawer(); }}
+                  onNavigate={guardLink(item.href, closeDrawer)}
                   aria-current={active ? 'page' : undefined}
                   className={`flex min-h-10 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium transition-colors ${
                     active ? 'bg-adm-raised text-white' : 'text-adm-soft hover:bg-adm-hover hover:text-adm-text'
@@ -156,7 +161,7 @@ export default function AdminNavigation() {
                 <p className="text-xs capitalize text-adm-muted">{session.user.role || 'User'}</p>
               </div>
               <button
-                onClick={() => signOut({ callbackUrl: '/jukebox' })}
+                onClick={() => void leaveThen(() => signOut({ callbackUrl: '/jukebox' }))}
                 aria-label="Sign out"
                 title="Sign out"
                 className="grid h-10 w-10 place-items-center rounded-lg text-adm-soft hover:bg-adm-hover hover:text-adm-text"
@@ -215,6 +220,7 @@ export default function AdminNavigation() {
             <Link
               key={item.href}
               href={item.href}
+              onNavigate={guardLink(item.href)}
               aria-current={active ? 'page' : undefined}
               className={`flex min-h-16 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium ${
                 active ? 'text-adm-accent' : 'text-adm-muted'

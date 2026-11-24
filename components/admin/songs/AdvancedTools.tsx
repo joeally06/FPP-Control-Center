@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { RefreshCw, Trash2 } from 'lucide-react';
 import { AdminH3, AdminTextMuted } from '@/components/admin/Typography';
+import { useConfirm } from '@/components/admin/AdminFeedback';
 import { card, iconDangerButton, notice, smallButton, smallDangerButton } from '@/components/admin/ui-classes';
 
 import { LocalAudioFile, Message, formatFileSize } from './song-ui';
 export default function AdvancedTools({ onChanged, audioFiles }: { onChanged: () => Promise<void>; audioFiles: string[] | null }) {
+  const confirmAction = useConfirm();
   const [allFiles, setFiles] = useState<LocalAudioFile[] | null>(null);
   const files = allFiles && audioFiles ? allFiles.filter((file) => audioFiles.includes(file.name)) : allFiles;
   const [busy, setBusy] = useState<string | null>(null);
@@ -24,8 +26,8 @@ export default function AdvancedTools({ onChanged, audioFiles }: { onChanged: ()
   }
 
   async function deleteFiles(names: string[]) {
-    const prompt = names.length === 1 ? `Delete "${names[0]}"? This cannot be undone.` : `Delete all ${names.length} audio files? This cannot be undone.`;
-    if (!confirm(prompt)) return;
+    const title = names.length === 1 ? `Delete "${names[0]}"?` : `Delete all ${names.length} audio files?`;
+    if (!(await confirmAction({ title, text: 'This cannot be undone.', confirmLabel: 'Delete', danger: true }))) return;
 
     setBusy(names.length === 1 ? names[0] : 'all');
     setMessage(null);

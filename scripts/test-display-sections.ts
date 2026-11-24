@@ -20,7 +20,10 @@ assert.ok(loading.includes('Loading display settings'));
 print('Test 2: image upload offers a drop area, or the current image with Replace and Remove');
 const empty = html(createElement(ImageUpload, { label: 'Logo', currentUrl: '', slot: 'logo', onUploaded: noop, onClear: noop }));
 assert.ok(empty.includes('Click or drag &amp; drop an image') && empty.includes('max 5 MB'));
-assert.ok(empty.includes('accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"'));
+assert.ok(empty.includes('accept="image/jpeg,image/png,image/gif,image/webp"'));
+assert.ok(/<button type="button"[^>]*>[\s\S]*Click or drag &amp; drop an image/.test(empty), 'the empty drop area is a real button (keyboard users can reach it)');
+// (the icon is an inline <svg> element, so look for the file type and the word, not the letters)
+assert.ok(!empty.includes('image/svg+xml') && !/\bSVG\b/.test(empty), 'SVG uploads are not offered');
 assert.ok(!empty.includes('Replace'));
 const filled = html(createElement(ImageUpload, { label: 'Logo', currentUrl: '/uploads/display/logo.png', slot: 'logo', onUploaded: noop, onClear: noop }));
 assert.ok(filled.includes('src="/uploads/display/logo.png"') && filled.includes('alt="Logo"'));

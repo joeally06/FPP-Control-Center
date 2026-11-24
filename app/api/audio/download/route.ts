@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { writeFile, mkdir, readFile } from 'fs/promises';
+import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { getFppUrl, fetchFpp } from '@/lib/fpp-config';
 import { isAdminSession } from '@/lib/auth-helpers';
+import { updateAudioMappings } from '@/lib/audio-mapping';
+import { DownloadTooLargeError, MAX_AUDIO_DOWNLOAD_BYTES, readBodyLimited } from '@/lib/limited-download';
 
 const AUDIO_DIR = join(process.cwd(), 'public', 'audio');
-const DATA_DIR = join(process.cwd(), 'data');
-const MAPPING_FILE = join(DATA_DIR, 'audio-mapping.json');
 
 /**
  * POST /api/audio/download
@@ -163,9 +163,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get the audio content
-    const audioBuffer = await audioRes.arrayBuffer();
-    const audioBytes = Buffer.from(audioBuffer);
+    // Get the audio content: stops at the size limit, and the 60 s deadline above still applies while it downloads
+    const audioBytes = await readBodyLimited(audioRes, MAX_AUDIO_DOWNLOAD_BYTES);
 
     // Write to local audio directory
     const localPath = join(AUDIO_DIR, audioFileName);
@@ -175,28 +174,8 @@ export async function POST(request: NextRequest) {
 
     // Auto-create mapping: sequence → audio file
     try {
-      // Ensure data directory exists
-      if (!existsSync(DATA_DIR)) {
-        await mkdir(DATA_DIR, { recursive: true, mode: 0o755 });
-      }
-
-      // Load existing mappings
-      let mappings: Record<string, string> = {};
-      if (existsSync(MAPPING_FILE)) {
-        try {
-          const content = await readFile(MAPPING_FILE, 'utf-8');
-          mappings = JSON.parse(content);
-        } catch {
-          // Start fresh if file is corrupted
-          mappings = {};
-        }
-      }
-
-      // Add new mapping
-      mappings[sequenceName] = audioFileName;
-      
-      // Save mappings
-      await writeFile(MAPPING_FILE, JSON.stringify(mappings, null, 2), { mode: 0o644 });
+      // One update at a time, whole file replaced: a download running beside another can't undo its mapping
+      await updateAudioMappings((current) => ({ ...current, [sequenceName]: audioFileName }));
       console.log(`[Audio Download] Auto-mapped: "${sequenceName}" → "${audioFileName}"`);
     } catch (mappingError) {
       // Don't fail the download if mapping fails
@@ -214,6 +193,13 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[Audio Download] Error:', error instanceof Error ? error.message : String(error));
     
+    if (error instanceof DownloadTooLargeError) {
+      return NextResponse.json(
+        { error: `File too large. Maximum size is ${MAX_AUDIO_DOWNLOAD_BYTES / 1024 / 1024}MB` },
+        { status: 413 }
+      );
+    }
+
     if (error instanceof Error && error.name === 'TimeoutError') {
       return NextResponse.json(
         { error: 'Download timed out - file may be too large' },

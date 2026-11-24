@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { X, Save } from 'lucide-react';
 // field is a handleChange parameter below, so the shared input class is imported under another name
 import { button, accentButton, field as fieldClass } from '@/components/admin/ui-classes';
+import { useNotify } from '@/components/admin/AdminFeedback';
 
 interface Model {
   id: number;
@@ -32,6 +33,7 @@ interface EditModelModalProps {
 }
 
 export default function EditModelModal({ model, onClose, onSave }: EditModelModalProps) {
+  const notify = useNotify();
   const [formData, setFormData] = useState(model);
   const [saving, setSaving] = useState(false);
 
@@ -53,15 +55,15 @@ export default function EditModelModal({ model, onClose, onSave }: EditModelModa
       const result = await res.json();
 
       if (result.success) {
-        alert('✅ Model updated successfully!');
+        notify('success', 'Model updated successfully!');
         onSave();
         onClose();
       } else {
-        alert(`❌ Update failed: ${result.error}`);
+        notify('error', `Update failed: ${result.error}`);
       }
     } catch (error) {
       console.error('Update error:', error);
-      alert('❌ Update failed: Network error');
+      notify('error', 'Update failed: Network error');
     } finally {
       setSaving(false);
     }

@@ -7,9 +7,10 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import crypto from 'crypto';
 import { isAdminSession } from '@/lib/auth-helpers';
+import { DownloadTooLargeError, MAX_AUDIO_DOWNLOAD_BYTES, readBodyLimited } from '@/lib/limited-download';
 
 const AUDIO_DIR = join(process.cwd(), 'public', 'audio');
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB limit
+const DOWNLOAD_TIMEOUT_MS = 60_000; // the whole download, not just the wait for the first byte
 
 /**
  * POST /api/fpp/media/download
@@ -75,20 +76,15 @@ export async function POST(request: NextRequest) {
     console.log('[FPP Media Download] Sanitized filename:', sanitized);
 
 
-    // SECURITY: Download with timeout and size limit
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-
+    // SECURITY: Download with a time limit that covers the whole download (headers and body) and a size limit
     // FPP serves files from /api/file/Music/ directory
     const response = await fetchFpp(
       `${getFppUrl()}/api/file/Music/${encodeURIComponent(filename)}`,
       {
         method: 'GET',
-        signal: controller.signal
+        signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS)
       }
     );
-
-    clearTimeout(timeoutId);
 
     if (!response.ok) {
       console.error('[FPP Media Download] FPP returned status:', response.status);
@@ -111,26 +107,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // SECURITY: Check Content-Length before downloading
-    const contentLength = response.headers.get('content-length');
-    if (contentLength && parseInt(contentLength) > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB` },
-        { status: 413 }
-      );
-    }
-
-    const arrayBuffer = await response.arrayBuffer();
-    
-    // SECURITY: Verify size after download
-    if (arrayBuffer.byteLength > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: 'File exceeds maximum allowed size' },
-        { status: 413 }
-      );
-    }
-
-    const buffer = Buffer.from(arrayBuffer);
+    // SECURITY: Refuses a file over the limit from its announced size, or as soon as it passes the limit while downloading
+    const buffer = await readBodyLimited(response, MAX_AUDIO_DOWNLOAD_BYTES);
 
     // SECURITY: Validate audio file magic bytes (basic check)
     const isValidAudio = validateAudioFile(buffer, ext);
@@ -177,7 +155,15 @@ export async function POST(request: NextRequest) {
     console.error('[FPP Media Download] Error:', error instanceof Error ? error.message : String(error));
     
     // SECURITY: Don't expose internal error details
-    if (error instanceof Error && error.name === 'AbortError') {
+    if (error instanceof DownloadTooLargeError) {
+      return NextResponse.json(
+        { error: `File too large. Maximum size is ${MAX_AUDIO_DOWNLOAD_BYTES / 1024 / 1024}MB` },
+        { status: 413 }
+      );
+    }
+
+    // A signal timeout reports TimeoutError (a manual abort reports AbortError)
+    if (error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
       return NextResponse.json(
         { error: 'Download timeout' },
         { status: 504 }

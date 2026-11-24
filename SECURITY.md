@@ -84,6 +84,10 @@ Content-Security-Policy: [strict CSP]
 Permissions-Policy: camera=(), microphone=(), geolocation=()
 ```
 
+**Admin pages (implemented):**
+- `proxy.ts` sends anyone who is not signed in as an admin away from the admin pages (`/settings`, `/analytics`, `/models`, `/device-status`, `/santa-letters`, `/theme-settings`, `/admin`) to the sign-in page, which returns them to the page they asked for. The list is `isAdminPath()` in `lib/session-expiry.ts`.
+- This only keeps the pages themselves from loading. Every API route still checks the caller itself (`scripts/test-api-auth.ts` enforces it for each handler). The home page `/` is not gated: visitors who open the bare address are sent on to the jukebox.
+
 **Production Hardening (implemented):**
 - `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload` (HSTS) — now enabled via `next.config.ts` on production builds.
 
@@ -101,6 +105,10 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 - `unsafe-inline` and `unsafe-eval` are still allowed for scripts (Next.js needs them without a nonce setup)
 - Names no LAN address: the server makes every FPP and Ollama call, never the browser
 - Prevents clickjacking with `frame-ancestors 'self'` (the visitor-page preview on Settings → Jukebox and the digital sign preview on Settings → Digital Sign are framed from the same site; those two paths send `X-Frame-Options: SAMEORIGIN`, every other page `DENY`)
+
+**Display uploads (`POST /api/display/upload`, admin only):**
+- Logo, background and slideshow pictures must be JPEG, PNG, GIF or WebP. SVG is refused because it can carry a script that runs when its address is opened.
+- The file's real format is checked (with `sharp`), not only the type the browser reports. An SVG uploaded earlier for a slot is deleted when that slot gets a new picture.
 
 **Visitor analytics (`POST /api/analytics/track`):**
 - Rate limited per IP (60 requests a minute, 10 new visits a minute)

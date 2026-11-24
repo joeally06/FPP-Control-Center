@@ -5,6 +5,7 @@ import { formatDateTime, getUtcNow } from '@/lib/time-utils';
 import { RefreshCw, Check } from 'lucide-react';
 import { AdminH2, AdminH3, AdminH4, AdminTextSmall, AdminTextTiny } from './admin/Typography';
 import { insetBox, eyebrow, button, accentButton, notice } from './admin/ui-classes';
+import { useConfirm } from './admin/AdminFeedback';
 import { TIMING } from '@/lib/constants';
 
 interface UpdateStatus {
@@ -18,6 +19,7 @@ interface UpdateStatus {
 }
 
 export default function UpdateChecker() {
+  const confirmAction = useConfirm();
   const [status, setStatus] = useState<UpdateStatus | null>(null);
   const [hasUpdates, setHasUpdates] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -362,17 +364,19 @@ export default function UpdateChecker() {
 
   // Install update
   const installUpdate = async () => {
-    if (!confirm(
-      '⚠️  System Update\n\n' +
-      'This will:\n' +
-      '1. Stop services and backup data\n' +
-      '2. Download latest code from GitHub\n' +
-      '3. Install dependencies and rebuild\n' +
-      '4. Restart services\n\n' +
-      'Expected downtime: 2-3 minutes\n' +
-      'You\'ll see live progress below.\n\n' +
-      'Continue?'
-    )) {
+    if (!(await confirmAction({
+      title: 'Install the system update?',
+      text:
+        'This will:\n' +
+        '1. Stop services and backup data\n' +
+        '2. Download latest code from GitHub\n' +
+        '3. Install dependencies and rebuild\n' +
+        '4. Restart services\n\n' +
+        'Expected downtime: 2-3 minutes\n' +
+        "You'll see live progress below.",
+      confirmLabel: 'Install update',
+      danger: true,
+    }))) {
       return;
     }
 

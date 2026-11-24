@@ -23,6 +23,7 @@ import { useSession } from 'next-auth/react';
 import { TIMING } from '@/lib/constants';
 import { CircleCheck, CircleX, RefreshCw, Wrench } from 'lucide-react';
 import { card, insetBox, eyebrow, accentButton, notice } from '@/components/admin/ui-classes';
+import { useConfirm } from '@/components/admin/AdminFeedback';
 
 interface CircuitBreakerStats {
   circuit: {
@@ -52,6 +53,7 @@ interface CircuitBreakerStats {
 }
 
 export default function CircuitBreakerWidget() {
+  const confirmAction = useConfirm();
   const { data: session } = useSession();
   const [stats, setStats] = useState<CircuitBreakerStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,7 +79,12 @@ export default function CircuitBreakerWidget() {
 
   // Manual reset circuit breaker
   const handleReset = async () => {
-    if (!confirm('Are you sure you want to manually reset the circuit breaker?\n\nThis should only be done if FPP is back online but the circuit hasn\'t recovered automatically.')) {
+    if (!(await confirmAction({
+      title: 'Manually reset the circuit breaker?',
+      text: "This should only be done if FPP is back online but the circuit hasn't recovered automatically.",
+      confirmLabel: 'Reset',
+      danger: true,
+    }))) {
       return;
     }
 

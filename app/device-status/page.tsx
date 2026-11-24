@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/components/AdminLayout';
+import { useNotify } from '@/components/admin/AdminFeedback';
 import MonitoringSettings from '@/components/admin/MonitoringSettings';
 import { formatDateTime } from '@/lib/time-utils';
 import { TIMING } from '@/lib/constants';
@@ -45,6 +46,7 @@ interface MonitoringSchedule {
 }
 
 export default function DeviceStatusPage() {
+  const notify = useNotify();
   const [devices, setDevices] = useState<Device[]>([]);
   const [statuses, setStatuses] = useState<Record<string, DeviceStatus>>({});
   const [loading, setLoading] = useState(true);
@@ -168,7 +170,7 @@ export default function DeviceStatusPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.error || 'Failed to add device');
+        notify('error', data.error || 'Failed to add device');
         return;
       }
 
@@ -176,7 +178,7 @@ export default function DeviceStatusPage() {
       await loadDeviceStatuses();
     } catch (error) {
       console.error('Failed to add device:', error);
-      alert('Failed to add device');
+      notify('error', 'Failed to add device');
     }
   }
 
@@ -191,7 +193,7 @@ export default function DeviceStatusPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.error || 'Failed to update device');
+        notify('error', data.error || 'Failed to update device');
         return;
       }
 
@@ -199,7 +201,7 @@ export default function DeviceStatusPage() {
       await loadDeviceStatuses();
     } catch (error) {
       console.error('Failed to update device:', error);
-      alert('Failed to update device');
+      notify('error', 'Failed to update device');
     }
   }
 
@@ -214,7 +216,7 @@ export default function DeviceStatusPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.error || 'Failed to delete device');
+        notify('error', data.error || 'Failed to delete device');
         return;
       }
 
@@ -222,7 +224,7 @@ export default function DeviceStatusPage() {
       await loadDeviceStatuses();
     } catch (error) {
       console.error('Failed to delete device:', error);
-      alert('Failed to delete device');
+      notify('error', 'Failed to delete device');
     }
   }
 

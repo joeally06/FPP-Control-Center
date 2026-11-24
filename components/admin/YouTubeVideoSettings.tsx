@@ -12,6 +12,7 @@ import {
   AdminLabel,
 } from '@/components/admin/Typography';
 import { card, insetBox, button, accentButton, smallButton, smallDangerButton, field, notice, badge } from '@/components/admin/ui-classes';
+import { useConfirm } from '@/components/admin/AdminFeedback';
 
 // A video as /api/admin/youtube-videos returns it
 interface YouTubeVideo {
@@ -25,6 +26,7 @@ interface YouTubeVideo {
 }
 
 export default function YouTubeVideoSettings() {
+  const confirmAction = useConfirm();
   const [videos, setVideos] = useState<YouTubeVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -145,7 +147,7 @@ export default function YouTubeVideoSettings() {
   };
 
   const handleDeleteVideo = async (videoId: number) => {
-    if (!confirm('Are you sure you want to delete this video?')) return;
+    if (!(await confirmAction({ title: 'Delete this video?', confirmLabel: 'Delete', danger: true }))) return;
 
     try {
       setSaving(true);

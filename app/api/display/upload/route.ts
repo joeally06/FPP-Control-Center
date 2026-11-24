@@ -6,10 +6,17 @@ import { join, resolve, sep } from 'path';
 import sharp from 'sharp';
 import { getSetting, updateSettings } from '@/lib/settings';
 import { isAdminSession } from '@/lib/auth-helpers';
+import { isAllowedImage, slideshowFilename } from '@/lib/display-uploads';
 
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+// No SVG: it can carry a script that runs when its address is opened. The real format is checked too (isAllowedImage).
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'display');
+
+/** An SVG uploaded for this slot before SVG was refused: removed when the slot gets a new picture */
+async function removeOldSvg(slot: string): Promise<void> {
+  await unlink(join(UPLOAD_DIR, `display-${slot}.svg`)).catch(() => { /* none there */ });
+}
 
 /** POST /api/display/upload
  *  Body: multipart/form-data with fields:
@@ -34,7 +41,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid slot' }, { status: 400 });
   }
   if (!ALLOWED_TYPES.includes(file.type)) {
-    return NextResponse.json({ error: 'File type not allowed. Use JPEG, PNG, GIF, WebP or SVG.' }, { status: 400 });
+    return NextResponse.json({ error: 'File type not allowed. Use JPEG, PNG, GIF or WebP.' }, { status: 400 });
   }
   if (file.size > MAX_SIZE) {
     return NextResponse.json({ error: 'File too large (max 5 MB)' }, { status: 400 });
@@ -42,6 +49,10 @@ export async function POST(request: NextRequest) {
 
   await mkdir(UPLOAD_DIR, { recursive: true });
   const rawBuffer = Buffer.from(await file.arrayBuffer() as ArrayBuffer);
+  // The type above is what the browser said; this is what the file is
+  if (!(await isAllowedImage(rawBuffer))) {
+    return NextResponse.json({ error: 'File is not a valid JPEG, PNG, GIF or WebP image.' }, { status: 400 });
+  }
 
   // ── Slideshow: append to the images array ──────────────────────────────────
   if (slot === 'slideshow') {
@@ -49,13 +60,12 @@ export async function POST(request: NextRequest) {
     if (existing.length >= 20) {
       return NextResponse.json({ error: 'Maximum 20 slideshow images allowed' }, { status: 400 });
     }
-    // Name by index to keep them ordered
-    const idx = existing.length;
     const croppedBuffer = await sharp(rawBuffer)
       .resize(1920, 1080, { fit: 'cover', position: 'centre' })
       .jpeg({ quality: 88, mozjpeg: true })
       .toBuffer();
-    const filename = `display-slideshow-${idx}.jpg`;
+    // A name of its own: the list order lives in the setting, not in the file names
+    const filename = slideshowFilename();
     await writeFile(join(UPLOAD_DIR, filename), croppedBuffer);
     const url = `/uploads/display/${filename}`;
     const updated = [...existing, url];
@@ -64,20 +74,22 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Background: 16:9 crop ──────────────────────────────────────────────────
-  if (slot === 'background' && file.type !== 'image/svg+xml') {
+  if (slot === 'background') {
     const croppedBuffer = await sharp(rawBuffer)
       .resize(1920, 1080, { fit: 'cover', position: 'centre' })
       .jpeg({ quality: 90, mozjpeg: true })
       .toBuffer();
     const filename = `display-background.jpg`;
     await writeFile(join(UPLOAD_DIR, filename), croppedBuffer);
+    await removeOldSvg(slot);
     return NextResponse.json({ url: `/uploads/display/${filename}` });
   }
 
   // ── Logo / other: save as-is ───────────────────────────────────────────────
-  const ext = file.type.split('/')[1].replace('svg+xml', 'svg');
+  const ext = file.type.split('/')[1];
   const filename = `display-${slot}.${ext}`;
   await writeFile(join(UPLOAD_DIR, filename), rawBuffer);
+  await removeOldSvg(slot);
   return NextResponse.json({ url: `/uploads/display/${filename}` });
 }
 
@@ -112,7 +124,7 @@ export async function DELETE(request: NextRequest) {
     console.warn('[Display Upload] Refusing to delete path outside upload dir:', existing[idx]);
   }
 
-  // Rebuild remaining list (re-number files)
+  // The remaining photos keep their own files and names
   const remaining = existing.filter((_, i) => i !== idx);
   updateSettings({ display_slideshow_images: JSON.stringify(remaining) });
 

@@ -60,7 +60,7 @@ db.pragma('mmap_size = 67108864');      // 64MB memory-mapped I/O
 **Available Functions:**
 1. `runFullMaintenance()` - ANALYZE + REINDEX + VACUUM
 2. `runQuickMaintenance()` - ANALYZE only (fast)
-3. `archiveOldData(days)` - Remove old records
+3. `archiveOldData(days)` - Remove old records (`days` is a whole number from 1 to 3650; anything else is refused and nothing is deleted)
 4. `getDatabaseStats()` - Get size, table counts, config
 5. `checkIntegrity()` - Verify database health
 6. `enableSlowQueryLogging(ms)` - Debug performance
@@ -83,6 +83,9 @@ POST /api/database/maintenance
   "options": { "daysToKeep": 365 }
 }
 ```
+
+`daysToKeep` must be a whole number from 1 to 3650 (default 365), otherwise the request is refused with 400.
+When a maintenance step fails the response is HTTP 500 with `{ "success": false, "error": "<reason>" }`.
 
 ### 6. Settings Page UI
 
