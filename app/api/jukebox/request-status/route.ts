@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getClientIP, getSongRequestRateLimit } from '@/lib/rate-limit';
 import { getUtcNow, getUtcOffset } from '@/lib/time-utils';
 import { debugLog } from '@/lib/logging';
+import { anonymizeIP } from '@/lib/privacy-utils';
 import db from '@/lib/database';
 import { countRecentRequests } from '@/lib/jukebox-queue';
 
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
       LIMIT 10
     `).all(requester_ip) as { id: number; sequence_name: string; created_at: string; status: string }[];
     
-    debugLog(`[Request Status DEBUG] Last 10 entries for IP ${requester_ip}:`);
+    debugLog(`[Request Status DEBUG] Last 10 entries for IP ${anonymizeIP(requester_ip)}:`);
     allEntries.forEach((entry) => {
       debugLog(`  ID ${entry.id}: ${entry.sequence_name} | ${entry.created_at} | ${entry.status}`);
     });
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
     const requestsUsed = countRecentRequests(db, requester_ip);
     const requestsRemaining = Math.max(0, rateLimit - requestsUsed);
 
-    debugLog(`[Request Status POLL] IP: ${requester_ip} | Rate Limit: ${rateLimit} | Used: ${requestsUsed} | Remaining: ${requestsRemaining}`);
+    debugLog(`[Request Status POLL] IP: ${anonymizeIP(requester_ip)} | Rate Limit: ${rateLimit} | Used: ${requestsUsed} | Remaining: ${requestsRemaining}`);
 
     return NextResponse.json({
       success: true,

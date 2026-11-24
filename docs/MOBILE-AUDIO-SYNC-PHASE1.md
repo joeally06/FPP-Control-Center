@@ -49,7 +49,7 @@ Implementation of admin tools to download and manage audio files from FPP for vi
   - Security: Path traversal prevention (double-checked)
   - Returns: `{ success, filename, size }`
 
-#### `/api/audio/mapping` (GET, POST, DELETE, PUT)
+#### `/api/audio/mapping` (GET, POST, DELETE, PUT) — removed later (no callers); the admin route is now `/api/audio/mappings`
 - **Purpose**: CRUD operations for sequence → audio mappings
 - **GET** (Public): Retrieve all mappings
   - Used by audio sync server
@@ -217,7 +217,7 @@ public/audio/*.aac
 app/api/fpp/media/list/route.ts (70 lines)
 app/api/fpp/media/download/route.ts (267 lines)
 app/api/fpp/media/local/route.ts (188 lines)
-app/api/audio/mapping/route.ts (372 lines)
+app/api/audio/mapping/route.ts (372 lines) (removed later)
 app/admin/media/page.tsx (24 lines)
 components/admin/MediaManager.tsx (610 lines)
 components/ui/button.tsx (37 lines)

@@ -111,9 +111,10 @@ async function main() {
   print('Test 8: every route that changes the mappings goes through updateAudioMappings');
   const routes = [
     ['app', 'api', 'audio', 'mappings', 'route.ts'],
-    ['app', 'api', 'audio', 'mapping', 'route.ts'],
     ['app', 'api', 'audio', 'download', 'route.ts'],
   ];
+  // The old singular route had no callers and is gone; /audio/mappings (the one the UI uses) and /audio/download remain
+  assert.ok(!fs.existsSync(path.join(process.cwd(), 'app', 'api', 'audio', 'mapping')), 'app/api/audio/mapping is gone');
   for (const parts of routes) {
     const source = fs.readFileSync(path.join(process.cwd(), ...parts), 'utf-8');
     const name = parts.slice(2, 4).join('/');

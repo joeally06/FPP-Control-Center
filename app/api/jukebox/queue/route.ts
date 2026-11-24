@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
       ORDER BY created_at DESC
     `).all(requester_ip) as RecentEntryRow[];
     
-    debugLog(`[Queue DEBUG] Entries in last hour for IP ${requester_ip}:`);
+    debugLog(`[Queue DEBUG] Entries in last hour for IP ${anonymizeIP(requester_ip)}:`);
     recentEntries.forEach((entry) => {
       debugLog(`  ID ${entry.id}: ${entry.sequence_name} | ${entry.created_at} | ${entry.status}`);
     });
@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
     const requestsRemaining = Math.max(0, rateLimit - requestsUsed);
     const requested = isPlaylist ? 'Playlist requested!' : 'Song requested!';
 
-    debugLog(`[Queue POST - AFTER INSERT] IP: ${requester_ip} | Rate Limit: ${rateLimit} | Used: ${requestsUsed} | Remaining: ${requestsRemaining}`);
+    debugLog(`[Queue POST - AFTER INSERT] IP: ${anonymizeIP(requester_ip)} | Rate Limit: ${rateLimit} | Used: ${requestsUsed} | Remaining: ${requestsRemaining}`);
 
     return NextResponse.json({ 
       success: true, 

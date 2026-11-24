@@ -7,6 +7,7 @@ import { existsSync } from 'fs';
 import { getFppUrl, fetchFpp } from '@/lib/fpp-config';
 import { isAdminSession } from '@/lib/auth-helpers';
 import { updateAudioMappings } from '@/lib/audio-mapping';
+import { isSafeAudioFileName } from '@/lib/audio-files';
 import { DownloadTooLargeError, MAX_AUDIO_DOWNLOAD_BYTES, readBodyLimited } from '@/lib/limited-download';
 
 const AUDIO_DIR = join(process.cwd(), 'public', 'audio');
@@ -131,6 +132,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'No matching audio file found on FPP', sequenceName },
         { status: 404 }
+      );
+    }
+
+    // SECURITY: the name becomes public/audio/<name>, which the web server serves. It may come from the request or
+    // from the FPP's media list, so it must be a plain audio file name either way (no folders, no x.html).
+    if (!isSafeAudioFileName(audioFileName)) {
+      console.warn(`[Audio Download] Refusing unsafe audio file name: ${JSON.stringify(audioFileName)}`);
+      return NextResponse.json(
+        { error: 'Invalid audio file name or type' },
+        { status: 400 }
       );
     }
 

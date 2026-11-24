@@ -149,19 +149,24 @@ Forces reload of `audio-mapping.json` without restarting server.
 
 ### Audio Mappings
 
-#### `GET /api/audio/mapping`
-Get all sequence → audio mappings (public)
+All mapping routes are admin only. (The older `/api/audio/mapping` route, which had no callers, was removed; the visitor phone sync reads the mappings inside the server.)
+
+#### `GET /api/audio/mappings`
+List all sequence → audio mappings
 
 **Response:**
 ```json
 {
-  "Jingle Bells": "jingle-bells.mp3",
-  "Silent Night": "silent-night.mp3"
+  "mappings": [
+    { "sequenceName": "Jingle Bells.fseq", "audioFile": "jingle-bells.mp3" },
+    { "sequenceName": "Silent Night.fseq", "audioFile": "silent-night.mp3" }
+  ],
+  "count": 2
 }
 ```
 
-#### `POST /api/audio/mapping`
-Create/update mapping (admin only)
+#### `POST /api/audio/mappings`
+Create or replace one mapping (`.fseq` is added to the sequence name if missing). Updates run one at a time and the file is replaced whole, so two requests at once cannot undo each other.
 
 **Request:**
 ```json
@@ -171,15 +176,7 @@ Create/update mapping (admin only)
 }
 ```
 
-#### `DELETE /api/audio/mapping`
-Delete mapping (admin only)
-
-**Request:**
-```json
-{
-  "sequenceName": "Jingle Bells"
-}
-```
+There is no delete route: a mapping is replaced by posting a new one for the same sequence.
 
 ### FPP Media
 
@@ -230,7 +227,7 @@ Delete local audio file (admin only)
 ### Authentication & Authorization
 - ✅ All admin operations require authenticated session
 - ✅ Role check: `session?.user?.role === 'admin'`
-- ✅ Public endpoints: `/api/audio/sync`, `/api/audio/mapping` (GET only)
+- ✅ Public endpoint: `/api/audio/sync` (the live stream, GET only; its reload POST is admin only)
 
 ### File Upload/Download Security
 - ✅ **Path Traversal Prevention**: Blocks `..`, `/`, `\` in filenames

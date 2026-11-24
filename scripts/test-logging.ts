@@ -39,7 +39,8 @@ print('Test 2: no log line writes a visitor IP address in full');
 // A visitor's address is personal data: log it through anonymizeIP() (lib/privacy-utils.ts). This reads one
 // line at a time, which is how every log call that names an IP is written today.
 const VISITOR_IP = /\$\{\s*(requester_ip|requesterIp|clientIP|clientIp|userIp)\s*\}/;
-const LOG_CALL = /console\.(log|warn|error|info)\(/;
+// debugLog() is quiet in production but prints in development and with JUKEBOX_DEBUG=true, so it counts too
+const LOG_CALL = /(console\.(log|warn|error|info)|debugLog)\(/;
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
